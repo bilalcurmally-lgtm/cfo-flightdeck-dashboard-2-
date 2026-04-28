@@ -1,11 +1,26 @@
-import { readSheet } from "read-excel-file/browser";
+import readXlsxFile, { readSheet } from "read-excel-file/browser";
 import type { ImportedRow } from "../finance/types";
 
 type ExcelInput = ArrayBuffer | File | Blob;
 
+export interface ParsedExcelSheet {
+  name: string;
+  rows: ImportedRow[];
+  rawRowCount: number;
+}
+
 export async function parseExcel(input: ExcelInput): Promise<ImportedRow[]> {
   const rows = await readSheet(input);
   return excelRowsToImportedRows(rows);
+}
+
+export async function parseExcelWorkbook(input: ExcelInput): Promise<ParsedExcelSheet[]> {
+  const sheets = await readXlsxFile(input);
+  return sheets.map((sheet, index) => ({
+    name: sheet.sheet || `Sheet ${index + 1}`,
+    rows: excelRowsToImportedRows(sheet.data),
+    rawRowCount: sheet.data.length
+  }));
 }
 
 export function excelRowsToImportedRows(rows: unknown[][]): ImportedRow[] {

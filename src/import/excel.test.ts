@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { excelRowsToImportedRows } from "./excel";
+import { excelRowsToImportedRows, type ParsedExcelSheet } from "./excel";
 
 describe("excelRowsToImportedRows", () => {
   it("turns worksheet rows into imported rows", () => {
@@ -24,5 +24,24 @@ describe("excelRowsToImportedRows", () => {
         ["", ""]
       ])
     ).toEqual([{ Date: "2026-03-01", column_2: "100" }]);
+  });
+
+  it("keeps parsed sheet metadata available for workbook selection", () => {
+    const sheets: ParsedExcelSheet[] = [
+      {
+        name: "Operating",
+        rows: excelRowsToImportedRows([
+          ["Date", "Amount"],
+          ["2026-03-01", 100]
+        ]),
+        rawRowCount: 2
+      }
+    ];
+
+    expect(sheets[0]).toEqual({
+      name: "Operating",
+      rows: [{ Date: "2026-03-01", Amount: "100" }],
+      rawRowCount: 2
+    });
   });
 });

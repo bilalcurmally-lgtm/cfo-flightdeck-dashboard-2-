@@ -7,15 +7,7 @@ import type {
   PeriodGrain,
   TransactionRecord
 } from "./finance/types";
-import type {
-  AccountBalance,
-  FinanceSummary,
-  HeadSummary,
-  PeriodSummary,
-  SubcategorySummary,
-  QualityWarning
-} from "./finance/summary";
-import type { ForecastResult, ForecastWeek } from "./finance/forecast";
+import type { FinanceSummary } from "./finance/summary";
 import {
   DEFAULT_FILTERS,
   filterTransactions,
@@ -29,10 +21,41 @@ import { summarizeTransactions } from "./finance/summary";
 import { buildReviewerReport, reviewerReportFilename } from "./export/reviewer-report";
 import { buildMonthlyTrendCsv, monthlyTrendCsvFilename } from "./export/monthly-trend-csv";
 import { buildTransactionsCsv, transactionsCsvFilename } from "./export/transactions-csv";
-import { parseExcel } from "./import/excel";
+import { buildTrendSvg, trendSvgFilename } from "./export/trend-svg";
+import { parseExcelWorkbook, type ParsedExcelSheet } from "./import/excel";
 import { importTransactionsFromCsv, importTransactionsFromRows } from "./import/transactions";
-import { analyzeImportReadiness, type ImportReadiness } from "./import/validation";
+import { analyzeImportReadiness } from "./import/validation";
 import { clearSettings, DEFAULT_SETTINGS, loadSettings, saveSettings, type AppSettings } from "./store/settings";
+import {
+  dateFormatOption,
+  filterSelect,
+  mappingSelect,
+  metricCard,
+  reviewPresetButton,
+  trendGrainLabel,
+  trendGrainOption
+} from "./ui/controls";
+import {
+  renderAccountBalances,
+  renderDiagnostics,
+  renderSubcategories,
+  renderTopHeads,
+  renderTransactionDetail,
+  renderTransactionTable,
+  renderTrend,
+  renderWarnings
+} from "./ui/dashboard-renderers";
+import { downloadJson, downloadText, filteredTransactionsFilename } from "./ui/downloads";
+import { renderForecast } from "./ui/forecast-renderers";
+import { escapeHtml } from "./ui/html";
+import {
+  renderMappingValidation,
+  renderRawPreview,
+  renderRejectedRows,
+  renderWorksheetOption
+} from "./ui/import-review";
+import { renderPrintableReport } from "./ui/print-report";
+import { renderReferencePanelContent } from "./ui/reference";
 
 const SAMPLE_DATASETS = [
   { label: "Freelancer", path: "/sample-freelancer.csv" },
@@ -40,13 +63,21 @@ const SAMPLE_DATASETS = [
   { label: "Founder", path: "/sample-founder.csv" }
 ];
 
+type ImportSource = string | ImportedRow[];
+type LoadedImportFile =
+  | { kind: "csv"; result: CsvImportResult; source: string }
+  | { kind: "excel"; sheets: ParsedExcelSheet[] };
+type ReviewPreset = "all" | "revenue" | "outflow" | "duplicates" | "transfers";
+
 let activeImport: { result: CsvImportResult; sourceName: string } | null = null;
 let draftImport:
-  | { result: CsvImportResult; sourceName: string; source: string | ImportedRow[] }
+  | { result: CsvImportResult; sourceName: string; source: ImportSource }
   | null = null;
 let settings: AppSettings = loadSettings();
 let activeFilters: DashboardFilters = { ...DEFAULT_FILTERS };
 let activeTrendGrain: PeriodGrain = "monthly";
+let activeReviewPreset: ReviewPreset = "all";
+let selectedTransactionId = "";
 let referenceOpen = false;
 
 document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
@@ -111,6 +142,10 @@ fileInput.addEventListener("change", async () => {
 
   status.textContent = `Reading ${file.name} locally...`;
   const loaded = await loadImportFile(file);
+  if (loaded.kind === "excel") {
+    renderWorksheetPicker(file.name, loaded.sheets);
+    return;
+  }
   renderMappingReview(loaded.result, file.name, loaded.source);
 });
 
@@ -127,6 +162,8 @@ clearButton.addEventListener("click", () => {
   draftImport = null;
   activeFilters = { ...DEFAULT_FILTERS };
   activeTrendGrain = "monthly";
+  activeReviewPreset = "all";
+  selectedTransactionId = "";
   fileInput.value = "";
   results.innerHTML = "";
   status.textContent = "Import cleared. Waiting for a CSV or Excel file.";
@@ -141,70 +178,74 @@ referenceButton.addEventListener("click", () => {
 function renderReferencePanel(): void {
   referenceButton.setAttribute("aria-expanded", String(referenceOpen));
   referencePanel.hidden = !referenceOpen;
-  referencePanel.innerHTML = referenceOpen
-    ? `
-      <div class="panel-heading">
-        <div>
-          <h2>Formula Reference</h2>
-          <p>Short version of the local calculations, export rules, and privacy promise.</p>
-        </div>
-        <span>auditable math</span>
-      </div>
-      <div class="reference-grid">
-        <article>
-          <h3>Import</h3>
-          <p>Date and amount are required. Flow uses a mapped type column when available; otherwise positive values are revenue and negative values are outflow.</p>
-        </article>
-        <article>
-          <h3>Dashboard</h3>
-          <p>Revenue and outflow sum absolute amounts by flow. Net cash is revenue minus outflow. Filters change visible calculations only.</p>
-        </article>
-        <article>
-          <h3>Cash Health</h3>
-          <p>Average monthly burn is the average monthly outflow. Runway is cash on hand divided by average monthly burn.</p>
-        </article>
-        <article>
-          <h3>Forecast</h3>
-          <p>The 13-week forecast starts from cash on hand, adds average weekly net, and includes manual future cash events.</p>
-        </article>
-        <article>
-          <h3>Exports</h3>
-          <p>Transactions CSV and reviewer JSON keep the full reviewed import. Trend CSV exports the visible filtered trend.</p>
-        </article>
-        <article>
-          <h3>Privacy</h3>
-          <p>Files are parsed in the browser by default. Local settings stay in browser storage and can be cleared with site data.</p>
-        </article>
-      </div>
-    `
-    : "";
+  referencePanel.innerHTML = referenceOpen ? renderReferencePanelContent() : "";
 }
 
-async function loadImportFile(
-  file: File
-): Promise<{ result: CsvImportResult; source: string | ImportedRow[] }> {
+async function loadImportFile(file: File): Promise<LoadedImportFile> {
   if (isExcelFile(file)) {
-    const rows = await parseExcel(file);
-    return { result: importTransactionsFromRows(rows), source: rows };
+    return { kind: "excel", sheets: await parseExcelWorkbook(file) };
   }
 
   const text = await file.text();
-  return { result: importTransactionsFromCsv(text), source: text };
+  return { kind: "csv", result: importTransactionsFromCsv(text), source: text };
 }
 
 function isExcelFile(file: File): boolean {
   return /\.xlsx$/i.test(file.name) || file.type.includes("spreadsheetml");
 }
 
+function renderWorksheetPicker(sourceName: string, sheets: ParsedExcelSheet[]): void {
+  activeImport = null;
+  draftImport = null;
+  activeFilters = { ...DEFAULT_FILTERS };
+  activeTrendGrain = "monthly";
+  activeReviewPreset = "all";
+  selectedTransactionId = "";
+  clearButton.disabled = false;
+
+  if (sheets.length === 1) {
+    const sheet = sheets[0];
+    renderMappingReview(importTransactionsFromRows(sheet.rows), `${sourceName} / ${sheet.name}`, sheet.rows);
+    return;
+  }
+
+  status.textContent = `${sourceName}: choose the worksheet to import before mapping review.`;
+  results.innerHTML = `
+    <section class="worksheet-panel" aria-labelledby="worksheet-title">
+      <div class="panel-heading">
+        <div>
+          <h2 id="worksheet-title">Choose Worksheet</h2>
+          <p>Select the sheet that contains transaction rows. Empty helper tabs can stay out of the review.</p>
+        </div>
+        <span>${sheets.length} sheet${sheets.length === 1 ? "" : "s"} found</span>
+      </div>
+      <div class="worksheet-list">
+        ${sheets.map((sheet, index) => renderWorksheetOption(sheet, index)).join("")}
+      </div>
+    </section>
+  `;
+
+  document.querySelectorAll<HTMLButtonElement>("[data-sheet-index]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const index = Number(button.dataset.sheetIndex);
+      const sheet = sheets[index];
+      if (!sheet) return;
+      renderMappingReview(importTransactionsFromRows(sheet.rows), `${sourceName} / ${sheet.name}`, sheet.rows);
+    });
+  });
+}
+
 function renderMappingReview(
   result: CsvImportResult,
   sourceName: string,
-  source: string | ImportedRow[]
+  source: ImportSource
 ): void {
   activeImport = null;
   draftImport = { result, sourceName, source };
   activeFilters = { ...DEFAULT_FILTERS };
   activeTrendGrain = "monthly";
+  activeReviewPreset = "all";
+  selectedTransactionId = "";
   clearButton.disabled = false;
   const columns = Object.keys(result.rawRows[0] || {});
 
@@ -254,13 +295,24 @@ function renderImportResult(result: CsvImportResult, sourceName: string): void {
   activeImport = { result, sourceName };
   draftImport = null;
   clearButton.disabled = false;
-  const filteredRecords = filterTransactions(result.records, activeFilters);
+  const baseFilteredRecords = filterTransactions(result.records, activeFilters);
+  const baseSummary = summarizeTransactions(
+    baseFilteredRecords,
+    result.rejectedRows,
+    readCashOnHand(),
+    activeTrendGrain
+  );
+  const filteredRecords = applyReviewPreset(baseFilteredRecords, baseSummary);
   const summary = summarizeTransactions(
     filteredRecords,
     result.rejectedRows,
     readCashOnHand(),
     activeTrendGrain
   );
+  if (!filteredRecords.some((record) => record.id === selectedTransactionId)) {
+    selectedTransactionId = filteredRecords[0]?.id ?? "";
+  }
+  const selectedRecord = filteredRecords.find((record) => record.id === selectedTransactionId) ?? null;
   const eventInputValue = readFutureEventsText();
   const parsedEvents = parseFutureCashEvents(eventInputValue);
   const forecast = {
@@ -310,8 +362,25 @@ function renderImportResult(result: CsvImportResult, sourceName: string): void {
       <div class="filter-summary">
         <span>${filteredRecords.length} of ${result.records.length} record${
           result.records.length === 1 ? "" : "s"
-        } shown</span>
+        } shown${activeReviewPreset === "all" ? "" : ` · ${escapeHtml(reviewPresetLabel(activeReviewPreset))}`}</span>
         <button id="reset-filters" type="button">Reset</button>
+      </div>
+      <div class="preset-chips" aria-label="Common review views">
+        ${reviewPresetButton("all", "All", activeReviewPreset)}
+        ${reviewPresetButton("revenue", "Revenue", activeReviewPreset)}
+        ${reviewPresetButton("outflow", "Outflow", activeReviewPreset)}
+        ${reviewPresetButton(
+          "duplicates",
+          `Duplicates (${baseSummary.diagnostics.duplicateGroups.length})`,
+          activeReviewPreset,
+          !baseSummary.diagnostics.duplicateGroups.length
+        )}
+        ${reviewPresetButton(
+          "transfers",
+          `Transfers (${baseSummary.diagnostics.transferCandidates.length})`,
+          activeReviewPreset,
+          !baseSummary.diagnostics.transferCandidates.length
+        )}
       </div>
     </section>
     <div class="summary-grid">
@@ -342,10 +411,23 @@ function renderImportResult(result: CsvImportResult, sourceName: string): void {
       </div>
       <div class="export-actions">
         <button id="export-transactions" type="button">Transactions CSV</button>
+        <button id="export-visible-transactions" type="button">Filtered CSV</button>
         <button id="export-reviewer" type="button">Reviewer JSON</button>
         <button id="export-trend" type="button">Trend CSV</button>
+        <button id="export-trend-svg" type="button">Trend SVG</button>
+        <button id="print-report" type="button">Print Report</button>
       </div>
     </section>
+    ${renderPrintableReport({
+      sourceName,
+      summary,
+      forecast,
+      visibleRecords: filteredRecords,
+      reviewPresetLabel: reviewPresetLabel(activeReviewPreset),
+      activeFilters,
+      formatMoney,
+      formatRunway
+    })}
     <section class="settings-panel" aria-labelledby="settings-title">
       <div>
         <h2 id="settings-title">Local Settings</h2>
@@ -372,7 +454,7 @@ function renderImportResult(result: CsvImportResult, sourceName: string): void {
       <textarea id="future-events" rows="3" placeholder="2026-04-15, -1200, quarterly tax&#10;2026-05-01, 3000, client payment">${escapeHtml(
         eventInputValue
       )}</textarea>
-      ${renderForecast(forecast)}
+      ${renderForecast(forecast, formatMoney)}
     </section>
     <div class="insight-grid">
       <section class="table-panel" aria-labelledby="trend-title">
@@ -380,14 +462,14 @@ function renderImportResult(result: CsvImportResult, sourceName: string): void {
           <h2 id="trend-title">${escapeHtml(trendGrainLabel(activeTrendGrain))} Trend</h2>
           <span>${summary.periodTrend.length} period${summary.periodTrend.length === 1 ? "" : "s"}</span>
         </div>
-        ${renderTrend(summary.periodTrend)}
+        ${renderTrend(summary.periodTrend, formatMoney)}
       </section>
       <section class="table-panel" aria-labelledby="heads-title">
         <div class="panel-heading">
           <h2 id="heads-title">Top Heads</h2>
           <span>by amount</span>
         </div>
-        ${renderTopHeads(summary.topHeads)}
+        ${renderTopHeads(summary.topHeads, formatMoney)}
       </section>
       <section class="table-panel" aria-labelledby="accounts-title">
         <div class="panel-heading">
@@ -396,7 +478,7 @@ function renderImportResult(result: CsvImportResult, sourceName: string): void {
             summary.accountBalances.length === 1 ? "" : "s"
           }</span>
         </div>
-        ${renderAccountBalances(summary.accountBalances)}
+        ${renderAccountBalances(summary.accountBalances, formatMoney)}
       </section>
       <section class="table-panel" aria-labelledby="subcategories-title">
         <div class="panel-heading">
@@ -405,7 +487,7 @@ function renderImportResult(result: CsvImportResult, sourceName: string): void {
             summary.topSubcategories.length === 1 ? "" : "s"
           }</span>
         </div>
-        ${renderSubcategories(summary.topSubcategories)}
+        ${renderSubcategories(summary.topSubcategories, formatMoney)}
       </section>
       <section class="table-panel" aria-labelledby="warnings-title">
         <div class="panel-heading">
@@ -422,7 +504,7 @@ function renderImportResult(result: CsvImportResult, sourceName: string): void {
           summary.diagnostics.transferCandidates.length
         } transfer</span>
       </div>
-      ${renderDiagnostics(summary)}
+      ${renderDiagnostics(summary, formatMoney)}
     </section>
     <div class="detail-grid">
       <section class="table-panel" aria-labelledby="preview-title">
@@ -430,7 +512,14 @@ function renderImportResult(result: CsvImportResult, sourceName: string): void {
           <h2 id="preview-title">Transaction Preview</h2>
           <span>${filteredRecords.length} shown · ${escapeHtml(result.dateFormat.toUpperCase())} dates</span>
         </div>
-        ${renderTransactionTable(filteredRecords)}
+        ${renderTransactionTable(filteredRecords, selectedTransactionId, formatMoney)}
+      </section>
+      <section class="table-panel" aria-labelledby="transaction-detail-title">
+        <div class="panel-heading">
+          <h2 id="transaction-detail-title">Transaction Detail</h2>
+          <span>audit trail</span>
+        </div>
+        ${renderTransactionDetail(selectedRecord, result, formatMoney)}
       </section>
       <section class="table-panel" aria-labelledby="quality-title">
         <div class="panel-heading">
@@ -443,146 +532,8 @@ function renderImportResult(result: CsvImportResult, sourceName: string): void {
   `;
   bindDashboardFilters();
   bindLiveInputs();
-  bindExportButton(summary);
-}
-
-function metricCard(label: string, value: string): string {
-  return `
-    <article class="metric">
-      <span>${escapeHtml(label)}</span>
-      <strong>${escapeHtml(value)}</strong>
-    </article>
-  `;
-}
-
-function mappingSelect(
-  label: string,
-  key: keyof ImportMapping,
-  columns: string[],
-  selected = "",
-  required = false
-): string {
-  return `
-    <label>
-      ${escapeHtml(label)}
-      <select data-mapping-key="${escapeHtml(String(key))}"${required ? " required" : ""}>
-        <option value="">${required ? "Choose column" : "Not used"}</option>
-        ${columns
-          .map(
-            (column) =>
-              `<option value="${escapeHtml(column)}"${column === selected ? " selected" : ""}>${escapeHtml(
-                column
-              )}</option>`
-          )
-          .join("")}
-      </select>
-    </label>
-  `;
-}
-
-function dateFormatOption(format: DateFormat, selected: DateFormat): string {
-  const labels: Record<DateFormat, string> = {
-    ymd: "YYYY-MM-DD",
-    mdy: "MM/DD/YYYY",
-    dmy: "DD/MM/YYYY"
-  };
-
-  return `<option value="${format}"${format === selected ? " selected" : ""}>${labels[format]}</option>`;
-}
-
-function trendGrainOption(grain: PeriodGrain, selected: PeriodGrain): string {
-  return `<option value="${grain}"${grain === selected ? " selected" : ""}>${trendGrainLabel(grain)}</option>`;
-}
-
-function trendGrainLabel(grain: PeriodGrain): string {
-  const labels: Record<PeriodGrain, string> = {
-    daily: "Daily",
-    weekly: "Weekly",
-    monthly: "Monthly"
-  };
-
-  return labels[grain];
-}
-
-function renderRawPreview(result: CsvImportResult): string {
-  const columns = Object.keys(result.rawRows[0] || {}).slice(0, 8);
-  if (!columns.length) return `<p class="empty">No rows found in this CSV.</p>`;
-
-  return `
-    <div class="table-wrap mapping-preview">
-      <table>
-        <thead>
-          <tr>${columns.map((column) => `<th>${escapeHtml(column)}</th>`).join("")}</tr>
-        </thead>
-        <tbody>
-          ${result.rawRows
-            .slice(0, 4)
-            .map(
-              (row) => `
-                <tr>
-                  ${columns.map((column) => `<td>${escapeHtml(row[column] || "")}</td>`).join("")}
-                </tr>
-              `
-            )
-            .join("")}
-        </tbody>
-      </table>
-    </div>
-  `;
-}
-
-function renderMappingValidation(readiness: ImportReadiness): string {
-  const canApply = !readiness.missingRequiredColumns.length && readiness.acceptedRows > 0;
-  const coverageItems = readiness.optionalCoverage
-    .map(
-      (item) =>
-        `<li><strong>${escapeHtml(importFieldLabel(item.key))}</strong><span>${escapeHtml(
-          item.column
-        )} · ${item.filledRows}/${readiness.rawRows} filled</span></li>`
-    )
-    .join("");
-
-  return `
-    <section class="mapping-validation ${canApply ? "ready" : "blocked"}" aria-label="Import validation">
-      <div>
-        <strong>${readiness.acceptedRows}/${readiness.rawRows} rows ready</strong>
-        <span>${readiness.rejectedRows} row${readiness.rejectedRows === 1 ? "" : "s"} would be rejected with this mapping.</span>
-      </div>
-      <ul>
-        ${
-          readiness.missingRequiredColumns.length
-            ? `<li><strong>Missing required</strong><span>${readiness.missingRequiredColumns
-                .map(importFieldLabel)
-                .join(", ")}</span></li>`
-            : ""
-        }
-        <li><strong>Invalid dates</strong><span>${readiness.invalidDateRows}</span></li>
-        <li><strong>Invalid amounts</strong><span>${readiness.invalidAmountRows}</span></li>
-      </ul>
-      ${
-        coverageItems
-          ? `<ol class="coverage-list">${coverageItems}</ol>`
-          : `<p class="empty">Optional fields are not mapped yet.</p>`
-      }
-    </section>
-  `;
-}
-
-function importFieldLabel(value: string): string {
-  const labels: Record<string, string> = {
-    date: "Date",
-    amount: "Amount",
-    type: "Flow / Type",
-    account: "Account",
-    runningBalance: "Running Balance",
-    head: "Head",
-    parent: "Group",
-    subcategory: "Subcategory",
-    counterparty: "Counterparty",
-    description: "Description"
-  };
-
-  return labels[value] ?? value;
+  bindExportButton(summary, filteredRecords);
+  bindTransactionPreview();
 }
 
 function renderCurrencyOptions(selectedCurrency: string): string {
@@ -596,226 +547,40 @@ function renderCurrencyOptions(selectedCurrency: string): string {
     .join("");
 }
 
-function filterSelect(
-  label: string,
-  key: FilterableField,
-  values: string[],
-  selected: string
-): string {
-  return `
-    <label>
-      ${escapeHtml(label)}
-      <select data-filter-key="${escapeHtml(key)}">
-        <option value="all">All ${escapeHtml(label.toLowerCase())}</option>
-        ${values
-          .map(
-            (value) =>
-              `<option value="${escapeHtml(value)}"${value === selected ? " selected" : ""}>${escapeHtml(
-                value
-              )}</option>`
-          )
-          .join("")}
-      </select>
-    </label>
-  `;
+function applyReviewPreset(records: TransactionRecord[], baseSummary: FinanceSummary): TransactionRecord[] {
+  if (activeReviewPreset === "revenue") return records.filter((record) => record.flow === "revenue");
+  if (activeReviewPreset === "outflow") return records.filter((record) => record.flow === "outflow");
+  if (activeReviewPreset === "duplicates") {
+    const duplicateIds = new Set(
+      baseSummary.diagnostics.duplicateGroups.flatMap((group) => group.records.map((record) => record.id))
+    );
+    return records.filter((record) => duplicateIds.has(record.id));
+  }
+  if (activeReviewPreset === "transfers") {
+    const transferIds = new Set(
+      baseSummary.diagnostics.transferCandidates.flatMap((candidate) => [
+        candidate.outflowId,
+        candidate.revenueId
+      ])
+    );
+    return records.filter((record) => transferIds.has(record.id));
+  }
+  return records;
+}
+
+function reviewPresetLabel(preset: ReviewPreset): string {
+  const labels: Record<ReviewPreset, string> = {
+    all: "all records",
+    revenue: "revenue only",
+    outflow: "outflow only",
+    duplicates: "possible duplicates",
+    transfers: "possible transfers"
+  };
+  return labels[preset];
 }
 
 function flowOptions(records: TransactionRecord[]): string[] {
   return optionValues(records, "flow");
-}
-
-function renderTransactionTable(records: TransactionRecord[]): string {
-  if (!records.length) return `<p class="empty">No valid transaction rows yet.</p>`;
-
-  return `
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Flow</th>
-            <th>Head</th>
-            <th>Subcategory</th>
-            <th>Counterparty</th>
-            <th>Description</th>
-            <th class="number">Amount</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${records
-            .slice(0, 8)
-            .map(
-              (record) => `
-                <tr>
-                  <td>${escapeHtml(record.dateISO)}</td>
-                  <td><span class="pill ${record.flow}">${escapeHtml(record.flow)}</span></td>
-                  <td>${escapeHtml(record.head)}</td>
-                  <td>${escapeHtml(record.subcategory)}</td>
-                  <td>${escapeHtml(record.counterparty)}</td>
-                  <td>${escapeHtml(record.description)}</td>
-                  <td class="number">${escapeHtml(formatMoney(record.amount))}</td>
-                </tr>
-              `
-            )
-            .join("")}
-        </tbody>
-      </table>
-    </div>
-  `;
-}
-
-function renderTrend(periods: PeriodSummary[]): string {
-  if (!periods.length) return `<p class="empty">No monthly trend yet.</p>`;
-
-  const maxValue = Math.max(...periods.map((period) => Math.max(period.revenue, period.outflow)), 1);
-
-  return `
-    <div class="trend-list">
-      ${periods
-        .map(
-          (period) => `
-            <article class="trend-row">
-              <div class="trend-meta">
-                <strong>${escapeHtml(period.period)}</strong>
-                <span>${escapeHtml(formatMoney(period.netCash))} net</span>
-              </div>
-              <div class="bars" aria-label="${escapeHtml(period.period)} revenue and outflow">
-                <span class="bar revenue-bar" style="width: ${barWidth(period.revenue, maxValue)}%"></span>
-                <span class="bar outflow-bar" style="width: ${barWidth(period.outflow, maxValue)}%"></span>
-              </div>
-            </article>
-          `
-        )
-        .join("")}
-    </div>
-  `;
-}
-
-function renderTopHeads(heads: HeadSummary[]): string {
-  if (!heads.length) return `<p class="empty">No category/head totals yet.</p>`;
-
-  return `
-    <ol class="head-list">
-      ${heads
-        .map(
-          (head) => `
-            <li>
-              <div>
-                <strong>${escapeHtml(head.head)}</strong>
-                <span>${head.count} transaction${head.count === 1 ? "" : "s"}</span>
-              </div>
-              <span class="pill ${head.flow}">${escapeHtml(formatMoney(head.amount))}</span>
-            </li>
-          `
-        )
-        .join("")}
-    </ol>
-  `;
-}
-
-function renderAccountBalances(accounts: AccountBalance[]): string {
-  if (!accounts.length) return `<p class="empty">No account data in this import yet.</p>`;
-
-  return `
-    <ol class="account-list">
-      ${accounts
-        .map(
-          (account) => `
-            <li>
-              <div>
-                <strong>${escapeHtml(account.account)}</strong>
-                <span>${account.source === "runningBalance" ? "imported balance" : "net activity"}</span>
-              </div>
-              <strong>${escapeHtml(formatMoney(account.balance))}</strong>
-            </li>
-          `
-        )
-        .join("")}
-    </ol>
-  `;
-}
-
-function renderSubcategories(subcategories: SubcategorySummary[]): string {
-  if (!subcategories.length) return `<p class="empty">No subcategory data in this import yet.</p>`;
-
-  return `
-    <ol class="head-list">
-      ${subcategories
-        .map(
-          (item) => `
-            <li>
-              <div>
-                <strong>${escapeHtml(item.subcategory)}</strong>
-                <span>${escapeHtml(item.head)} · ${item.count} transaction${
-                  item.count === 1 ? "" : "s"
-                }</span>
-              </div>
-              <span class="pill ${item.flow}">${escapeHtml(formatMoney(item.amount))}</span>
-            </li>
-          `
-        )
-        .join("")}
-    </ol>
-  `;
-}
-
-function renderWarnings(summary: FinanceSummary): string {
-  if (!summary.warnings.length) {
-    return `<p class="empty">No import warnings from the current checks.</p>`;
-  }
-
-  return `
-    <ul class="warning-list">
-      ${summary.warnings.map((warning) => renderWarning(warning)).join("")}
-    </ul>
-  `;
-}
-
-function renderDiagnostics(summary: FinanceSummary): string {
-  const duplicateItems = summary.diagnostics.duplicateGroups
-    .slice(0, 4)
-    .map((group) => {
-      const record = group.records[0];
-      return `<li><strong>${escapeHtml(record.dateISO)} ${escapeHtml(record.account)}</strong><span>${escapeHtml(
-        record.description
-      )} · ${escapeHtml(formatMoney(record.amount))} · ${group.records.length} matches</span></li>`;
-    })
-    .join("");
-  const transferItems = summary.diagnostics.transferCandidates
-    .slice(0, 4)
-    .map(
-      (transfer) =>
-        `<li><strong>${escapeHtml(transfer.dateISO)} ${escapeHtml(formatMoney(transfer.amount))}</strong><span>${escapeHtml(
-          transfer.fromAccount
-        )} to ${escapeHtml(transfer.toAccount)}</span></li>`
-    )
-    .join("");
-
-  if (!duplicateItems && !transferItems) {
-    return `<p class="empty">No duplicate or transfer candidates from the current checks.</p>`;
-  }
-
-  return `
-    <div class="diagnostics-grid">
-      <div>
-        <h3>Possible Duplicates</h3>
-        ${duplicateItems ? `<ul class="diagnostics-list">${duplicateItems}</ul>` : `<p class="empty">None found.</p>`}
-      </div>
-      <div>
-        <h3>Possible Transfers</h3>
-        ${transferItems ? `<ul class="diagnostics-list">${transferItems}</ul>` : `<p class="empty">None found.</p>`}
-      </div>
-    </div>
-  `;
-}
-
-function renderWarning(warning: QualityWarning): string {
-  return `
-    <li class="${warning.level}">
-      <strong>${escapeHtml(warning.level)}</strong>
-      <span>${escapeHtml(warning.message)}</span>
-    </li>
-  `;
 }
 
 function bindMappingReview(): void {
@@ -891,8 +656,40 @@ function bindDashboardFilters(): void {
     if (!activeImport) return;
 
     activeFilters = { ...DEFAULT_FILTERS };
+    activeReviewPreset = "all";
     renderImportResult(activeImport.result, activeImport.sourceName);
     document.querySelector<HTMLButtonElement>("#reset-filters")?.focus();
+  });
+  document.querySelectorAll<HTMLButtonElement>("[data-review-preset]").forEach((button) => {
+    button.addEventListener("click", () => {
+      if (!activeImport) return;
+
+      const preset = button.dataset.reviewPreset;
+      if (
+        preset !== "all" &&
+        preset !== "revenue" &&
+        preset !== "outflow" &&
+        preset !== "duplicates" &&
+        preset !== "transfers"
+      ) {
+        return;
+      }
+      activeReviewPreset = preset;
+      renderImportResult(activeImport.result, activeImport.sourceName);
+      document.querySelector<HTMLButtonElement>(`[data-review-preset="${preset}"]`)?.focus();
+    });
+  });
+}
+
+function bindTransactionPreview(): void {
+  document.querySelectorAll<HTMLButtonElement>("[data-transaction-id]").forEach((button) => {
+    button.addEventListener("click", () => {
+      if (!activeImport) return;
+
+      selectedTransactionId = button.dataset.transactionId ?? "";
+      renderImportResult(activeImport.result, activeImport.sourceName);
+      document.querySelector<HTMLButtonElement>(`[data-transaction-id="${selectedTransactionId}"]`)?.focus();
+    });
   });
 }
 
@@ -950,7 +747,7 @@ function readReviewedDateFormat(): DateFormat {
   return "ymd";
 }
 
-function bindExportButton(visibleSummary: FinanceSummary): void {
+function bindExportButton(visibleSummary: FinanceSummary, visibleRecords: TransactionRecord[]): void {
   document.querySelector<HTMLButtonElement>("#export-reviewer")?.addEventListener("click", () => {
     if (!activeImport) return;
 
@@ -981,6 +778,14 @@ function bindExportButton(visibleSummary: FinanceSummary): void {
       "text/csv;charset=utf-8"
     );
   });
+  document.querySelector<HTMLButtonElement>("#export-visible-transactions")?.addEventListener("click", () => {
+    if (!activeImport) return;
+    downloadText(
+      filteredTransactionsFilename(activeImport.sourceName, new Date()),
+      buildTransactionsCsv(visibleRecords),
+      "text/csv;charset=utf-8"
+    );
+  });
   document.querySelector<HTMLButtonElement>("#export-trend")?.addEventListener("click", () => {
     if (!activeImport) return;
     downloadText(
@@ -989,90 +794,21 @@ function bindExportButton(visibleSummary: FinanceSummary): void {
       "text/csv;charset=utf-8"
     );
   });
-}
-
-function renderRejectedRows(result: CsvImportResult): string {
-  const detected = [
-    ["Date", result.mapping.date || "missing"],
-    ["Amount", result.mapping.amount || "missing"],
-    ["Type", result.mapping.type || "not used"],
-    ["Head", result.mapping.head || "fallback"],
-    ["Subcategory", result.mapping.subcategory || "fallback"],
-    ["Counterparty", result.mapping.counterparty || "fallback"],
-    ["Description", result.mapping.description || "fallback"]
-  ];
-
-  return `
-    <dl class="mapping-list">
-      ${detected
-        .map(
-          ([label, value]) => `
-            <div>
-              <dt>${escapeHtml(label)}</dt>
-              <dd>${escapeHtml(value)}</dd>
-            </div>
-          `
-        )
-        .join("")}
-    </dl>
-    ${
-      result.rejectedRows.length
-        ? `<ul class="issues">
-            ${result.rejectedRows
-              .slice(0, 5)
-              .map(
-                (issue) => `
-                  <li>
-                    <strong>Row ${issue.rowNumber}</strong>
-                    <span>${escapeHtml(issue.reason)}</span>
-                  </li>
-                `
-              )
-              .join("")}
-          </ul>`
-        : `<p class="empty">No rejected rows in this import.</p>`
-    }
-  `;
-}
-
-function renderForecast(forecast: ForecastResult): string {
-  const minCash = Math.min(...forecast.weeks.map((week) => week.projectedCash), 0);
-  const maxCash = Math.max(...forecast.weeks.map((week) => week.projectedCash), 1);
-  const range = maxCash - minCash || 1;
-
-  return `
-    ${
-      forecast.rejectedEvents.length
-        ? `<ul class="forecast-issues">
-            ${forecast.rejectedEvents
-              .map((event) => `<li>${escapeHtml(event)}</li>`)
-              .join("")}
-          </ul>`
-        : ""
-    }
-    <div class="forecast-list">
-      ${forecast.weeks
-        .map((week) => renderForecastWeek(week, minCash, range))
-        .join("")}
-    </div>
-  `;
-}
-
-function renderForecastWeek(week: ForecastWeek, minCash: number, range: number): string {
-  const width = Math.max(4, Math.round(((week.projectedCash - minCash) / range) * 100));
-
-  return `
-    <article class="forecast-week">
-      <div>
-        <strong>${escapeHtml(week.weekStartISO)}</strong>
-        <span>${escapeHtml(formatMoney(week.eventNet))} events</span>
-      </div>
-      <div class="forecast-bar-track">
-        <span class="forecast-bar" style="width: ${width}%"></span>
-      </div>
-      <strong>${escapeHtml(formatMoney(week.projectedCash))}</strong>
-    </article>
-  `;
+  document.querySelector<HTMLButtonElement>("#export-trend-svg")?.addEventListener("click", () => {
+    if (!activeImport) return;
+    downloadText(
+      trendSvgFilename(activeImport.sourceName, new Date(), activeTrendGrain),
+      buildTrendSvg(visibleSummary.periodTrend, {
+        title: `${trendGrainLabel(activeTrendGrain)} Trend`,
+        subtitle: `${activeImport.sourceName} · ${reviewPresetLabel(activeReviewPreset)}`,
+        currency: settings.currency
+      }),
+      "image/svg+xml;charset=utf-8"
+    );
+  });
+  document.querySelector<HTMLButtonElement>("#print-report")?.addEventListener("click", () => {
+    window.print();
+  });
 }
 
 function formatMoney(value: number): string {
@@ -1097,35 +833,4 @@ function readCashOnHand(): number {
 
 function readFutureEventsText(): string {
   return document.querySelector<HTMLTextAreaElement>("#future-events")?.value ?? settings.futureEventsText;
-}
-
-function downloadJson(filename: string, value: unknown): void {
-  downloadText(filename, `${JSON.stringify(value, null, 2)}\n`, "application/json");
-}
-
-function downloadText(filename: string, value: string, type: string): void {
-  const blob = new Blob([value], { type });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = filename;
-  anchor.click();
-  URL.revokeObjectURL(url);
-}
-
-function barWidth(value: number, maxValue: number): number {
-  return Math.max(3, Math.round((value / maxValue) * 100));
-}
-
-function escapeHtml(value: string): string {
-  return value.replace(/[&<>"']/g, (char) => {
-    const entities: Record<string, string> = {
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      '"': "&quot;",
-      "'": "&#039;"
-    };
-    return entities[char];
-  });
 }
