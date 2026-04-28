@@ -8,7 +8,7 @@ Build a useful local-first finance dashboard for freelancers, consultants, solo 
 
 Core promise:
 
-- Import CSV first, Excel later.
+- Import CSV and Excel files locally.
 - Keep transaction data in the browser by default.
 - No AI pushed into the main workflow.
 - No account required for the free tool.
@@ -21,7 +21,7 @@ V1 lives in `cfo-flightdeck-dashboard` and remains the stable dashboard that can
 
 V2 should borrow proven ideas from V1 intentionally:
 
-- CSV parsing and mapping approach
+- CSV/Excel parsing and mapping approach
 - finance calculation tests
 - cash runway model
 - 13-week forecast concept

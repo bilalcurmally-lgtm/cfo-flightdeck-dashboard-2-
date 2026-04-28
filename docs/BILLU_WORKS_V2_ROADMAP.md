@@ -1,6 +1,6 @@
 # Billu.Works Finance Dashboard V2 Roadmap
 
-Last updated: 2026-04-26
+Last updated: 2026-04-27
 
 ## Why V2 Exists
 
@@ -70,7 +70,7 @@ Exit: small business/founder mode is credible.
 
 ## Phase 4: Import Power
 
-- Excel import.
+- Excel import. (initial `.xlsx` import added)
 - optional account/bank fields.
 - optional vendor/customer fields.
 - optional subcategory fields.
@@ -81,10 +81,9 @@ Exit: real-world exports need less manual cleanup.
 ## Phase 5: Billu.Works Packaging
 
 - public tool route framing.
-- sample datasets for freelancer, agency, and founder modes.
-- help pages.
-- formula pages.
-- exportable summaries.
+- sample datasets for freelancer, agency, and founder modes. (initial CSV samples added)
+- help pages and formula pages. (in-app formula reference added)
+- exportable summaries and chart data. (visible monthly trend CSV added)
 
 Exit: ready to publish as a free Billu.Works utility.
 

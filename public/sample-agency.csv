@@ -1,0 +1,13 @@
+Date,Amount,Type,Account,Running Balance,Category,Subcategory,Group,Counterparty,Description
+2026-03-01,12000,revenue,Operating,42000,Client Retainer,Brand Program,Income,Northstar Studio,Monthly brand retainer
+2026-03-03,8500,revenue,Operating,50500,Client Retainer,Web Program,Income,Riverbend Labs,Website program retainer
+2026-03-05,-3200,outflow,Operating,47300,Payroll,Design Team,Delivery Costs,Design Contractor,Designer invoice
+2026-03-07,-2800,outflow,Operating,44500,Payroll,Engineering Team,Delivery Costs,Dev Partner,Developer invoice
+2026-03-08,-450,outflow,Credit Card,-450,Software,Creative Tools,Operating Costs,Adobe,Creative software
+2026-03-09,-750,outflow,Credit Card,-1200,Software,Project Ops,Operating Costs,Linear,Project management
+2026-03-12,5000,revenue,Operating,49500,Project Work,Milestone,Income,Atlas Consulting,Launch milestone
+2026-03-15,-1900,outflow,Operating,47600,Marketing,Lead Generation,Operating Costs,Sponsor Desk,Newsletter sponsorship
+2026-03-20,-1100,outflow,Operating,46500,Office,Workspace,Operating Costs,Studio Loft,Workspace rent
+2026-03-25,-600,outflow,Operating,45900,Transfer,Tax Reserve,Internal,Tax Savings,Move to tax reserve
+2026-03-25,600,revenue,Tax Savings,8600,Transfer,Tax Reserve,Internal,Operating,Move from operating
+2026-03-28,not-posted,outflow,Operating,45900,Travel,Flights,Operating Costs,Airline,Unreadable agency export row

@@ -1,0 +1,11 @@
+Date,Amount,Type,Account,Running Balance,Category,Subcategory,Group,Counterparty,Description
+2026-03-01,3200,revenue,Checking,7200,Client Retainer,Monthly Retainer,Income,Northstar Studio,Design retainer
+2026-03-04,-49,outflow,Credit Card,-49,Software,Design Tools,Operating Costs,Figma,Design tools
+2026-03-06,-120,outflow,Credit Card,-169,Software,Automation,Operating Costs,Zapier,Workflow automation
+2026-03-08,-85,outflow,Checking,7115,Meals,Client Meals,Operating Costs,Cafe Ledger,Client lunch
+2026-03-12,1400,revenue,Checking,8515,Project Work,Milestone,Income,Riverbend Labs,Landing page milestone
+2026-03-15,-600,outflow,Checking,7915,Contractors,Development,Delivery Costs,Dev Partner,Developer support
+2026-03-18,-95,outflow,Credit Card,-264,Internet,Fiber,Operating Costs,City Fiber,Fiber bill
+2026-03-22,900,revenue,Checking,8815,Consulting,Strategy,Income,Atlas Consulting,Strategy session
+2026-03-26,-180,outflow,Checking,8635,Travel,Ground Transport,Operating Costs,Airport Car,Airport ride
+2026-03-28,not-available,outflow,Checking,8635,Travel,Ground Transport,Operating Costs,Airport Car,Unreadable bank row
