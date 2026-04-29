@@ -1,5 +1,6 @@
 import readXlsxFile, { readSheet } from "read-excel-file/browser";
 import type { ImportedRow } from "../finance/types";
+import { normalizeImportedHeaders } from "./headers";
 
 type ExcelInput = ArrayBuffer | File | Blob;
 
@@ -29,10 +30,7 @@ export function excelRowsToImportedRows(rows: unknown[][]): ImportedRow[] {
   );
   if (headerIndex < 0) return [];
 
-  const headers = rows[headerIndex].map((value, index) => {
-    const header = String(value ?? "").trim();
-    return header || `column_${index + 1}`;
-  });
+  const headers = normalizeImportedHeaders(rows[headerIndex]);
 
   return rows
     .slice(headerIndex + 1)

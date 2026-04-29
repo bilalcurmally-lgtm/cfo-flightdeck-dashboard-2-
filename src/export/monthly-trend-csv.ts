@@ -1,5 +1,6 @@
 import type { PeriodSummary } from "../finance/summary";
 import type { PeriodGrain } from "../finance/types";
+import { exportDateStamp, safeExportStem } from "./filenames";
 
 export function buildMonthlyTrendCsv(periods: PeriodSummary[]): string {
   const header = "period,revenue,outflow,netCash";
@@ -15,12 +16,5 @@ export function monthlyTrendCsvFilename(
   generatedAt = new Date(),
   grain: PeriodGrain = "monthly"
 ): string {
-  const safeSource = sourceName
-    .replace(/\.[^.]+$/, "")
-    .replace(/[^a-z0-9]+/gi, "-")
-    .replace(/^-|-$/g, "")
-    .toLowerCase();
-  const dateStamp = generatedAt.toISOString().slice(0, 10);
-
-  return `${safeSource || "finance"}-visible-${grain}-trend-${dateStamp}.csv`;
+  return `${safeExportStem(sourceName)}-visible-${grain}-trend-${exportDateStamp(generatedAt)}.csv`;
 }

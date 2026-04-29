@@ -1,6 +1,7 @@
 import type { ForecastResult } from "../finance/forecast";
 import type { FinanceSummary } from "../finance/summary";
 import type { CsvImportResult } from "../finance/types";
+import { exportDateStamp, safeExportStem } from "./filenames";
 
 export interface ReviewerReport {
   sourceName: string;
@@ -77,12 +78,5 @@ export function buildReviewerReport(
 }
 
 export function reviewerReportFilename(sourceName: string, generatedAt = new Date()): string {
-  const safeSource = sourceName
-    .replace(/\.[^.]+$/, "")
-    .replace(/[^a-z0-9]+/gi, "-")
-    .replace(/^-|-$/g, "")
-    .toLowerCase();
-  const dateStamp = generatedAt.toISOString().slice(0, 10);
-
-  return `${safeSource || "finance"}-review-summary-${dateStamp}.json`;
+  return `${safeExportStem(sourceName)}-review-summary-${exportDateStamp(generatedAt)}.json`;
 }

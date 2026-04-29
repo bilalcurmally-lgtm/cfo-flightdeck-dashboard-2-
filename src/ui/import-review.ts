@@ -7,15 +7,45 @@ export function renderWorksheetOption(sheet: ParsedExcelSheet, index: number): s
   const columns = Object.keys(sheet.rows[0] || {});
   return `
     <article class="worksheet-option">
-      <div>
-        <strong>${escapeHtml(sheet.name)}</strong>
-        <span>${sheet.rows.length} imported row${sheet.rows.length === 1 ? "" : "s"} · ${sheet.rawRowCount} raw row${
-          sheet.rawRowCount === 1 ? "" : "s"
-        }</span>
-        <small>${columns.length ? escapeHtml(columns.slice(0, 6).join(", ")) : "No table-like rows detected"}</small>
+      <div class="worksheet-summary">
+        <div>
+          <strong>${escapeHtml(sheet.name)}</strong>
+          <span>${sheet.rows.length} imported row${sheet.rows.length === 1 ? "" : "s"} · ${sheet.rawRowCount} raw row${
+            sheet.rawRowCount === 1 ? "" : "s"
+          }</span>
+          <small>${columns.length ? escapeHtml(columns.slice(0, 6).join(", ")) : "No table-like rows detected"}</small>
+        </div>
+        ${renderWorksheetPreview(sheet)}
       </div>
       <button data-sheet-index="${index}" type="button"${sheet.rows.length ? "" : " disabled"}>Review Sheet</button>
     </article>
+  `;
+}
+
+function renderWorksheetPreview(sheet: ParsedExcelSheet): string {
+  const columns = Object.keys(sheet.rows[0] || {}).slice(0, 4);
+  if (!columns.length) return `<p class="empty worksheet-empty">No preview rows available.</p>`;
+
+  return `
+    <div class="table-wrap worksheet-preview" aria-label="${escapeHtml(sheet.name)} worksheet preview">
+      <table>
+        <thead>
+          <tr>${columns.map((column) => `<th>${escapeHtml(column)}</th>`).join("")}</tr>
+        </thead>
+        <tbody>
+          ${sheet.rows
+            .slice(0, 3)
+            .map(
+              (row) => `
+                <tr>
+                  ${columns.map((column) => `<td>${escapeHtml(row[column] || "")}</td>`).join("")}
+                </tr>
+              `
+            )
+            .join("")}
+        </tbody>
+      </table>
+    </div>
   `;
 }
 

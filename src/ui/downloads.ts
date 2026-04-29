@@ -1,7 +1,7 @@
+import { exportDateStamp, safeExportStem } from "../export/filenames";
+
 export function filteredTransactionsFilename(sourceName: string, createdAt: Date): string {
-  const safeName = sourceName.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase();
-  const date = createdAt.toISOString().slice(0, 10);
-  return `${safeName || "transactions"}-${date}-filtered-transactions.csv`;
+  return `${safeExportStem(sourceName)}-${exportDateStamp(createdAt)}-filtered-transactions.csv`;
 }
 
 export function downloadJson(filename: string, value: unknown): void {
@@ -10,6 +10,10 @@ export function downloadJson(filename: string, value: unknown): void {
 
 export function downloadText(filename: string, value: string, type: string): void {
   const blob = new Blob([value], { type });
+  downloadBlob(filename, blob);
+}
+
+export function downloadBlob(filename: string, blob: Blob): void {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;

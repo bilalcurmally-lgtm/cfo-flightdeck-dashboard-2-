@@ -10,7 +10,7 @@ export function renderReferencePanelContent(): string {
     <div class="reference-grid">
       <article>
         <h3>Import</h3>
-        <p>Date and amount are required. Flow uses a mapped type column when available; otherwise positive values are revenue and negative values are outflow.</p>
+        <p>Date and amount are required. Duplicate column names stay available with suffixes like Amount_2 before mapping review.</p>
       </article>
       <article>
         <h3>Dashboard</h3>
@@ -26,7 +26,7 @@ export function renderReferencePanelContent(): string {
       </article>
       <article>
         <h3>Exports</h3>
-        <p>Transactions CSV and reviewer JSON keep the full reviewed import. Trend CSV exports the visible filtered trend.</p>
+        <p>Transactions CSV and reviewer JSON keep the full reviewed import. Trend CSV, SVG, and PNG export the visible filtered trend.</p>
       </article>
       <article>
         <h3>Privacy</h3>

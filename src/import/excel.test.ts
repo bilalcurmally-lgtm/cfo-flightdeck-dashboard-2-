@@ -26,6 +26,15 @@ describe("excelRowsToImportedRows", () => {
     ).toEqual([{ Date: "2026-03-01", column_2: "100" }]);
   });
 
+  it("preserves duplicate worksheet columns instead of overwriting values", () => {
+    expect(
+      excelRowsToImportedRows([
+        ["Date", "Amount", "Amount"],
+        ["2026-03-01", 100, 200]
+      ])
+    ).toEqual([{ Date: "2026-03-01", Amount: "100", Amount_2: "200" }]);
+  });
+
   it("keeps parsed sheet metadata available for workbook selection", () => {
     const sheets: ParsedExcelSheet[] = [
       {

@@ -160,19 +160,62 @@ h1 {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 14px;
-  align-items: center;
+  align-items: start;
   border-top: 1px solid #e5ded3;
   padding-top: 12px;
 }
 
-.worksheet-option div {
+.worksheet-option button {
+  justify-self: end;
+  white-space: nowrap;
+}
+
+.worksheet-summary {
+  display: grid;
+  grid-template-columns: minmax(170px, 0.75fr) minmax(260px, 1.25fr);
+  gap: 14px;
+  min-width: 0;
+}
+
+.worksheet-summary > div:first-child {
   display: grid;
   gap: 4px;
+  min-width: 0;
 }
 
 .worksheet-option span,
 .worksheet-option small {
   color: #5d6b64;
+}
+
+.worksheet-preview {
+  box-sizing: border-box;
+  width: 100%;
+  max-height: 132px;
+  border: 1px solid #e5ded3;
+  border-radius: 8px;
+  background: #fffaf2;
+  overflow: auto;
+  scrollbar-gutter: stable;
+}
+
+.worksheet-preview table {
+  min-width: max-content;
+  font-size: 0.78rem;
+}
+
+.worksheet-preview th,
+.worksheet-preview td {
+  max-width: 160px;
+  padding: 7px 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.worksheet-empty {
+  align-self: center;
+  margin: 0;
 }
 
 .mapping-panel {
@@ -619,6 +662,10 @@ button:disabled {
   margin-top: 12px;
 }
 
+.detail-grid .table-panel {
+  align-self: start;
+}
+
 .diagnostics-panel {
   margin-top: 12px;
 }
@@ -770,6 +817,7 @@ th {
   display: grid;
   grid-template-columns: 120px minmax(0, 1fr);
   gap: 10px;
+  min-width: 0;
 }
 
 .mapping-list dt,
@@ -777,11 +825,16 @@ th {
 .raw-row-list dt,
 .mapping-list dd {
   margin: 0;
+  min-width: 0;
 }
 
 .detail-list dd,
 .raw-row-list dd {
   margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.raw-row-list dt {
   overflow-wrap: anywhere;
 }
 
@@ -895,6 +948,7 @@ th {
   .hero,
   .import-panel,
   .worksheet-option,
+  .worksheet-summary,
   .mapping-editor,
   .mapping-validation ul,
   .coverage-list,
@@ -937,6 +991,33 @@ th {
   .forecast-week {
     grid-template-columns: 1fr;
   }
+
+  .detail-grid .table-panel:nth-child(2) {
+    position: sticky;
+    bottom: 12px;
+    z-index: 4;
+    max-height: min(68vh, 560px);
+    overflow: auto;
+    border: 1px solid #d8d0c3;
+    background: #fffaf2;
+    box-shadow: 0 18px 42px rgb(23 33 29 / 18%);
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
+
+  .detail-grid .table-panel:nth-child(2) .panel-heading {
+    position: sticky;
+    top: -18px;
+    z-index: 1;
+    margin: -18px -18px 14px;
+    padding: 18px 18px 12px;
+    border-bottom: 1px solid #e5ded3;
+    background: #fffaf2;
+  }
+
+  .worksheet-option button {
+    justify-self: stretch;
+  }
 }
 
 @media (max-width: 520px) {
@@ -953,6 +1034,18 @@ th {
   .panel-heading {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .detail-grid .table-panel:nth-child(2) {
+    bottom: 0;
+    margin-inline: -14px;
+    border-radius: 12px 12px 0 0;
+    padding-bottom: calc(18px + env(safe-area-inset-bottom));
+  }
+
+  .detail-list div,
+  .raw-row-list div {
+    grid-template-columns: minmax(88px, 0.38fr) minmax(0, 1fr);
   }
 }
 

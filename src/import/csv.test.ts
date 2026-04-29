@@ -43,6 +43,12 @@ describe("parseCsv", () => {
     expect(parseCsv("A,B,C\n1")).toEqual([{ A: "1", B: "", C: "" }]);
   });
 
+  it("preserves duplicate headers with stable suffixes", () => {
+    expect(parseCsv("Date,Amount,Amount\n2026-03-01,100,200")).toEqual([
+      { Date: "2026-03-01", Amount: "100", Amount_2: "200" }
+    ]);
+  });
+
   it("returns an empty array for empty input", () => {
     expect(parseCsv("")).toEqual([]);
   });

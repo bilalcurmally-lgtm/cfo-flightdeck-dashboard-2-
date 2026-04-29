@@ -1,5 +1,6 @@
 import type { PeriodSummary } from "../finance/summary";
 import type { PeriodGrain } from "../finance/types";
+import { exportDateStamp, safeExportStem } from "./filenames";
 
 export interface TrendSvgOptions {
   title?: string;
@@ -46,14 +47,7 @@ export function trendSvgFilename(
   generatedAt = new Date(),
   grain: PeriodGrain = "monthly"
 ): string {
-  const safeSource = sourceName
-    .replace(/\.[^.]+$/, "")
-    .replace(/[^a-z0-9]+/gi, "-")
-    .replace(/^-|-$/g, "")
-    .toLowerCase();
-  const dateStamp = generatedAt.toISOString().slice(0, 10);
-
-  return `${safeSource || "finance"}-visible-${grain}-trend-${dateStamp}.svg`;
+  return `${safeExportStem(sourceName)}-visible-${grain}-trend-${exportDateStamp(generatedAt)}.svg`;
 }
 
 function axisTicks(maxValue: number, chartWidth: number, chartHeight: number, currency = "USD"): string {

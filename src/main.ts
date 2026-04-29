@@ -4,28 +4,32 @@ import type {
   DateFormat,
   ImportedRow,
   ImportMapping,
-  PeriodGrain,
   TransactionRecord
 } from "./finance/types";
 import type { FinanceSummary } from "./finance/summary";
+import { buildDashboardView } from "./finance/dashboard-view";
 import {
-  DEFAULT_FILTERS,
-  filterTransactions,
   optionValues,
-  type DashboardFilters,
   type FilterableField
 } from "./finance/filters";
+import {
+  isReviewPreset,
+  reviewPresetLabel
+} from "./finance/review-presets";
 import { currencyOptions } from "./finance/currencies";
 import { build13WeekForecast, parseFutureCashEvents } from "./finance/forecast";
 import { summarizeTransactions } from "./finance/summary";
 import { buildReviewerReport, reviewerReportFilename } from "./export/reviewer-report";
 import { buildMonthlyTrendCsv, monthlyTrendCsvFilename } from "./export/monthly-trend-csv";
 import { buildTransactionsCsv, transactionsCsvFilename } from "./export/transactions-csv";
+import { svgToPngBlob, trendPngFilename } from "./export/trend-png";
 import { buildTrendSvg, trendSvgFilename } from "./export/trend-svg";
 import { parseExcelWorkbook, type ParsedExcelSheet } from "./import/excel";
+import { SAMPLE_DATASETS } from "./import/sample-datasets";
 import { importTransactionsFromCsv, importTransactionsFromRows } from "./import/transactions";
 import { analyzeImportReadiness } from "./import/validation";
 import { clearSettings, DEFAULT_SETTINGS, loadSettings, saveSettings, type AppSettings } from "./store/settings";
+import { createDashboardViewState, resetDashboardFilters, selectTransaction } from "./store/view-state";
 import {
   dateFormatOption,
   filterSelect,
@@ -45,7 +49,8 @@ import {
   renderTrend,
   renderWarnings
 } from "./ui/dashboard-renderers";
-import { downloadJson, downloadText, filteredTransactionsFilename } from "./ui/downloads";
+import { downloadBlob, downloadJson, downloadText, filteredTransactionsFilename } from "./ui/downloads";
+import { renderAppShell } from "./ui/app-shell";
 import { renderForecast } from "./ui/forecast-renderers";
 import { escapeHtml } from "./ui/html";
 import {
@@ -57,75 +62,20 @@ import {
 import { renderPrintableReport } from "./ui/print-report";
 import { renderReferencePanelContent } from "./ui/reference";
 
-const SAMPLE_DATASETS = [
-  { label: "Freelancer", path: "/sample-freelancer.csv" },
-  { label: "Agency", path: "/sample-agency.csv" },
-  { label: "Founder", path: "/sample-founder.csv" }
-];
-
 type ImportSource = string | ImportedRow[];
 type LoadedImportFile =
   | { kind: "csv"; result: CsvImportResult; source: string }
   | { kind: "excel"; sheets: ParsedExcelSheet[] };
-type ReviewPreset = "all" | "revenue" | "outflow" | "duplicates" | "transfers";
 
 let activeImport: { result: CsvImportResult; sourceName: string } | null = null;
 let draftImport:
   | { result: CsvImportResult; sourceName: string; source: ImportSource }
   | null = null;
 let settings: AppSettings = loadSettings();
-let activeFilters: DashboardFilters = { ...DEFAULT_FILTERS };
-let activeTrendGrain: PeriodGrain = "monthly";
-let activeReviewPreset: ReviewPreset = "all";
-let selectedTransactionId = "";
+let viewState = createDashboardViewState();
 let referenceOpen = false;
 
-document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
-  <section class="shell" aria-labelledby="page-title">
-    <header class="hero">
-      <div>
-        <p class="eyebrow">Billu.Works Finance Dashboard V2</p>
-        <h1 id="page-title">Private finance import, tested before the dashboard grows.</h1>
-        <p class="lede">
-          Drop in a bank CSV or Excel export. V2 keeps the file in your browser, maps transaction
-          rows locally, and shows rejected rows before any CFO-style claims are made.
-        </p>
-      </div>
-      <aside class="privacy-note" aria-label="Privacy promise">
-        <strong>Local first</strong>
-        <span>No upload, no account, no server-side transaction storage.</span>
-      </aside>
-    </header>
-
-    <section class="import-panel" aria-labelledby="import-title">
-      <div>
-        <h2 id="import-title">Import File</h2>
-        <p>CSV and Excel files are parsed locally, then paused for mapping review before calculations render.</p>
-      </div>
-      <div class="actions">
-        <label class="file-button">
-          <input id="csv-file" type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
-          Choose File
-        </label>
-        <label class="sample-picker">
-          <span>Sample</span>
-          <select id="sample-select">
-            ${SAMPLE_DATASETS.map(
-              (sample) => `<option value="${sample.path}">${sample.label}</option>`
-            ).join("")}
-          </select>
-        </label>
-        <button id="sample-button" type="button">Load Sample</button>
-        <button id="clear-button" type="button" disabled>Clear</button>
-        <button id="reference-button" type="button" aria-expanded="false">Formulas</button>
-      </div>
-      <p id="status" class="status" role="status">Waiting for a CSV or Excel file.</p>
-    </section>
-
-    <section id="reference-panel" class="reference-panel" aria-label="Formula reference" hidden></section>
-    <section id="results" class="results" aria-live="polite"></section>
-  </section>
-`;
+document.querySelector<HTMLDivElement>("#app")!.innerHTML = renderAppShell(SAMPLE_DATASETS);
 
 const fileInput = document.querySelector<HTMLInputElement>("#csv-file")!;
 const sampleButton = document.querySelector<HTMLButtonElement>("#sample-button")!;
@@ -140,30 +90,36 @@ fileInput.addEventListener("change", async () => {
   const file = fileInput.files?.[0];
   if (!file) return;
 
-  status.textContent = `Reading ${file.name} locally...`;
-  const loaded = await loadImportFile(file);
-  if (loaded.kind === "excel") {
-    renderWorksheetPicker(file.name, loaded.sheets);
-    return;
+  try {
+    status.textContent = `Reading ${file.name} locally...`;
+    const loaded = await loadImportFile(file);
+    if (loaded.kind === "excel") {
+      renderWorksheetPicker(file.name, loaded.sheets);
+      return;
+    }
+    renderMappingReview(loaded.result, file.name, loaded.source);
+  } catch (error) {
+    showImportError(file.name, error);
   }
-  renderMappingReview(loaded.result, file.name, loaded.source);
 });
 
 sampleButton.addEventListener("click", async () => {
   const sample = SAMPLE_DATASETS.find((item) => item.path === sampleSelect.value) ?? SAMPLE_DATASETS[0];
-  status.textContent = `Loading ${sample.label.toLowerCase()} sample CSV...`;
-  const response = await fetch(sample.path);
-  const text = await response.text();
-  renderMappingReview(importTransactionsFromCsv(text), sample.path.replace(/^\//, ""), text);
+  try {
+    status.textContent = `Loading ${sample.label.toLowerCase()} sample CSV...`;
+    const response = await fetch(sample.path);
+    if (!response.ok) throw new Error(`Sample request failed with ${response.status}.`);
+    const text = await response.text();
+    renderMappingReview(importTransactionsFromCsv(text), sample.path.replace(/^\//, ""), text);
+  } catch (error) {
+    showImportError(sample.label, error);
+  }
 });
 
 clearButton.addEventListener("click", () => {
   activeImport = null;
   draftImport = null;
-  activeFilters = { ...DEFAULT_FILTERS };
-  activeTrendGrain = "monthly";
-  activeReviewPreset = "all";
-  selectedTransactionId = "";
+  resetDashboardViewState();
   fileInput.value = "";
   results.innerHTML = "";
   status.textContent = "Import cleared. Waiting for a CSV or Excel file.";
@@ -194,13 +150,19 @@ function isExcelFile(file: File): boolean {
   return /\.xlsx$/i.test(file.name) || file.type.includes("spreadsheetml");
 }
 
+function showImportError(sourceName: string, error: unknown): void {
+  activeImport = null;
+  draftImport = null;
+  results.innerHTML = "";
+  clearButton.disabled = true;
+  const message = error instanceof Error ? error.message : "Unknown import error.";
+  status.textContent = `${sourceName}: could not read this import. ${message}`;
+}
+
 function renderWorksheetPicker(sourceName: string, sheets: ParsedExcelSheet[]): void {
   activeImport = null;
   draftImport = null;
-  activeFilters = { ...DEFAULT_FILTERS };
-  activeTrendGrain = "monthly";
-  activeReviewPreset = "all";
-  selectedTransactionId = "";
+  resetDashboardViewState();
   clearButton.disabled = false;
 
   if (sheets.length === 1) {
@@ -242,10 +204,7 @@ function renderMappingReview(
 ): void {
   activeImport = null;
   draftImport = { result, sourceName, source };
-  activeFilters = { ...DEFAULT_FILTERS };
-  activeTrendGrain = "monthly";
-  activeReviewPreset = "all";
-  selectedTransactionId = "";
+  resetDashboardViewState();
   clearButton.disabled = false;
   const columns = Object.keys(result.rawRows[0] || {});
 
@@ -295,30 +254,18 @@ function renderImportResult(result: CsvImportResult, sourceName: string): void {
   activeImport = { result, sourceName };
   draftImport = null;
   clearButton.disabled = false;
-  const baseFilteredRecords = filterTransactions(result.records, activeFilters);
-  const baseSummary = summarizeTransactions(
-    baseFilteredRecords,
-    result.rejectedRows,
-    readCashOnHand(),
-    activeTrendGrain
-  );
-  const filteredRecords = applyReviewPreset(baseFilteredRecords, baseSummary);
-  const summary = summarizeTransactions(
-    filteredRecords,
-    result.rejectedRows,
-    readCashOnHand(),
-    activeTrendGrain
-  );
-  if (!filteredRecords.some((record) => record.id === selectedTransactionId)) {
-    selectedTransactionId = filteredRecords[0]?.id ?? "";
+  const view = buildDashboardView({
+    result,
+    filters: viewState.filters,
+    trendGrain: viewState.trendGrain,
+    reviewPreset: viewState.reviewPreset,
+    selectedTransactionId: viewState.selectedTransactionId,
+    cashOnHand: readCashOnHand(),
+    futureEventsText: readFutureEventsText()
+  });
+  if (view.selectedTransactionId !== viewState.selectedTransactionId) {
+    viewState = selectTransaction(viewState, view.selectedTransactionId);
   }
-  const selectedRecord = filteredRecords.find((record) => record.id === selectedTransactionId) ?? null;
-  const eventInputValue = readFutureEventsText();
-  const parsedEvents = parseFutureCashEvents(eventInputValue);
-  const forecast = {
-    ...build13WeekForecast(filteredRecords, readCashOnHand(), parsedEvents.events),
-    rejectedEvents: parsedEvents.rejectedEvents
-  };
   status.textContent = `${sourceName}: ${result.records.length} transaction records ready, ${result.rejectedRows.length} rejected.`;
   results.innerHTML = `
     <section class="filter-panel" aria-labelledby="filter-title">
@@ -327,67 +274,67 @@ function renderImportResult(result: CsvImportResult, sourceName: string): void {
         <p>Filters update visible analysis only. CSV and reviewer exports keep the full reviewed import.</p>
       </div>
       <div class="filter-editor">
-        ${filterSelect("Flow", "flow", flowOptions(result.records), activeFilters.flow)}
-        ${filterSelect("Account", "account", optionValues(result.records, "account"), activeFilters.account)}
-        ${filterSelect("Head", "head", optionValues(result.records, "head"), activeFilters.head)}
+        ${filterSelect("Flow", "flow", flowOptions(result.records), viewState.filters.flow)}
+        ${filterSelect("Account", "account", optionValues(result.records, "account"), viewState.filters.account)}
+        ${filterSelect("Head", "head", optionValues(result.records, "head"), viewState.filters.head)}
         ${filterSelect(
           "Subcategory",
           "subcategory",
           optionValues(result.records, "subcategory"),
-          activeFilters.subcategory
+          viewState.filters.subcategory
         )}
         ${filterSelect(
           "Counterparty",
           "counterparty",
           optionValues(result.records, "counterparty"),
-          activeFilters.counterparty
+          viewState.filters.counterparty
         )}
         <label>
           From
-          <input data-date-filter-key="dateFrom" type="date" value="${escapeHtml(activeFilters.dateFrom)}" />
+          <input data-date-filter-key="dateFrom" type="date" value="${escapeHtml(viewState.filters.dateFrom)}" />
         </label>
         <label>
           To
-          <input data-date-filter-key="dateTo" type="date" value="${escapeHtml(activeFilters.dateTo)}" />
+          <input data-date-filter-key="dateTo" type="date" value="${escapeHtml(viewState.filters.dateTo)}" />
         </label>
         <label>
           Trend
           <select id="trend-grain">
-            ${trendGrainOption("daily", activeTrendGrain)}
-            ${trendGrainOption("weekly", activeTrendGrain)}
-            ${trendGrainOption("monthly", activeTrendGrain)}
+            ${trendGrainOption("daily", viewState.trendGrain)}
+            ${trendGrainOption("weekly", viewState.trendGrain)}
+            ${trendGrainOption("monthly", viewState.trendGrain)}
           </select>
         </label>
       </div>
       <div class="filter-summary">
-        <span>${filteredRecords.length} of ${result.records.length} record${
+        <span>${view.filteredRecords.length} of ${result.records.length} record${
           result.records.length === 1 ? "" : "s"
-        } shown${activeReviewPreset === "all" ? "" : ` · ${escapeHtml(reviewPresetLabel(activeReviewPreset))}`}</span>
+        } shown${viewState.reviewPreset === "all" ? "" : ` · ${escapeHtml(reviewPresetLabel(viewState.reviewPreset))}`}</span>
         <button id="reset-filters" type="button">Reset</button>
       </div>
       <div class="preset-chips" aria-label="Common review views">
-        ${reviewPresetButton("all", "All", activeReviewPreset)}
-        ${reviewPresetButton("revenue", "Revenue", activeReviewPreset)}
-        ${reviewPresetButton("outflow", "Outflow", activeReviewPreset)}
+        ${reviewPresetButton("all", "All", viewState.reviewPreset)}
+        ${reviewPresetButton("revenue", "Revenue", viewState.reviewPreset)}
+        ${reviewPresetButton("outflow", "Outflow", viewState.reviewPreset)}
         ${reviewPresetButton(
           "duplicates",
-          `Duplicates (${baseSummary.diagnostics.duplicateGroups.length})`,
-          activeReviewPreset,
-          !baseSummary.diagnostics.duplicateGroups.length
+          `Duplicates (${view.baseSummary.diagnostics.duplicateGroups.length})`,
+          viewState.reviewPreset,
+          !view.baseSummary.diagnostics.duplicateGroups.length
         )}
         ${reviewPresetButton(
           "transfers",
-          `Transfers (${baseSummary.diagnostics.transferCandidates.length})`,
-          activeReviewPreset,
-          !baseSummary.diagnostics.transferCandidates.length
+          `Transfers (${view.baseSummary.diagnostics.transferCandidates.length})`,
+          viewState.reviewPreset,
+          !view.baseSummary.diagnostics.transferCandidates.length
         )}
       </div>
     </section>
     <div class="summary-grid">
-      ${metricCard("Records", String(summary.transactionCount))}
-      ${metricCard("Revenue", formatMoney(summary.revenue))}
-      ${metricCard("Outflow", formatMoney(summary.outflow))}
-      ${metricCard("Net Cash", formatMoney(summary.netCash))}
+      ${metricCard("Records", String(view.summary.transactionCount))}
+      ${metricCard("Revenue", formatMoney(view.summary.revenue))}
+      ${metricCard("Outflow", formatMoney(view.summary.outflow))}
+      ${metricCard("Net Cash", formatMoney(view.summary.netCash))}
     </div>
     <section class="cash-panel" aria-labelledby="cash-title">
       <div>
@@ -399,9 +346,9 @@ function renderImportResult(result: CsvImportResult, sourceName: string): void {
         <input id="cash-on-hand" type="number" min="0" step="100" value="${readCashOnHand() || ""}" placeholder="0" />
       </label>
       <div class="cash-metrics">
-        ${metricCard("Avg Monthly Burn", formatMoney(summary.cashHealth.averageMonthlyOutflow))}
-        ${metricCard("Runway", formatRunway(summary.cashHealth.runwayMonths))}
-        ${metricCard("Revenue Concentration", `${Math.round(summary.cashHealth.revenueConcentration * 100)}%`)}
+        ${metricCard("Avg Monthly Burn", formatMoney(view.summary.cashHealth.averageMonthlyOutflow))}
+        ${metricCard("Runway", formatRunway(view.summary.cashHealth.runwayMonths))}
+        ${metricCard("Revenue Concentration", `${Math.round(view.summary.cashHealth.revenueConcentration * 100)}%`)}
       </div>
     </section>
     <section class="export-panel" aria-labelledby="export-title">
@@ -415,16 +362,17 @@ function renderImportResult(result: CsvImportResult, sourceName: string): void {
         <button id="export-reviewer" type="button">Reviewer JSON</button>
         <button id="export-trend" type="button">Trend CSV</button>
         <button id="export-trend-svg" type="button">Trend SVG</button>
+        <button id="export-trend-png" type="button">Trend PNG</button>
         <button id="print-report" type="button">Print Report</button>
       </div>
     </section>
     ${renderPrintableReport({
       sourceName,
-      summary,
-      forecast,
-      visibleRecords: filteredRecords,
-      reviewPresetLabel: reviewPresetLabel(activeReviewPreset),
-      activeFilters,
+      summary: view.summary,
+      forecast: view.forecast,
+      visibleRecords: view.filteredRecords,
+      reviewPresetLabel: reviewPresetLabel(viewState.reviewPreset),
+      activeFilters: viewState.filters,
       formatMoney,
       formatRunway
     })}
@@ -449,77 +397,77 @@ function renderImportResult(result: CsvImportResult, sourceName: string): void {
           <h2 id="forecast-title">13-Week Forecast</h2>
           <p>One event per line: YYYY-MM-DD, amount, label</p>
         </div>
-        <span>${escapeHtml(formatMoney(forecast.averageWeeklyNet))} avg weekly net</span>
+        <span>${escapeHtml(formatMoney(view.forecast.averageWeeklyNet))} avg weekly net</span>
       </div>
       <textarea id="future-events" rows="3" placeholder="2026-04-15, -1200, quarterly tax&#10;2026-05-01, 3000, client payment">${escapeHtml(
-        eventInputValue
+        view.futureEventsText
       )}</textarea>
-      ${renderForecast(forecast, formatMoney)}
+      ${renderForecast(view.forecast, formatMoney)}
     </section>
     <div class="insight-grid">
       <section class="table-panel" aria-labelledby="trend-title">
         <div class="panel-heading">
-          <h2 id="trend-title">${escapeHtml(trendGrainLabel(activeTrendGrain))} Trend</h2>
-          <span>${summary.periodTrend.length} period${summary.periodTrend.length === 1 ? "" : "s"}</span>
+          <h2 id="trend-title">${escapeHtml(trendGrainLabel(viewState.trendGrain))} Trend</h2>
+          <span>${view.summary.periodTrend.length} period${view.summary.periodTrend.length === 1 ? "" : "s"}</span>
         </div>
-        ${renderTrend(summary.periodTrend, formatMoney)}
+        ${renderTrend(view.summary.periodTrend, formatMoney)}
       </section>
       <section class="table-panel" aria-labelledby="heads-title">
         <div class="panel-heading">
           <h2 id="heads-title">Top Heads</h2>
           <span>by amount</span>
         </div>
-        ${renderTopHeads(summary.topHeads, formatMoney)}
+        ${renderTopHeads(view.summary.topHeads, formatMoney)}
       </section>
       <section class="table-panel" aria-labelledby="accounts-title">
         <div class="panel-heading">
           <h2 id="accounts-title">Account Balances</h2>
-          <span>${summary.accountBalances.length} account${
-            summary.accountBalances.length === 1 ? "" : "s"
+          <span>${view.summary.accountBalances.length} account${
+            view.summary.accountBalances.length === 1 ? "" : "s"
           }</span>
         </div>
-        ${renderAccountBalances(summary.accountBalances, formatMoney)}
+        ${renderAccountBalances(view.summary.accountBalances, formatMoney)}
       </section>
       <section class="table-panel" aria-labelledby="subcategories-title">
         <div class="panel-heading">
           <h2 id="subcategories-title">Subcategories</h2>
-          <span>${summary.topSubcategories.length} drilldown${
-            summary.topSubcategories.length === 1 ? "" : "s"
+          <span>${view.summary.topSubcategories.length} drilldown${
+            view.summary.topSubcategories.length === 1 ? "" : "s"
           }</span>
         </div>
-        ${renderSubcategories(summary.topSubcategories, formatMoney)}
+        ${renderSubcategories(view.summary.topSubcategories, formatMoney)}
       </section>
       <section class="table-panel" aria-labelledby="warnings-title">
         <div class="panel-heading">
           <h2 id="warnings-title">Data Quality</h2>
-          <span>${summary.warnings.length} signal${summary.warnings.length === 1 ? "" : "s"}</span>
+          <span>${view.summary.warnings.length} signal${view.summary.warnings.length === 1 ? "" : "s"}</span>
         </div>
-        ${renderWarnings(summary)}
+        ${renderWarnings(view.summary)}
       </section>
     </div>
     <section class="table-panel diagnostics-panel" aria-labelledby="diagnostics-title">
       <div class="panel-heading">
         <h2 id="diagnostics-title">Duplicate & Transfer Checks</h2>
-        <span>${summary.diagnostics.duplicateGroups.length} duplicate, ${
-          summary.diagnostics.transferCandidates.length
+        <span>${view.summary.diagnostics.duplicateGroups.length} duplicate, ${
+          view.summary.diagnostics.transferCandidates.length
         } transfer</span>
       </div>
-      ${renderDiagnostics(summary, formatMoney)}
+      ${renderDiagnostics(view.summary, formatMoney)}
     </section>
     <div class="detail-grid">
       <section class="table-panel" aria-labelledby="preview-title">
         <div class="panel-heading">
           <h2 id="preview-title">Transaction Preview</h2>
-          <span>${filteredRecords.length} shown · ${escapeHtml(result.dateFormat.toUpperCase())} dates</span>
+          <span>${view.filteredRecords.length} shown · ${escapeHtml(result.dateFormat.toUpperCase())} dates</span>
         </div>
-        ${renderTransactionTable(filteredRecords, selectedTransactionId, formatMoney)}
+        ${renderTransactionTable(view.filteredRecords, viewState.selectedTransactionId, formatMoney)}
       </section>
       <section class="table-panel" aria-labelledby="transaction-detail-title">
         <div class="panel-heading">
           <h2 id="transaction-detail-title">Transaction Detail</h2>
           <span>audit trail</span>
         </div>
-        ${renderTransactionDetail(selectedRecord, result, formatMoney)}
+        ${renderTransactionDetail(view.selectedRecord, result, formatMoney)}
       </section>
       <section class="table-panel" aria-labelledby="quality-title">
         <div class="panel-heading">
@@ -532,7 +480,7 @@ function renderImportResult(result: CsvImportResult, sourceName: string): void {
   `;
   bindDashboardFilters();
   bindLiveInputs();
-  bindExportButton(summary, filteredRecords);
+  bindExportButton(view.summary, view.filteredRecords);
   bindTransactionPreview();
 }
 
@@ -547,40 +495,16 @@ function renderCurrencyOptions(selectedCurrency: string): string {
     .join("");
 }
 
-function applyReviewPreset(records: TransactionRecord[], baseSummary: FinanceSummary): TransactionRecord[] {
-  if (activeReviewPreset === "revenue") return records.filter((record) => record.flow === "revenue");
-  if (activeReviewPreset === "outflow") return records.filter((record) => record.flow === "outflow");
-  if (activeReviewPreset === "duplicates") {
-    const duplicateIds = new Set(
-      baseSummary.diagnostics.duplicateGroups.flatMap((group) => group.records.map((record) => record.id))
-    );
-    return records.filter((record) => duplicateIds.has(record.id));
-  }
-  if (activeReviewPreset === "transfers") {
-    const transferIds = new Set(
-      baseSummary.diagnostics.transferCandidates.flatMap((candidate) => [
-        candidate.outflowId,
-        candidate.revenueId
-      ])
-    );
-    return records.filter((record) => transferIds.has(record.id));
-  }
-  return records;
-}
-
-function reviewPresetLabel(preset: ReviewPreset): string {
-  const labels: Record<ReviewPreset, string> = {
-    all: "all records",
-    revenue: "revenue only",
-    outflow: "outflow only",
-    duplicates: "possible duplicates",
-    transfers: "possible transfers"
-  };
-  return labels[preset];
-}
-
 function flowOptions(records: TransactionRecord[]): string[] {
   return optionValues(records, "flow");
+}
+
+function resetDashboardViewState(): void {
+  viewState = createDashboardViewState();
+}
+
+function resetFiltersAndPreset(): void {
+  viewState = resetDashboardFilters(viewState);
 }
 
 function bindMappingReview(): void {
@@ -626,7 +550,7 @@ function bindDashboardFilters(): void {
 
       const key = select.dataset.filterKey as FilterableField | undefined;
       if (!key) return;
-      activeFilters = { ...activeFilters, [key]: select.value };
+      viewState = { ...viewState, filters: { ...viewState.filters, [key]: select.value } };
       renderImportResult(activeImport.result, activeImport.sourceName);
       document.querySelector<HTMLSelectElement>(`[data-filter-key="${key}"]`)?.focus();
     });
@@ -637,7 +561,7 @@ function bindDashboardFilters(): void {
 
       const key = input.dataset.dateFilterKey as "dateFrom" | "dateTo" | undefined;
       if (!key) return;
-      activeFilters = { ...activeFilters, [key]: input.value };
+      viewState = { ...viewState, filters: { ...viewState.filters, [key]: input.value } };
       renderImportResult(activeImport.result, activeImport.sourceName);
       document.querySelector<HTMLInputElement>(`[data-date-filter-key="${key}"]`)?.focus();
     });
@@ -647,7 +571,7 @@ function bindDashboardFilters(): void {
 
     const value = (event.target as HTMLSelectElement).value;
     if (value !== "daily" && value !== "weekly" && value !== "monthly") return;
-    activeTrendGrain = value;
+    viewState = { ...viewState, trendGrain: value };
     renderImportResult(activeImport.result, activeImport.sourceName);
     document.querySelector<HTMLSelectElement>("#trend-grain")?.focus();
   });
@@ -655,8 +579,7 @@ function bindDashboardFilters(): void {
   document.querySelector<HTMLButtonElement>("#reset-filters")?.addEventListener("click", () => {
     if (!activeImport) return;
 
-    activeFilters = { ...DEFAULT_FILTERS };
-    activeReviewPreset = "all";
+    resetFiltersAndPreset();
     renderImportResult(activeImport.result, activeImport.sourceName);
     document.querySelector<HTMLButtonElement>("#reset-filters")?.focus();
   });
@@ -665,16 +588,8 @@ function bindDashboardFilters(): void {
       if (!activeImport) return;
 
       const preset = button.dataset.reviewPreset;
-      if (
-        preset !== "all" &&
-        preset !== "revenue" &&
-        preset !== "outflow" &&
-        preset !== "duplicates" &&
-        preset !== "transfers"
-      ) {
-        return;
-      }
-      activeReviewPreset = preset;
+      if (!isReviewPreset(preset)) return;
+      viewState = { ...viewState, reviewPreset: preset };
       renderImportResult(activeImport.result, activeImport.sourceName);
       document.querySelector<HTMLButtonElement>(`[data-review-preset="${preset}"]`)?.focus();
     });
@@ -686,9 +601,11 @@ function bindTransactionPreview(): void {
     button.addEventListener("click", () => {
       if (!activeImport) return;
 
-      selectedTransactionId = button.dataset.transactionId ?? "";
+      viewState = selectTransaction(viewState, button.dataset.transactionId ?? "");
       renderImportResult(activeImport.result, activeImport.sourceName);
-      document.querySelector<HTMLButtonElement>(`[data-transaction-id="${selectedTransactionId}"]`)?.focus();
+      document.querySelector<HTMLButtonElement>(
+        `[data-transaction-id="${viewState.selectedTransactionId}"]`
+      )?.focus();
     });
   });
 }
@@ -764,7 +681,7 @@ function bindExportButton(visibleSummary: FinanceSummary, visibleRecords: Transa
         activeImport.result.records,
         activeImport.result.rejectedRows,
         readCashOnHand(),
-        activeTrendGrain
+        viewState.trendGrain
       ),
       fullForecast
     );
@@ -789,7 +706,7 @@ function bindExportButton(visibleSummary: FinanceSummary, visibleRecords: Transa
   document.querySelector<HTMLButtonElement>("#export-trend")?.addEventListener("click", () => {
     if (!activeImport) return;
     downloadText(
-      monthlyTrendCsvFilename(activeImport.sourceName, new Date(), activeTrendGrain),
+      monthlyTrendCsvFilename(activeImport.sourceName, new Date(), viewState.trendGrain),
       buildMonthlyTrendCsv(visibleSummary.periodTrend),
       "text/csv;charset=utf-8"
     );
@@ -797,17 +714,34 @@ function bindExportButton(visibleSummary: FinanceSummary, visibleRecords: Transa
   document.querySelector<HTMLButtonElement>("#export-trend-svg")?.addEventListener("click", () => {
     if (!activeImport) return;
     downloadText(
-      trendSvgFilename(activeImport.sourceName, new Date(), activeTrendGrain),
-      buildTrendSvg(visibleSummary.periodTrend, {
-        title: `${trendGrainLabel(activeTrendGrain)} Trend`,
-        subtitle: `${activeImport.sourceName} · ${reviewPresetLabel(activeReviewPreset)}`,
-        currency: settings.currency
-      }),
+      trendSvgFilename(activeImport.sourceName, new Date(), viewState.trendGrain),
+      buildVisibleTrendSvg(visibleSummary),
       "image/svg+xml;charset=utf-8"
     );
   });
+  document.querySelector<HTMLButtonElement>("#export-trend-png")?.addEventListener("click", async () => {
+    if (!activeImport) return;
+    const button = document.querySelector<HTMLButtonElement>("#export-trend-png");
+    if (button) button.disabled = true;
+    try {
+      const png = await svgToPngBlob(buildVisibleTrendSvg(visibleSummary));
+      downloadBlob(trendPngFilename(activeImport.sourceName, new Date(), viewState.trendGrain), png);
+    } catch (error) {
+      status.textContent = error instanceof Error ? error.message : "Could not export trend PNG.";
+    } finally {
+      if (button) button.disabled = false;
+    }
+  });
   document.querySelector<HTMLButtonElement>("#print-report")?.addEventListener("click", () => {
     window.print();
+  });
+}
+
+function buildVisibleTrendSvg(visibleSummary: FinanceSummary): string {
+  return buildTrendSvg(visibleSummary.periodTrend, {
+    title: `${trendGrainLabel(viewState.trendGrain)} Trend`,
+    subtitle: `${activeImport?.sourceName ?? "Current import"} · ${reviewPresetLabel(viewState.reviewPreset)}`,
+    currency: settings.currency
   });
 }
 

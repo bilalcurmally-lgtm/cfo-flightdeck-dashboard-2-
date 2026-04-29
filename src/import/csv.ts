@@ -1,4 +1,5 @@
 import type { ImportedRow } from "../finance/types";
+import { normalizeImportedHeaders } from "./headers";
 
 export function parseCsv(text: string): ImportedRow[] {
   if (text.charCodeAt(0) === 0xfeff) text = text.slice(1);
@@ -44,9 +45,7 @@ export function parseCsv(text: string): ImportedRow[] {
   const headerRowIndex = rows.findIndex((row) => row.some((value) => value.trim() !== ""));
   if (headerRowIndex < 0) return [];
 
-  const headers = rows[headerRowIndex].map(
-    (header, index) => header.trim() || `column_${index + 1}`
-  );
+  const headers = normalizeImportedHeaders(rows[headerRowIndex]);
 
   return rows.slice(headerRowIndex + 1).map((values) =>
     Object.fromEntries(headers.map((header, index) => [header, (values[index] || "").trim()]))

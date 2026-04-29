@@ -1,4 +1,5 @@
 import type { TransactionRecord } from "../finance/types";
+import { exportDateStamp, safeExportStem } from "./filenames";
 
 export function buildTransactionsCsv(records: TransactionRecord[]): string {
   const header = [
@@ -34,14 +35,7 @@ export function buildTransactionsCsv(records: TransactionRecord[]): string {
 }
 
 export function transactionsCsvFilename(sourceName: string, generatedAt = new Date()): string {
-  const safeSource = sourceName
-    .replace(/\.[^.]+$/, "")
-    .replace(/[^a-z0-9]+/gi, "-")
-    .replace(/^-|-$/g, "")
-    .toLowerCase();
-  const dateStamp = generatedAt.toISOString().slice(0, 10);
-
-  return `${safeSource || "finance"}-normalized-transactions-${dateStamp}.csv`;
+  return `${safeExportStem(sourceName)}-normalized-transactions-${exportDateStamp(generatedAt)}.csv`;
 }
 
 function csvEscape(value: string): string {

@@ -26,6 +26,10 @@ CSV and Excel files are parsed locally. The browser pauses on a mapping review b
 calculations render, so date, amount, flow/type, account, balance, category, subcategory,
 counterparty, and description columns can be confirmed or corrected locally.
 
+When an import contains duplicate column names, later duplicates stay available with numeric
+suffixes such as `Amount_2`. This prevents CSV or worksheet values from being silently overwritten
+before mapping review.
+
 The mapping review shows import readiness before calculations render:
 
 - accepted rows with valid date and amount fields.
@@ -110,6 +114,10 @@ weekly, or monthly trend grain. It includes:
 - `revenue`
 - `outflow`
 - `netCash`
+
+The visible trend SVG and PNG exports use the same currently filtered trend data and selected
+grain. Export filenames share the same source-name normalization across transaction CSV, filtered
+CSV, reviewer JSON, trend CSV, trend SVG, and trend PNG.
 
 ## Local Settings
 
