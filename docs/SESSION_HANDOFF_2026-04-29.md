@@ -23,6 +23,8 @@ Date: 2026-04-29
   - Review preset behavior moved to `src/finance/review-presets.ts`.
   - Dashboard view data prep moved to `src/finance/dashboard-view.ts`.
   - Dashboard view state defaults/reset helpers moved to `src/store/view-state.ts`.
+  - Dashboard section HTML moved to `src/ui/dashboard-sections.ts`.
+  - Import mapping review panel moved to `src/ui/import-review.ts`.
 - Import and sample loading now catch failures and show a user-facing status message.
 - Formula/reference docs updated.
   - `docs/FORMULAS.md` and the in-app Formulas panel mention duplicate-header suffixes and Trend CSV/SVG/PNG exports.
@@ -32,7 +34,7 @@ Date: 2026-04-29
 Latest verification before commit:
 
 ```text
-npm test                    31 files passed, 104 tests passed
+npm test                    32 files passed, 114 tests passed
 npm run build               passed
 git diff --check            passed
 ```
@@ -54,8 +56,12 @@ Checked:
 ## Current Repo State
 
 - Branch: `main`
-- Latest commit: `67abff8 feat: harden dashboard import review exports`
-- `main` is ahead of `origin/main` by 3 commits.
+- Latest code commit: `ee44918 refactor: extract mapping review panel`
+- Recent follow-up commits:
+  - `8f018a8 refactor: extract dashboard section renderers`
+  - `ee44918 refactor: extract mapping review panel`
+- This handoff was refreshed after those commits.
+- `main` is ahead of `origin/main` by 7 commits, including this handoff refresh.
 - Working tree was clean after the commit.
 - Dev server was shut down; nothing should be listening on `5174`.
 - gstack context-save checkpoint also exists at:
@@ -71,8 +77,8 @@ Checked:
 
 ## Best Next Steps
 
-1. Push the 3 local commits when ready.
+1. Push the 7 local commits when ready.
 2. Add a real lightweight browser smoke suite if project dependencies can include Playwright or another browser runner.
-3. Continue splitting `src/main.ts`, starting with event binding or dashboard section rendering.
-4. Consider a dedicated dashboard renderer module for the large post-import dashboard markup.
+3. Continue splitting `src/main.ts`, starting with event binding and import/dashboard orchestration.
+4. Consider extracting worksheet picker rendering or export binding once the event code is clearer.
 5. Do a fresh visual pass on the worksheet preview and mobile transaction detail drawer in the browser.
