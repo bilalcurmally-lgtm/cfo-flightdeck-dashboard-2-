@@ -8,10 +8,7 @@ import type {
 } from "./finance/types";
 import type { FinanceSummary } from "./finance/summary";
 import { buildDashboardView } from "./finance/dashboard-view";
-import {
-  optionValues,
-  type FilterableField
-} from "./finance/filters";
+import type { FilterableField } from "./finance/filters";
 import {
   isReviewPreset,
   reviewPresetLabel
@@ -32,31 +29,26 @@ import { clearSettings, DEFAULT_SETTINGS, loadSettings, saveSettings, type AppSe
 import { createDashboardViewState, resetDashboardFilters, selectTransaction } from "./store/view-state";
 import {
   dateFormatOption,
-  filterSelect,
   mappingSelect,
-  metricCard,
-  reviewPresetButton,
-  trendGrainLabel,
-  trendGrainOption
+  trendGrainLabel
 } from "./ui/controls";
-import {
-  renderAccountBalances,
-  renderDiagnostics,
-  renderSubcategories,
-  renderTopHeads,
-  renderTransactionDetail,
-  renderTransactionTable,
-  renderTrend,
-  renderWarnings
-} from "./ui/dashboard-renderers";
 import { downloadBlob, downloadJson, downloadText, filteredTransactionsFilename } from "./ui/downloads";
 import { renderAppShell } from "./ui/app-shell";
-import { renderForecast } from "./ui/forecast-renderers";
+import {
+  renderCashHealthPanel,
+  renderDashboardFilterPanel,
+  renderDetailGrid,
+  renderDiagnosticsPanel,
+  renderExportPanel,
+  renderForecastPanel,
+  renderInsightGrid,
+  renderSettingsPanel,
+  renderSummaryGrid
+} from "./ui/dashboard-sections";
 import { escapeHtml } from "./ui/html";
 import {
   renderMappingValidation,
   renderRawPreview,
-  renderRejectedRows,
   renderWorksheetOption
 } from "./ui/import-review";
 import { renderPrintableReport } from "./ui/print-report";
@@ -268,104 +260,18 @@ function renderImportResult(result: CsvImportResult, sourceName: string): void {
   }
   status.textContent = `${sourceName}: ${result.records.length} transaction records ready, ${result.rejectedRows.length} rejected.`;
   results.innerHTML = `
-    <section class="filter-panel" aria-labelledby="filter-title">
-      <div>
-        <h2 id="filter-title">Dashboard Filters</h2>
-        <p>Filters update visible analysis only. CSV and reviewer exports keep the full reviewed import.</p>
-      </div>
-      <div class="filter-editor">
-        ${filterSelect("Flow", "flow", flowOptions(result.records), viewState.filters.flow)}
-        ${filterSelect("Account", "account", optionValues(result.records, "account"), viewState.filters.account)}
-        ${filterSelect("Head", "head", optionValues(result.records, "head"), viewState.filters.head)}
-        ${filterSelect(
-          "Subcategory",
-          "subcategory",
-          optionValues(result.records, "subcategory"),
-          viewState.filters.subcategory
-        )}
-        ${filterSelect(
-          "Counterparty",
-          "counterparty",
-          optionValues(result.records, "counterparty"),
-          viewState.filters.counterparty
-        )}
-        <label>
-          From
-          <input data-date-filter-key="dateFrom" type="date" value="${escapeHtml(viewState.filters.dateFrom)}" />
-        </label>
-        <label>
-          To
-          <input data-date-filter-key="dateTo" type="date" value="${escapeHtml(viewState.filters.dateTo)}" />
-        </label>
-        <label>
-          Trend
-          <select id="trend-grain">
-            ${trendGrainOption("daily", viewState.trendGrain)}
-            ${trendGrainOption("weekly", viewState.trendGrain)}
-            ${trendGrainOption("monthly", viewState.trendGrain)}
-          </select>
-        </label>
-      </div>
-      <div class="filter-summary">
-        <span>${view.filteredRecords.length} of ${result.records.length} record${
-          result.records.length === 1 ? "" : "s"
-        } shown${viewState.reviewPreset === "all" ? "" : ` · ${escapeHtml(reviewPresetLabel(viewState.reviewPreset))}`}</span>
-        <button id="reset-filters" type="button">Reset</button>
-      </div>
-      <div class="preset-chips" aria-label="Common review views">
-        ${reviewPresetButton("all", "All", viewState.reviewPreset)}
-        ${reviewPresetButton("revenue", "Revenue", viewState.reviewPreset)}
-        ${reviewPresetButton("outflow", "Outflow", viewState.reviewPreset)}
-        ${reviewPresetButton(
-          "duplicates",
-          `Duplicates (${view.baseSummary.diagnostics.duplicateGroups.length})`,
-          viewState.reviewPreset,
-          !view.baseSummary.diagnostics.duplicateGroups.length
-        )}
-        ${reviewPresetButton(
-          "transfers",
-          `Transfers (${view.baseSummary.diagnostics.transferCandidates.length})`,
-          viewState.reviewPreset,
-          !view.baseSummary.diagnostics.transferCandidates.length
-        )}
-      </div>
-    </section>
-    <div class="summary-grid">
-      ${metricCard("Records", String(view.summary.transactionCount))}
-      ${metricCard("Revenue", formatMoney(view.summary.revenue))}
-      ${metricCard("Outflow", formatMoney(view.summary.outflow))}
-      ${metricCard("Net Cash", formatMoney(view.summary.netCash))}
-    </div>
-    <section class="cash-panel" aria-labelledby="cash-title">
-      <div>
-        <h2 id="cash-title">Cash Health</h2>
-        <p>Enter cash on hand to estimate runway from imported outflows.</p>
-      </div>
-      <label>
-        Cash on hand
-        <input id="cash-on-hand" type="number" min="0" step="100" value="${readCashOnHand() || ""}" placeholder="0" />
-      </label>
-      <div class="cash-metrics">
-        ${metricCard("Avg Monthly Burn", formatMoney(view.summary.cashHealth.averageMonthlyOutflow))}
-        ${metricCard("Runway", formatRunway(view.summary.cashHealth.runwayMonths))}
-        ${metricCard("Revenue Concentration", `${Math.round(view.summary.cashHealth.revenueConcentration * 100)}%`)}
-      </div>
-    </section>
-    <section class="export-panel" aria-labelledby="export-title">
-      <div>
-        <h2 id="export-title">Exports</h2>
-        <p>Use transaction CSV for spreadsheet review, JSON for the full audit state, or trend CSV for the visible filtered chart data.</p>
-      </div>
-      <div class="export-actions">
-        <button id="export-transactions" type="button">Transactions CSV</button>
-        <button id="export-visible-transactions" type="button">Filtered CSV</button>
-        <button id="export-reviewer" type="button">Reviewer JSON</button>
-        <button id="export-trend" type="button">Trend CSV</button>
-        <button id="export-trend-svg" type="button">Trend SVG</button>
-        <button id="export-trend-png" type="button">Trend PNG</button>
-        <button id="print-report" type="button">Print Report</button>
-      </div>
-    </section>
+    ${renderDashboardFilterPanel({
+      records: result.records,
+      filteredRecordCount: view.filteredRecords.length,
+      activeFilters: viewState.filters,
+      activeTrendGrain: viewState.trendGrain,
+      activeReviewPreset: viewState.reviewPreset,
+      duplicateGroupCount: view.baseSummary.diagnostics.duplicateGroups.length,
+      transferCandidateCount: view.baseSummary.diagnostics.transferCandidates.length
+    })}
+    ${renderSummaryGrid(view.summary, formatMoney)}
+    ${renderCashHealthPanel(view.summary, readCashOnHand(), formatMoney, formatRunway)}
+    ${renderExportPanel()}
     ${renderPrintableReport({
       sourceName,
       summary: view.summary,
@@ -376,107 +282,17 @@ function renderImportResult(result: CsvImportResult, sourceName: string): void {
       formatMoney,
       formatRunway
     })}
-    <section class="settings-panel" aria-labelledby="settings-title">
-      <div>
-        <h2 id="settings-title">Local Settings</h2>
-        <p>Saved in this browser only. Currency changes display formatting, not imported values.</p>
-      </div>
-      <div class="settings-controls">
-        <label>
-          Display currency
-          <select id="currency-select">
-            ${renderCurrencyOptions(settings.currency)}
-          </select>
-        </label>
-        <button id="reset-settings" type="button">Reset Settings</button>
-      </div>
-    </section>
-    <section class="forecast-panel" aria-labelledby="forecast-title">
-      <div class="panel-heading">
-        <div>
-          <h2 id="forecast-title">13-Week Forecast</h2>
-          <p>One event per line: YYYY-MM-DD, amount, label</p>
-        </div>
-        <span>${escapeHtml(formatMoney(view.forecast.averageWeeklyNet))} avg weekly net</span>
-      </div>
-      <textarea id="future-events" rows="3" placeholder="2026-04-15, -1200, quarterly tax&#10;2026-05-01, 3000, client payment">${escapeHtml(
-        view.futureEventsText
-      )}</textarea>
-      ${renderForecast(view.forecast, formatMoney)}
-    </section>
-    <div class="insight-grid">
-      <section class="table-panel" aria-labelledby="trend-title">
-        <div class="panel-heading">
-          <h2 id="trend-title">${escapeHtml(trendGrainLabel(viewState.trendGrain))} Trend</h2>
-          <span>${view.summary.periodTrend.length} period${view.summary.periodTrend.length === 1 ? "" : "s"}</span>
-        </div>
-        ${renderTrend(view.summary.periodTrend, formatMoney)}
-      </section>
-      <section class="table-panel" aria-labelledby="heads-title">
-        <div class="panel-heading">
-          <h2 id="heads-title">Top Heads</h2>
-          <span>by amount</span>
-        </div>
-        ${renderTopHeads(view.summary.topHeads, formatMoney)}
-      </section>
-      <section class="table-panel" aria-labelledby="accounts-title">
-        <div class="panel-heading">
-          <h2 id="accounts-title">Account Balances</h2>
-          <span>${view.summary.accountBalances.length} account${
-            view.summary.accountBalances.length === 1 ? "" : "s"
-          }</span>
-        </div>
-        ${renderAccountBalances(view.summary.accountBalances, formatMoney)}
-      </section>
-      <section class="table-panel" aria-labelledby="subcategories-title">
-        <div class="panel-heading">
-          <h2 id="subcategories-title">Subcategories</h2>
-          <span>${view.summary.topSubcategories.length} drilldown${
-            view.summary.topSubcategories.length === 1 ? "" : "s"
-          }</span>
-        </div>
-        ${renderSubcategories(view.summary.topSubcategories, formatMoney)}
-      </section>
-      <section class="table-panel" aria-labelledby="warnings-title">
-        <div class="panel-heading">
-          <h2 id="warnings-title">Data Quality</h2>
-          <span>${view.summary.warnings.length} signal${view.summary.warnings.length === 1 ? "" : "s"}</span>
-        </div>
-        ${renderWarnings(view.summary)}
-      </section>
-    </div>
-    <section class="table-panel diagnostics-panel" aria-labelledby="diagnostics-title">
-      <div class="panel-heading">
-        <h2 id="diagnostics-title">Duplicate & Transfer Checks</h2>
-        <span>${view.summary.diagnostics.duplicateGroups.length} duplicate, ${
-          view.summary.diagnostics.transferCandidates.length
-        } transfer</span>
-      </div>
-      ${renderDiagnostics(view.summary, formatMoney)}
-    </section>
-    <div class="detail-grid">
-      <section class="table-panel" aria-labelledby="preview-title">
-        <div class="panel-heading">
-          <h2 id="preview-title">Transaction Preview</h2>
-          <span>${view.filteredRecords.length} shown · ${escapeHtml(result.dateFormat.toUpperCase())} dates</span>
-        </div>
-        ${renderTransactionTable(view.filteredRecords, viewState.selectedTransactionId, formatMoney)}
-      </section>
-      <section class="table-panel" aria-labelledby="transaction-detail-title">
-        <div class="panel-heading">
-          <h2 id="transaction-detail-title">Transaction Detail</h2>
-          <span>audit trail</span>
-        </div>
-        ${renderTransactionDetail(view.selectedRecord, result, formatMoney)}
-      </section>
-      <section class="table-panel" aria-labelledby="quality-title">
-        <div class="panel-heading">
-          <h2 id="quality-title">Import Quality</h2>
-          <span>${result.rejectedRows.length} rejected</span>
-        </div>
-        ${renderRejectedRows(result)}
-      </section>
-    </div>
+    ${renderSettingsPanel(renderCurrencyOptions(settings.currency))}
+    ${renderForecastPanel(view.forecast, view.futureEventsText, formatMoney)}
+    ${renderInsightGrid(view.summary, viewState.trendGrain, formatMoney)}
+    ${renderDiagnosticsPanel(view.summary, formatMoney)}
+    ${renderDetailGrid(
+      result,
+      view.filteredRecords,
+      viewState.selectedTransactionId,
+      view.selectedRecord,
+      formatMoney
+    )}
   `;
   bindDashboardFilters();
   bindLiveInputs();
@@ -493,10 +309,6 @@ function renderCurrencyOptions(selectedCurrency: string): string {
         )}</option>`
     )
     .join("");
-}
-
-function flowOptions(records: TransactionRecord[]): string[] {
-  return optionValues(records, "flow");
 }
 
 function resetDashboardViewState(): void {
