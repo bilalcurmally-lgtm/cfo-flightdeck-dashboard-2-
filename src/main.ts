@@ -27,11 +27,7 @@ import { importTransactionsFromCsv, importTransactionsFromRows } from "./import/
 import { analyzeImportReadiness } from "./import/validation";
 import { clearSettings, DEFAULT_SETTINGS, loadSettings, saveSettings, type AppSettings } from "./store/settings";
 import { createDashboardViewState, resetDashboardFilters, selectTransaction } from "./store/view-state";
-import {
-  dateFormatOption,
-  mappingSelect,
-  trendGrainLabel
-} from "./ui/controls";
+import { trendGrainLabel } from "./ui/controls";
 import { downloadBlob, downloadJson, downloadText, filteredTransactionsFilename } from "./ui/downloads";
 import { renderAppShell } from "./ui/app-shell";
 import {
@@ -47,8 +43,8 @@ import {
 } from "./ui/dashboard-sections";
 import { escapeHtml } from "./ui/html";
 import {
+  renderMappingReviewPanel,
   renderMappingValidation,
-  renderRawPreview,
   renderWorksheetOption
 } from "./ui/import-review";
 import { renderPrintableReport } from "./ui/print-report";
@@ -198,47 +194,12 @@ function renderMappingReview(
   draftImport = { result, sourceName, source };
   resetDashboardViewState();
   clearButton.disabled = false;
-  const columns = Object.keys(result.rawRows[0] || {});
 
   status.textContent = `${sourceName}: review detected columns before calculations render.`;
-  results.innerHTML = `
-    <section class="mapping-panel" aria-labelledby="mapping-title">
-      <div class="panel-heading">
-        <div>
-          <h2 id="mapping-title">Review Import Mapping</h2>
-          <p>Confirm the required date and amount columns, then adjust optional fields if this CSV uses different labels.</p>
-        </div>
-        <span>${result.rawRows.length} row${result.rawRows.length === 1 ? "" : "s"} found</span>
-      </div>
-      <div class="mapping-editor">
-        ${mappingSelect("Date", "date", columns, result.mapping.date, true)}
-        ${mappingSelect("Amount", "amount", columns, result.mapping.amount, true)}
-        ${mappingSelect("Flow / Type", "type", columns, result.mapping.type)}
-        ${mappingSelect("Head", "head", columns, result.mapping.head)}
-        ${mappingSelect("Group", "parent", columns, result.mapping.parent)}
-        ${mappingSelect("Subcategory", "subcategory", columns, result.mapping.subcategory)}
-        ${mappingSelect("Counterparty", "counterparty", columns, result.mapping.counterparty)}
-        ${mappingSelect("Description", "description", columns, result.mapping.description)}
-        ${mappingSelect("Account", "account", columns, result.mapping.account)}
-        ${mappingSelect("Running Balance", "runningBalance", columns, result.mapping.runningBalance)}
-        <label>
-          Date format
-          <select id="mapping-date-format">
-            ${dateFormatOption("ymd", result.dateFormat)}
-            ${dateFormatOption("mdy", result.dateFormat)}
-            ${dateFormatOption("dmy", result.dateFormat)}
-          </select>
-        </label>
-      </div>
-      <div class="mapping-actions">
-        <button id="apply-mapping" type="button">Apply Mapping</button>
-      </div>
-      <div id="mapping-validation">
-        ${renderMappingValidation(analyzeImportReadiness(result.rawRows, result.mapping, result.dateFormat))}
-      </div>
-      ${renderRawPreview(result)}
-    </section>
-  `;
+  results.innerHTML = renderMappingReviewPanel(
+    result,
+    analyzeImportReadiness(result.rawRows, result.mapping, result.dateFormat)
+  );
   bindMappingReview();
 }
 

@@ -1,6 +1,7 @@
 import type { CsvImportResult } from "../finance/types";
 import type { ImportReadiness } from "../import/validation";
 import type { ParsedExcelSheet } from "../import/excel";
+import { dateFormatOption, mappingSelect } from "./controls";
 import { escapeHtml } from "./html";
 
 export function renderWorksheetOption(sheet: ParsedExcelSheet, index: number): string {
@@ -73,6 +74,49 @@ export function renderRawPreview(result: CsvImportResult): string {
         </tbody>
       </table>
     </div>
+  `;
+}
+
+export function renderMappingReviewPanel(result: CsvImportResult, readiness: ImportReadiness): string {
+  const columns = Object.keys(result.rawRows[0] || {});
+
+  return `
+    <section class="mapping-panel" aria-labelledby="mapping-title">
+      <div class="panel-heading">
+        <div>
+          <h2 id="mapping-title">Review Import Mapping</h2>
+          <p>Confirm the required date and amount columns, then adjust optional fields if this CSV uses different labels.</p>
+        </div>
+        <span>${result.rawRows.length} row${result.rawRows.length === 1 ? "" : "s"} found</span>
+      </div>
+      <div class="mapping-editor">
+        ${mappingSelect("Date", "date", columns, result.mapping.date, true)}
+        ${mappingSelect("Amount", "amount", columns, result.mapping.amount, true)}
+        ${mappingSelect("Flow / Type", "type", columns, result.mapping.type)}
+        ${mappingSelect("Head", "head", columns, result.mapping.head)}
+        ${mappingSelect("Group", "parent", columns, result.mapping.parent)}
+        ${mappingSelect("Subcategory", "subcategory", columns, result.mapping.subcategory)}
+        ${mappingSelect("Counterparty", "counterparty", columns, result.mapping.counterparty)}
+        ${mappingSelect("Description", "description", columns, result.mapping.description)}
+        ${mappingSelect("Account", "account", columns, result.mapping.account)}
+        ${mappingSelect("Running Balance", "runningBalance", columns, result.mapping.runningBalance)}
+        <label>
+          Date format
+          <select id="mapping-date-format">
+            ${dateFormatOption("ymd", result.dateFormat)}
+            ${dateFormatOption("mdy", result.dateFormat)}
+            ${dateFormatOption("dmy", result.dateFormat)}
+          </select>
+        </label>
+      </div>
+      <div class="mapping-actions">
+        <button id="apply-mapping" type="button">Apply Mapping</button>
+      </div>
+      <div id="mapping-validation">
+        ${renderMappingValidation(readiness)}
+      </div>
+      ${renderRawPreview(result)}
+    </section>
   `;
 }
 
