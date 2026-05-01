@@ -45,7 +45,7 @@ import { escapeHtml } from "./ui/html";
 import {
   renderMappingReviewPanel,
   renderMappingValidation,
-  renderWorksheetOption
+  renderWorksheetPickerPanel
 } from "./ui/import-review";
 import { renderPrintableReport } from "./ui/print-report";
 import { renderReferencePanelContent } from "./ui/reference";
@@ -160,20 +160,7 @@ function renderWorksheetPicker(sourceName: string, sheets: ParsedExcelSheet[]): 
   }
 
   status.textContent = `${sourceName}: choose the worksheet to import before mapping review.`;
-  results.innerHTML = `
-    <section class="worksheet-panel" aria-labelledby="worksheet-title">
-      <div class="panel-heading">
-        <div>
-          <h2 id="worksheet-title">Choose Worksheet</h2>
-          <p>Select the sheet that contains transaction rows. Empty helper tabs can stay out of the review.</p>
-        </div>
-        <span>${sheets.length} sheet${sheets.length === 1 ? "" : "s"} found</span>
-      </div>
-      <div class="worksheet-list">
-        ${sheets.map((sheet, index) => renderWorksheetOption(sheet, index)).join("")}
-      </div>
-    </section>
-  `;
+  results.innerHTML = renderWorksheetPickerPanel(sheets);
 
   document.querySelectorAll<HTMLButtonElement>("[data-sheet-index]").forEach((button) => {
     button.addEventListener("click", () => {

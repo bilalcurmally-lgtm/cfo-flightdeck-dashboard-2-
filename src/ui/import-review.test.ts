@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { CsvImportResult } from "../finance/types";
 import { analyzeImportReadiness } from "../import/validation";
 import type { ParsedExcelSheet } from "../import/excel";
-import { renderMappingReviewPanel, renderWorksheetOption } from "./import-review";
+import { renderMappingReviewPanel, renderWorksheetOption, renderWorksheetPickerPanel } from "./import-review";
 
 describe("renderWorksheetOption", () => {
   it("renders a worksheet row preview alongside sheet metadata", () => {
@@ -52,6 +52,23 @@ describe("renderWorksheetOption", () => {
     expect(html).toContain("&lt;Helper&gt;");
     expect(html).toContain("No table-like rows detected");
     expect(html).toContain("No preview rows available.");
+    expect(html).toContain('type="button" disabled');
+  });
+});
+
+describe("renderWorksheetPickerPanel", () => {
+  it("renders worksheet options inside the picker shell", () => {
+    const html = renderWorksheetPickerPanel([
+      sheet({ name: "Operating", rows: [{ Date: "2026-03-01", Amount: "3200" }] }),
+      sheet({ name: "Helper", rows: [], rawRowCount: 0 })
+    ]);
+
+    expect(html).toContain('id="worksheet-title"');
+    expect(html).toContain("2 sheets found");
+    expect(html).toContain("Operating");
+    expect(html).toContain("Helper");
+    expect(html).toContain('data-sheet-index="0"');
+    expect(html).toContain('data-sheet-index="1"');
     expect(html).toContain('type="button" disabled');
   });
 });

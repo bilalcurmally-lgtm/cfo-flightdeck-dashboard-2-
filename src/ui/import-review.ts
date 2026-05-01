@@ -23,6 +23,23 @@ export function renderWorksheetOption(sheet: ParsedExcelSheet, index: number): s
   `;
 }
 
+export function renderWorksheetPickerPanel(sheets: ParsedExcelSheet[]): string {
+  return `
+    <section class="worksheet-panel" aria-labelledby="worksheet-title">
+      <div class="panel-heading">
+        <div>
+          <h2 id="worksheet-title">Choose Worksheet</h2>
+          <p>Select the sheet that contains transaction rows. Empty helper tabs can stay out of the review.</p>
+        </div>
+        <span>${sheets.length} sheet${sheets.length === 1 ? "" : "s"} found</span>
+      </div>
+      <div class="worksheet-list">
+        ${sheets.map((sheet, index) => renderWorksheetOption(sheet, index)).join("")}
+      </div>
+    </section>
+  `;
+}
+
 function renderWorksheetPreview(sheet: ParsedExcelSheet): string {
   const columns = Object.keys(sheet.rows[0] || {}).slice(0, 4);
   if (!columns.length) return `<p class="empty worksheet-empty">No preview rows available.</p>`;
