@@ -3,6 +3,7 @@ import type { ForecastResult } from "../finance/forecast";
 import { reviewPresetLabel, type ReviewPreset } from "../finance/review-presets";
 import type { FinanceSummary } from "../finance/summary";
 import type { CsvImportResult, PeriodGrain, TransactionRecord } from "../finance/types";
+import { currencyOptions } from "../finance/currencies";
 import { escapeHtml } from "./html";
 import { filterSelect, metricCard, reviewPresetButton, trendGrainLabel, trendGrainOption } from "./controls";
 import {
@@ -169,6 +170,17 @@ export function renderSettingsPanel(currencyOptionsHtml: string): string {
       </div>
     </section>
   `;
+}
+
+export function renderCurrencyOptions(selectedCurrency: string): string {
+  return currencyOptions()
+    .map(
+      (currency) =>
+        `<option value="${currency.code}"${currency.code === selectedCurrency ? " selected" : ""}>${escapeHtml(
+          currency.label
+        )}</option>`
+    )
+    .join("");
 }
 
 export function renderForecastPanel(

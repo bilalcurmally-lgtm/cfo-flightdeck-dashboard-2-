@@ -13,7 +13,6 @@ import {
   isReviewPreset,
   reviewPresetLabel
 } from "./finance/review-presets";
-import { currencyOptions } from "./finance/currencies";
 import { build13WeekForecast, parseFutureCashEvents } from "./finance/forecast";
 import { summarizeTransactions } from "./finance/summary";
 import { buildReviewerReport, reviewerReportFilename } from "./export/reviewer-report";
@@ -32,6 +31,7 @@ import { downloadBlob, downloadJson, downloadText, filteredTransactionsFilename 
 import { renderAppShell } from "./ui/app-shell";
 import {
   renderCashHealthPanel,
+  renderCurrencyOptions,
   renderDashboardFilterPanel,
   renderDetailGrid,
   renderDiagnosticsPanel,
@@ -41,7 +41,7 @@ import {
   renderSettingsPanel,
   renderSummaryGrid
 } from "./ui/dashboard-sections";
-import { escapeHtml } from "./ui/html";
+import { formatCurrency, formatRunway } from "./ui/formatters";
 import {
   renderMappingReviewPanel,
   renderMappingValidation,
@@ -246,17 +246,6 @@ function renderImportResult(result: CsvImportResult, sourceName: string): void {
   bindLiveInputs();
   bindExportButton(view.summary, view.filteredRecords);
   bindTransactionPreview();
-}
-
-function renderCurrencyOptions(selectedCurrency: string): string {
-  return currencyOptions()
-    .map(
-      (currency) =>
-        `<option value="${currency.code}"${currency.code === selectedCurrency ? " selected" : ""}>${escapeHtml(
-          currency.label
-        )}</option>`
-    )
-    .join("");
 }
 
 function resetDashboardViewState(): void {
@@ -506,16 +495,7 @@ function buildVisibleTrendSvg(visibleSummary: FinanceSummary): string {
 }
 
 function formatMoney(value: number): string {
-  return new Intl.NumberFormat(undefined, {
-    style: "currency",
-    currency: settings.currency,
-    maximumFractionDigits: 0
-  }).format(value);
-}
-
-function formatRunway(runwayMonths: number | null): string {
-  if (runwayMonths === null) return "Not enough data";
-  return `${runwayMonths.toFixed(1)} months`;
+  return formatCurrency(value, settings.currency);
 }
 
 function readCashOnHand(): number {

@@ -5,6 +5,7 @@ import type { CsvImportResult, TransactionRecord } from "../finance/types";
 import type { FinanceSummary } from "../finance/summary";
 import {
   renderCashHealthPanel,
+  renderCurrencyOptions,
   renderDashboardFilterPanel,
   renderDetailGrid,
   renderDiagnosticsPanel,
@@ -87,6 +88,15 @@ describe("renderSettingsPanel", () => {
     expect(html).toContain('id="currency-select"');
     expect(html).toContain('<option value="USD">USD</option>');
     expect(html).toContain('id="reset-settings"');
+  });
+});
+
+describe("renderCurrencyOptions", () => {
+  it("renders supported currencies and marks the selected currency", () => {
+    const html = renderCurrencyOptions("PKR");
+
+    expect(html).toContain('value="PKR" selected');
+    expect(html).toContain('value="USD"');
   });
 });
 
