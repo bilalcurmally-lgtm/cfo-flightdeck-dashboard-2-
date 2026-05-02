@@ -9,10 +9,7 @@ import type {
 import type { FinanceSummary } from "./finance/summary";
 import { buildDashboardView } from "./finance/dashboard-view";
 import type { FilterableField } from "./finance/filters";
-import {
-  isReviewPreset,
-  reviewPresetLabel
-} from "./finance/review-presets";
+import { reviewPresetLabel } from "./finance/review-presets";
 import { build13WeekForecast, parseFutureCashEvents } from "./finance/forecast";
 import { summarizeTransactions } from "./finance/summary";
 import { buildReviewerReport, reviewerReportFilename } from "./export/reviewer-report";
@@ -25,8 +22,24 @@ import { parseExcelWorkbook, type ParsedExcelSheet } from "./import/excel";
 import { SAMPLE_DATASETS } from "./import/sample-datasets";
 import { importTransactionsFromCsv, importTransactionsFromRows } from "./import/transactions";
 import { analyzeImportReadiness } from "./import/validation";
-import { clearSettings, DEFAULT_SETTINGS, loadSettings, saveSettings, type AppSettings } from "./store/settings";
-import { createDashboardViewState, resetDashboardFilters, selectTransaction } from "./store/view-state";
+import {
+  clearSettings,
+  DEFAULT_SETTINGS,
+  loadSettings,
+  saveSettings,
+  selectCashOnHand,
+  selectCurrency,
+  selectFutureEventsText,
+  type AppSettings
+} from "./store/settings";
+import {
+  createDashboardViewState,
+  resetDashboardFilters,
+  selectDashboardFilter,
+  selectReviewPreset,
+  selectTransaction,
+  selectTrendGrain
+} from "./store/view-state";
 import { downloadBlob, downloadJson, downloadText, filteredTransactionsFilename } from "./ui/downloads";
 import { renderAppShell } from "./ui/app-shell";
 import {
@@ -299,7 +312,7 @@ function bindDashboardFilters(): void {
 
       const key = select.dataset.filterKey as FilterableField | undefined;
       if (!key) return;
-      viewState = { ...viewState, filters: { ...viewState.filters, [key]: select.value } };
+      viewState = selectDashboardFilter(viewState, key, select.value);
       renderImportResult(activeImport.result, activeImport.sourceName);
       document.querySelector<HTMLSelectElement>(`[data-filter-key="${key}"]`)?.focus();
     });
@@ -310,7 +323,7 @@ function bindDashboardFilters(): void {
 
       const key = input.dataset.dateFilterKey as "dateFrom" | "dateTo" | undefined;
       if (!key) return;
-      viewState = { ...viewState, filters: { ...viewState.filters, [key]: input.value } };
+      viewState = selectDashboardFilter(viewState, key, input.value);
       renderImportResult(activeImport.result, activeImport.sourceName);
       document.querySelector<HTMLInputElement>(`[data-date-filter-key="${key}"]`)?.focus();
     });
@@ -319,8 +332,9 @@ function bindDashboardFilters(): void {
     if (!activeImport) return;
 
     const value = (event.target as HTMLSelectElement).value;
-    if (value !== "daily" && value !== "weekly" && value !== "monthly") return;
-    viewState = { ...viewState, trendGrain: value };
+    const nextViewState = selectTrendGrain(viewState, value);
+    if (nextViewState === viewState) return;
+    viewState = nextViewState;
     renderImportResult(activeImport.result, activeImport.sourceName);
     document.querySelector<HTMLSelectElement>("#trend-grain")?.focus();
   });
@@ -337,8 +351,9 @@ function bindDashboardFilters(): void {
       if (!activeImport) return;
 
       const preset = button.dataset.reviewPreset;
-      if (!isReviewPreset(preset)) return;
-      viewState = { ...viewState, reviewPreset: preset };
+      const nextViewState = selectReviewPreset(viewState, preset);
+      if (nextViewState === viewState) return;
+      viewState = nextViewState;
       renderImportResult(activeImport.result, activeImport.sourceName);
       document.querySelector<HTMLButtonElement>(`[data-review-preset="${preset}"]`)?.focus();
     });
@@ -366,7 +381,7 @@ function bindLiveInputs(): void {
   const resetSettingsButton = document.querySelector<HTMLButtonElement>("#reset-settings");
   cashInput?.addEventListener("input", () => {
     if (!activeImport) return;
-    settings = { ...settings, cashOnHand: readCashOnHand() };
+    settings = selectCashOnHand(settings, readCashOnHand());
     saveSettings(settings);
     renderImportResult(activeImport.result, activeImport.sourceName);
     document.querySelector<HTMLInputElement>("#cash-on-hand")?.focus();
@@ -374,7 +389,7 @@ function bindLiveInputs(): void {
   eventsInput?.addEventListener("input", () => {
     if (!activeImport) return;
     const selectionStart = eventsInput.selectionStart;
-    settings = { ...settings, futureEventsText: eventsInput.value };
+    settings = selectFutureEventsText(settings, eventsInput.value);
     saveSettings(settings);
     renderImportResult(activeImport.result, activeImport.sourceName);
     const nextInput = document.querySelector<HTMLTextAreaElement>("#future-events");
@@ -383,7 +398,7 @@ function bindLiveInputs(): void {
   });
   currencySelect?.addEventListener("change", () => {
     if (!activeImport) return;
-    settings = { ...settings, currency: currencySelect.value };
+    settings = selectCurrency(settings, currencySelect.value);
     saveSettings(settings);
     renderImportResult(activeImport.result, activeImport.sourceName);
     document.querySelector<HTMLSelectElement>("#currency-select")?.focus();

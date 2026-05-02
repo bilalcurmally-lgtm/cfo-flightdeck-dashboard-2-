@@ -47,3 +47,24 @@ export function clearSettings(storage: Storage | undefined = globalThis.localSto
   if (!storage) return;
   storage.removeItem(SETTINGS_KEY);
 }
+
+export function selectCashOnHand(settings: AppSettings, cashOnHand: number): AppSettings {
+  return {
+    ...settings,
+    cashOnHand: Number.isFinite(cashOnHand) && cashOnHand > 0 ? cashOnHand : 0
+  };
+}
+
+export function selectFutureEventsText(settings: AppSettings, futureEventsText: string): AppSettings {
+  return {
+    ...settings,
+    futureEventsText
+  };
+}
+
+export function selectCurrency(settings: AppSettings, currency: string): AppSettings {
+  return {
+    ...settings,
+    currency
+  };
+}

@@ -1,5 +1,5 @@
 import { DEFAULT_FILTERS, type DashboardFilters } from "../finance/filters";
-import type { ReviewPreset } from "../finance/review-presets";
+import { isReviewPreset, type ReviewPreset } from "../finance/review-presets";
 import type { PeriodGrain } from "../finance/types";
 
 export interface DashboardViewState {
@@ -33,5 +33,35 @@ export function selectTransaction(
   return {
     ...state,
     selectedTransactionId
+  };
+}
+
+export function selectDashboardFilter(
+  state: DashboardViewState,
+  key: keyof DashboardFilters,
+  value: string
+): DashboardViewState {
+  return {
+    ...state,
+    filters: {
+      ...state.filters,
+      [key]: value
+    }
+  };
+}
+
+export function selectTrendGrain(state: DashboardViewState, value: string): DashboardViewState {
+  if (value !== "daily" && value !== "weekly" && value !== "monthly") return state;
+  return {
+    ...state,
+    trendGrain: value
+  };
+}
+
+export function selectReviewPreset(state: DashboardViewState, value: string | undefined): DashboardViewState {
+  if (!isReviewPreset(value)) return state;
+  return {
+    ...state,
+    reviewPreset: value
   };
 }
