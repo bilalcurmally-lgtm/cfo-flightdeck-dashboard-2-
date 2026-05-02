@@ -10,14 +10,15 @@ import type { FinanceSummary } from "./finance/summary";
 import { buildDashboardView } from "./finance/dashboard-view";
 import type { FilterableField } from "./finance/filters";
 import { reviewPresetLabel } from "./finance/review-presets";
-import { build13WeekForecast, parseFutureCashEvents } from "./finance/forecast";
-import { summarizeTransactions } from "./finance/summary";
-import { buildReviewerReport, reviewerReportFilename } from "./export/reviewer-report";
-import { buildMonthlyTrendCsv, monthlyTrendCsvFilename } from "./export/monthly-trend-csv";
-import { buildTransactionsCsv, transactionsCsvFilename } from "./export/transactions-csv";
+import {
+  buildFilteredTransactionsCsvExport,
+  buildReviewerExportReport,
+  buildTransactionsCsvExport,
+  buildTrendCsvExport,
+  buildTrendSvgExport
+} from "./export/dashboard-export-payloads";
+import { reviewerReportFilename } from "./export/reviewer-report";
 import { svgToPngBlob, trendPngFilename } from "./export/trend-png";
-import { trendSvgFilename } from "./export/trend-svg";
-import { buildVisibleTrendSvg } from "./export/visible-trend-svg";
 import { parseExcelWorkbook, type ParsedExcelSheet } from "./import/excel";
 import { SAMPLE_DATASETS } from "./import/sample-datasets";
 import { importTransactionsFromCsv, importTransactionsFromRows } from "./import/transactions";
@@ -40,7 +41,7 @@ import {
   selectTransaction,
   selectTrendGrain
 } from "./store/view-state";
-import { downloadBlob, downloadJson, downloadText, filteredTransactionsFilename } from "./ui/downloads";
+import { downloadBlob, downloadJson, downloadText } from "./ui/downloads";
 import { renderAppShell } from "./ui/app-shell";
 import {
   renderCashHealthPanel,
@@ -432,63 +433,44 @@ function bindExportButton(visibleSummary: FinanceSummary, visibleRecords: Transa
   document.querySelector<HTMLButtonElement>("#export-reviewer")?.addEventListener("click", () => {
     if (!activeImport) return;
 
-    const parsedEvents = parseFutureCashEvents(readFutureEventsText());
-    const fullForecast = {
-      ...build13WeekForecast(activeImport.result.records, readCashOnHand(), parsedEvents.events),
-      rejectedEvents: parsedEvents.rejectedEvents
-    };
-
-    const report = buildReviewerReport(
-      activeImport.sourceName,
-      activeImport.result,
-      summarizeTransactions(
-        activeImport.result.records,
-        activeImport.result.rejectedRows,
-        readCashOnHand(),
-        viewState.trendGrain
-      ),
-      fullForecast
+    downloadJson(
+      reviewerReportFilename(activeImport.sourceName),
+      buildReviewerExportReport({
+        sourceName: activeImport.sourceName,
+        result: activeImport.result,
+        cashOnHand: readCashOnHand(),
+        futureEventsText: readFutureEventsText(),
+        trendGrain: viewState.trendGrain
+      })
     );
-    downloadJson(reviewerReportFilename(activeImport.sourceName), report);
   });
   document.querySelector<HTMLButtonElement>("#export-transactions")?.addEventListener("click", () => {
     if (!activeImport) return;
-    downloadText(
-      transactionsCsvFilename(activeImport.sourceName),
-      buildTransactionsCsv(activeImport.result.records),
-      "text/csv;charset=utf-8"
-    );
+    const csv = buildTransactionsCsvExport(activeImport.sourceName, activeImport.result.records);
+    downloadText(csv.filename, csv.contents, csv.mediaType);
   });
   document.querySelector<HTMLButtonElement>("#export-visible-transactions")?.addEventListener("click", () => {
     if (!activeImport) return;
-    downloadText(
-      filteredTransactionsFilename(activeImport.sourceName, new Date()),
-      buildTransactionsCsv(visibleRecords),
-      "text/csv;charset=utf-8"
-    );
+    const csv = buildFilteredTransactionsCsvExport(activeImport.sourceName, visibleRecords);
+    downloadText(csv.filename, csv.contents, csv.mediaType);
   });
   document.querySelector<HTMLButtonElement>("#export-trend")?.addEventListener("click", () => {
     if (!activeImport) return;
-    downloadText(
-      monthlyTrendCsvFilename(activeImport.sourceName, new Date(), viewState.trendGrain),
-      buildMonthlyTrendCsv(visibleSummary.periodTrend),
-      "text/csv;charset=utf-8"
-    );
+    const csv = buildTrendCsvExport(activeImport.sourceName, visibleSummary, viewState.trendGrain);
+    downloadText(csv.filename, csv.contents, csv.mediaType);
   });
   document.querySelector<HTMLButtonElement>("#export-trend-svg")?.addEventListener("click", () => {
     if (!activeImport) return;
-    downloadText(
-      trendSvgFilename(activeImport.sourceName, new Date(), viewState.trendGrain),
-      buildVisibleTrendSvg(buildVisibleTrendSvgOptions(visibleSummary)),
-      "image/svg+xml;charset=utf-8"
-    );
+    const svg = buildTrendSvgExport(buildTrendSvgExportInput(visibleSummary));
+    downloadText(svg.filename, svg.contents, svg.mediaType);
   });
   document.querySelector<HTMLButtonElement>("#export-trend-png")?.addEventListener("click", async () => {
     if (!activeImport) return;
     const button = document.querySelector<HTMLButtonElement>("#export-trend-png");
     if (button) button.disabled = true;
     try {
-      const png = await svgToPngBlob(buildVisibleTrendSvg(buildVisibleTrendSvgOptions(visibleSummary)));
+      const svg = buildTrendSvgExport(buildTrendSvgExportInput(visibleSummary));
+      const png = await svgToPngBlob(svg.contents);
       downloadBlob(trendPngFilename(activeImport.sourceName, new Date(), viewState.trendGrain), png);
     } catch (error) {
       status.textContent = error instanceof Error ? error.message : "Could not export trend PNG.";
@@ -501,9 +483,9 @@ function bindExportButton(visibleSummary: FinanceSummary, visibleRecords: Transa
   });
 }
 
-function buildVisibleTrendSvgOptions(visibleSummary: FinanceSummary) {
+function buildTrendSvgExportInput(visibleSummary: FinanceSummary) {
   return {
-    periods: visibleSummary.periodTrend,
+    summary: visibleSummary,
     trendGrain: viewState.trendGrain,
     sourceName: activeImport?.sourceName ?? "Current import",
     reviewPreset: viewState.reviewPreset,
