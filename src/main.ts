@@ -19,14 +19,14 @@ import { buildReviewerReport, reviewerReportFilename } from "./export/reviewer-r
 import { buildMonthlyTrendCsv, monthlyTrendCsvFilename } from "./export/monthly-trend-csv";
 import { buildTransactionsCsv, transactionsCsvFilename } from "./export/transactions-csv";
 import { svgToPngBlob, trendPngFilename } from "./export/trend-png";
-import { buildTrendSvg, trendSvgFilename } from "./export/trend-svg";
+import { trendSvgFilename } from "./export/trend-svg";
+import { buildVisibleTrendSvg } from "./export/visible-trend-svg";
 import { parseExcelWorkbook, type ParsedExcelSheet } from "./import/excel";
 import { SAMPLE_DATASETS } from "./import/sample-datasets";
 import { importTransactionsFromCsv, importTransactionsFromRows } from "./import/transactions";
 import { analyzeImportReadiness } from "./import/validation";
 import { clearSettings, DEFAULT_SETTINGS, loadSettings, saveSettings, type AppSettings } from "./store/settings";
 import { createDashboardViewState, resetDashboardFilters, selectTransaction } from "./store/view-state";
-import { trendGrainLabel } from "./ui/controls";
 import { downloadBlob, downloadJson, downloadText, filteredTransactionsFilename } from "./ui/downloads";
 import { renderAppShell } from "./ui/app-shell";
 import {
@@ -464,7 +464,7 @@ function bindExportButton(visibleSummary: FinanceSummary, visibleRecords: Transa
     if (!activeImport) return;
     downloadText(
       trendSvgFilename(activeImport.sourceName, new Date(), viewState.trendGrain),
-      buildVisibleTrendSvg(visibleSummary),
+      buildVisibleTrendSvg(buildVisibleTrendSvgOptions(visibleSummary)),
       "image/svg+xml;charset=utf-8"
     );
   });
@@ -473,7 +473,7 @@ function bindExportButton(visibleSummary: FinanceSummary, visibleRecords: Transa
     const button = document.querySelector<HTMLButtonElement>("#export-trend-png");
     if (button) button.disabled = true;
     try {
-      const png = await svgToPngBlob(buildVisibleTrendSvg(visibleSummary));
+      const png = await svgToPngBlob(buildVisibleTrendSvg(buildVisibleTrendSvgOptions(visibleSummary)));
       downloadBlob(trendPngFilename(activeImport.sourceName, new Date(), viewState.trendGrain), png);
     } catch (error) {
       status.textContent = error instanceof Error ? error.message : "Could not export trend PNG.";
@@ -486,12 +486,14 @@ function bindExportButton(visibleSummary: FinanceSummary, visibleRecords: Transa
   });
 }
 
-function buildVisibleTrendSvg(visibleSummary: FinanceSummary): string {
-  return buildTrendSvg(visibleSummary.periodTrend, {
-    title: `${trendGrainLabel(viewState.trendGrain)} Trend`,
-    subtitle: `${activeImport?.sourceName ?? "Current import"} · ${reviewPresetLabel(viewState.reviewPreset)}`,
+function buildVisibleTrendSvgOptions(visibleSummary: FinanceSummary) {
+  return {
+    periods: visibleSummary.periodTrend,
+    trendGrain: viewState.trendGrain,
+    sourceName: activeImport?.sourceName ?? "Current import",
+    reviewPreset: viewState.reviewPreset,
     currency: settings.currency
-  });
+  };
 }
 
 function formatMoney(value: number): string {
