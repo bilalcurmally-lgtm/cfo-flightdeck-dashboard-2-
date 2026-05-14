@@ -35,4 +35,23 @@ describe("analyzeImportReadiness", () => {
       invalidAmountRows: 1
     });
   });
+
+  it("accepts split debit and credit columns as an amount source", () => {
+    const readiness = analyzeImportReadiness(
+      [
+        { Date: "2026-05-01", Debit: "1200", Credit: "" },
+        { Date: "2026-05-02", Debit: "", Credit: "3000" },
+        { Date: "2026-05-03", Debit: "", Credit: "" }
+      ],
+      { date: "Date", amount: "", debit: "Debit", credit: "Credit" },
+      "ymd"
+    );
+
+    expect(readiness).toMatchObject({
+      acceptedRows: 2,
+      rejectedRows: 1,
+      missingRequiredColumns: [],
+      invalidAmountRows: 1
+    });
+  });
 });

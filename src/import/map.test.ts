@@ -126,4 +126,26 @@ describe("mapRowToRecord", () => {
     expect(record?.account).toBe("Checking");
     expect(record?.runningBalance).toBe(1200);
   });
+
+  it("maps split debit and credit columns into signed cash flow", () => {
+    const debitRecord = mapRowToRecord(
+      { Date: "2026-05-01", Debit: "1200", Credit: "", Description: "Rent" },
+      0,
+      { date: "Date", amount: "", debit: "Debit", credit: "Credit", description: "Description" },
+      revenueTokens,
+      outflowTokens,
+      "ymd"
+    );
+    const creditRecord = mapRowToRecord(
+      { Date: "2026-05-02", Debit: "", Credit: "3000", Description: "Client" },
+      1,
+      { date: "Date", amount: "", debit: "Debit", credit: "Credit", description: "Description" },
+      revenueTokens,
+      outflowTokens,
+      "ymd"
+    );
+
+    expect(debitRecord).toMatchObject({ flow: "outflow", amount: 1200, signedNet: -1200 });
+    expect(creditRecord).toMatchObject({ flow: "revenue", amount: 3000, signedNet: 3000 });
+  });
 });

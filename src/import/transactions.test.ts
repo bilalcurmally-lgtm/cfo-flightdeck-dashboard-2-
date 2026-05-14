@@ -33,6 +33,36 @@ describe("detectImportMapping", () => {
     expect(mapping.runningBalance).toBe("Balance");
     expect(mapping.head).toBe("Category");
   });
+
+  it("detects split debit and credit amount columns", () => {
+    const mapping = detectImportMapping([
+      {
+        Date: "2026-05-01",
+        Debit: "1200",
+        Credit: "",
+        Description: "Rent"
+      }
+    ]);
+
+    expect(mapping.amount).toBe("");
+    expect(mapping.debit).toBe("Debit");
+    expect(mapping.credit).toBe("Credit");
+  });
+
+  it("detects common bank export aliases for date, description, and counterparty", () => {
+    const mapping = detectImportMapping([
+      {
+        "Txn Date": "2026-05-01",
+        Debit: "1200",
+        Particulars: "Rent payment",
+        Beneficiary: "Office Landlord"
+      }
+    ]);
+
+    expect(mapping.date).toBe("Txn Date");
+    expect(mapping.description).toBe("Particulars");
+    expect(mapping.counterparty).toBe("Beneficiary");
+  });
 });
 
 describe("importTransactionsFromCsv", () => {
@@ -108,6 +138,34 @@ describe("importTransactionsFromCsv", () => {
       amount: 750,
       flow: "revenue",
       description: "Invoice"
+    });
+  });
+
+  it("imports split debit and credit columns as outflow and revenue records", () => {
+    const result = importTransactionsFromCsv(`Date,Debit,Credit,Description
+2026-05-01,1200,,Rent
+2026-05-02,,3000,Client payment`, {
+      mapping: {
+        date: "Date",
+        amount: "",
+        debit: "Debit",
+        credit: "Credit",
+        description: "Description"
+      }
+    });
+
+    expect(result.records).toHaveLength(2);
+    expect(result.records[0]).toMatchObject({
+      flow: "outflow",
+      amount: 1200,
+      signedNet: -1200,
+      description: "Rent"
+    });
+    expect(result.records[1]).toMatchObject({
+      flow: "revenue",
+      amount: 3000,
+      signedNet: 3000,
+      description: "Client payment"
     });
   });
 });

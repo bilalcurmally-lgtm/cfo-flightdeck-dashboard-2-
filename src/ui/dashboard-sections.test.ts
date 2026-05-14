@@ -36,6 +36,7 @@ describe("renderDashboardFilterPanel", () => {
     expect(html).toContain('value="2026-03-01"');
     expect(html).toContain('value="weekly" selected');
     expect(html).toContain("1 of 2 records shown");
+    expect(html).toContain("Flow: revenue · From 2026-03-01");
     expect(html).toContain("possible duplicates");
     expect(html).toContain("Duplicates (2)");
     expect(html).toContain("Transfers (0)");

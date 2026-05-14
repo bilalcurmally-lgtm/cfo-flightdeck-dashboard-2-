@@ -1,4 +1,4 @@
-import { parseAmount } from "../finance/amount";
+import { parseAmount, parseSplitDebitCreditAmount } from "../finance/amount";
 import { detectDateFormat, parseDate } from "../finance/date";
 import type { CsvImportResult, DateFormat, ImportMapping, ImportedRow } from "../finance/types";
 import { parseCsv } from "./csv";
@@ -22,6 +22,8 @@ export function detectImportMapping(rows: ImportedRow[]): ImportMapping {
   return {
     date: matchColumn(columns, lowerColumns, [
       "date",
+      "txn date",
+      "tx date",
       "transaction date",
       "posting date",
       "posted date",
@@ -31,9 +33,21 @@ export function detectImportMapping(rows: ImportedRow[]): ImportMapping {
       "amount",
       "net amount",
       "value",
-      "transaction amount",
+      "transaction amount"
+    ]),
+    debit: matchColumn(columns, lowerColumns, [
+      "debit",
+      "withdrawal",
       "paid",
-      "received"
+      "amount paid",
+      "debit amount"
+    ]),
+    credit: matchColumn(columns, lowerColumns, [
+      "credit",
+      "deposit",
+      "received",
+      "amount received",
+      "credit amount"
     ]),
     type: matchColumn(columns, lowerColumns, ["type", "flow", "direction", "transaction type"]),
     head: matchColumn(columns, lowerColumns, [
@@ -58,11 +72,16 @@ export function detectImportMapping(rows: ImportedRow[]): ImportMapping {
       "description",
       "memo",
       "details",
-      "narration"
+      "narration",
+      "particulars",
+      "remarks",
+      "note"
     ]),
     counterparty: matchColumn(columns, lowerColumns, [
       "vendor",
       "payee",
+      "beneficiary",
+      "recipient",
       "customer",
       "client",
       "merchant",
@@ -141,8 +160,13 @@ function validateImportRow(
   dateFormat: DateFormat
 ): string | null {
   if (!mapping.date) return "No date column detected";
-  if (!mapping.amount) return "No amount column detected";
+  if (!mapping.amount && !mapping.debit && !mapping.credit) return "No amount column detected";
   if (!parseDate(row[mapping.date], dateFormat)) return "Invalid date";
-  if (parseAmount(row[mapping.amount]) === null) return "Invalid amount";
+  const amount =
+    mapping.amount ? parseAmount(row[mapping.amount]) : parseSplitDebitCreditAmount(
+      mapping.debit ? row[mapping.debit] : "",
+      mapping.credit ? row[mapping.credit] : ""
+    );
+  if (amount === null) return "Invalid amount";
   return null;
 }

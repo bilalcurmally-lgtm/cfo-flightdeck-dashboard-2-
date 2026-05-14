@@ -11,6 +11,13 @@ describe("parseAmount", () => {
     expect(parseAmount("(500)")).toBe(-500);
   });
 
+  it("parses bank export currency labels and debit or credit suffixes", () => {
+    expect(parseAmount("PKR 1,250.50")).toBe(1250.5);
+    expect(parseAmount("Rs. 750")).toBe(750);
+    expect(parseAmount("1,200 DR")).toBe(-1200);
+    expect(parseAmount("3,000 CR")).toBe(3000);
+  });
+
   it("returns null for missing or non-numeric input", () => {
     expect(parseAmount(null)).toBeNull();
     expect(parseAmount(undefined)).toBeNull();

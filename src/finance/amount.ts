@@ -3,13 +3,27 @@ import type { CashFlow } from "./types";
 export function parseAmount(value: unknown): number | null {
   if (value === null || value === undefined || value === "") return null;
 
-  const normalized = String(value)
+  const raw = String(value).trim();
+  const isDebit = /\bdr\b\.?$/i.test(raw);
+  const normalized = raw
     .replace(/[$£€,]/g, "")
+    .replace(/\brs\.?/gi, "")
+    .replace(/\b(?:pkr|usd|eur|gbp)\b/gi, "")
+    .replace(/\b(?:dr|cr)\b\.?$/i, "")
     .replace(/\(([^)]+)\)/, "-$1")
     .trim();
   const number = Number(normalized);
 
-  return Number.isFinite(number) ? number : null;
+  if (!Number.isFinite(number)) return null;
+  return isDebit ? -Math.abs(number) : number;
+}
+
+export function parseSplitDebitCreditAmount(debitValue: unknown, creditValue: unknown): number | null {
+  const debit = parseAmount(debitValue);
+  const credit = parseAmount(creditValue);
+
+  if (debit === null && credit === null) return null;
+  return (credit ?? 0) - (debit ?? 0);
 }
 
 export function classifyFlow(

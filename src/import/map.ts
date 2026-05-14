@@ -1,4 +1,4 @@
-import { parseAmount, classifyFlow } from "../finance/amount";
+import { parseAmount, parseSplitDebitCreditAmount, classifyFlow } from "../finance/amount";
 import { parseDate, startOfWeek, toIsoDate } from "../finance/date";
 import type { DateFormat, ImportMapping, ImportedRow, TransactionRecord } from "../finance/types";
 
@@ -33,7 +33,12 @@ export function mapRowToRecord(
   dateFormat: DateFormat
 ): TransactionRecord | null {
   const date = parseDate(row[mapping.date], dateFormat);
-  const amountRaw = parseAmount(row[mapping.amount]);
+  const amountRaw = mapping.amount
+    ? parseAmount(row[mapping.amount])
+    : parseSplitDebitCreditAmount(
+        mapping.debit ? row[mapping.debit] : "",
+        mapping.credit ? row[mapping.credit] : ""
+      );
   if (!date || amountRaw === null) return null;
 
   const typeValue = mapping.type ? String(row[mapping.type] || "").trim().toLowerCase() : "";

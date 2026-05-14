@@ -67,9 +67,25 @@ describe("renderWorksheetPickerPanel", () => {
     expect(html).toContain("2 sheets found");
     expect(html).toContain("Operating");
     expect(html).toContain("Helper");
+    expect(html).toContain('data-combine-compatible-sheets="true"');
+    expect(html).toContain("Combine Compatible Sheets");
+    expect(html).toContain("Combine plan");
+    expect(html).toContain("1 sheet · 1 row can be combined");
+    expect(html).toContain("<strong>Helper:</strong>");
+    expect(html).toContain("No imported rows");
     expect(html).toContain('data-sheet-index="0"');
     expect(html).toContain('data-sheet-index="1"');
     expect(html).toContain('type="button" disabled');
+  });
+
+  it("disables the combine action when no worksheet rows can be imported", () => {
+    const html = renderWorksheetPickerPanel([
+      sheet({ name: "Helper", rows: [], rawRowCount: 0 }),
+      sheet({ name: "Notes", rows: [], rawRowCount: 0 })
+    ]);
+
+    expect(html).toContain('data-combine-compatible-sheets="true" type="button" disabled');
+    expect(html).toContain("No compatible worksheet rows found yet.");
   });
 });
 
@@ -84,6 +100,8 @@ describe("renderMappingReviewPanel", () => {
     expect(html).toContain('id="mapping-title"');
     expect(html).toContain('data-mapping-key="date"');
     expect(html).toContain('data-mapping-key="amount"');
+    expect(html).toContain('data-mapping-key="debit"');
+    expect(html).toContain('data-mapping-key="credit"');
     expect(html).toContain('id="mapping-date-format"');
     expect(html).toContain('id="apply-mapping"');
     expect(html).toContain("2/2 rows ready");

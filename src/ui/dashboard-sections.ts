@@ -75,6 +75,7 @@ export function renderDashboardFilterPanel(options: DashboardFilterPanelOptions)
         } shown${options.activeReviewPreset === "all" ? "" : ` · ${escapeHtml(reviewPresetLabel(options.activeReviewPreset))}`}</span>
         <button id="reset-filters" type="button">Reset</button>
       </div>
+      ${renderActiveFilterSummary(options.activeFilters)}
       <div class="preset-chips" aria-label="Common review views">
         ${reviewPresetButton("all", "All", options.activeReviewPreset)}
         ${reviewPresetButton("revenue", "Revenue", options.activeReviewPreset)}
@@ -94,6 +95,28 @@ export function renderDashboardFilterPanel(options: DashboardFilterPanelOptions)
       </div>
     </section>
   `;
+}
+
+function renderActiveFilterSummary(filters: DashboardFilters): string {
+  const items = [
+    filterSummaryItem("Flow", filters.flow),
+    filterSummaryItem("Account", filters.account),
+    filterSummaryItem("Head", filters.head),
+    filterSummaryItem("Subcategory", filters.subcategory),
+    filterSummaryItem("Counterparty", filters.counterparty),
+    filters.dateFrom ? `From ${filters.dateFrom}` : "",
+    filters.dateTo ? `To ${filters.dateTo}` : ""
+  ].filter(Boolean);
+
+  return `
+    <p class="active-filter-summary">
+      ${items.length ? items.map(escapeHtml).join(" · ") : "No filters active"}
+    </p>
+  `;
+}
+
+function filterSummaryItem(label: string, value: string): string {
+  return value && value !== "all" ? `${label}: ${value}` : "";
 }
 
 export function renderExportPanel(): string {

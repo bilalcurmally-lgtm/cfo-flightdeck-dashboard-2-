@@ -1,6 +1,6 @@
 import type { CsvImportResult } from "../finance/types";
 import type { ImportReadiness } from "../import/validation";
-import type { ParsedExcelSheet } from "../import/excel";
+import { combineCompatibleExcelSheets, type CombinedExcelSheets, type ParsedExcelSheet } from "../import/excel";
 import { dateFormatOption, mappingSelect } from "./controls";
 import { escapeHtml } from "./html";
 
@@ -24,18 +24,57 @@ export function renderWorksheetOption(sheet: ParsedExcelSheet, index: number): s
 }
 
 export function renderWorksheetPickerPanel(sheets: ParsedExcelSheet[]): string {
+  const combinePlan = combineCompatibleExcelSheets(sheets);
   return `
     <section class="worksheet-panel" aria-labelledby="worksheet-title">
       <div class="panel-heading">
         <div>
           <h2 id="worksheet-title">Choose Worksheet</h2>
-          <p>Select the sheet that contains transaction rows. Empty helper tabs can stay out of the review.</p>
+          <p>Select one worksheet, or combine compatible monthly sheets that share the same columns.</p>
         </div>
         <span>${sheets.length} sheet${sheets.length === 1 ? "" : "s"} found</span>
       </div>
+      <div class="worksheet-actions">
+        <button data-combine-compatible-sheets="true" type="button"${
+          combinePlan.rows.length ? "" : " disabled"
+        }>Combine Compatible Sheets</button>
+      </div>
+      ${renderWorksheetCombinePlan(combinePlan)}
       <div class="worksheet-list">
         ${sheets.map((sheet, index) => renderWorksheetOption(sheet, index)).join("")}
       </div>
+    </section>
+  `;
+}
+
+function renderWorksheetCombinePlan(plan: CombinedExcelSheets): string {
+  const includedCount = plan.includedSheets.length;
+  const rowCount = plan.rows.length;
+
+  return `
+    <section class="mapping-validation ${rowCount ? "ready" : "blocked"}" aria-label="Worksheet combine plan">
+      <div>
+        <strong>Combine plan</strong>
+        <span>${
+          rowCount
+            ? `${includedCount} sheet${includedCount === 1 ? "" : "s"} · ${rowCount} row${
+                rowCount === 1 ? "" : "s"
+              } can be combined`
+            : "No compatible worksheet rows found yet."
+        }</span>
+      </div>
+      ${
+        plan.skippedSheets.length
+          ? `<ul>${plan.skippedSheets
+              .map(
+                (sheet) =>
+                  `<li><span><strong>${escapeHtml(sheet.name)}:</strong> ${escapeHtml(
+                    sheet.reason
+                  )}</span></li>`
+              )
+              .join("")}</ul>`
+          : `<p class="empty">No sheets would be skipped.</p>`
+      }
     </section>
   `;
 }
@@ -108,7 +147,9 @@ export function renderMappingReviewPanel(result: CsvImportResult, readiness: Imp
       </div>
       <div class="mapping-editor">
         ${mappingSelect("Date", "date", columns, result.mapping.date, true)}
-        ${mappingSelect("Amount", "amount", columns, result.mapping.amount, true)}
+        ${mappingSelect("Amount", "amount", columns, result.mapping.amount)}
+        ${mappingSelect("Debit", "debit", columns, result.mapping.debit)}
+        ${mappingSelect("Credit", "credit", columns, result.mapping.credit)}
         ${mappingSelect("Flow / Type", "type", columns, result.mapping.type)}
         ${mappingSelect("Head", "head", columns, result.mapping.head)}
         ${mappingSelect("Group", "parent", columns, result.mapping.parent)}
@@ -222,6 +263,8 @@ function importFieldLabel(value: string): string {
   const labels: Record<string, string> = {
     date: "Date",
     amount: "Amount",
+    debit: "Debit",
+    credit: "Credit",
     type: "Flow / Type",
     account: "Account",
     runningBalance: "Running Balance",

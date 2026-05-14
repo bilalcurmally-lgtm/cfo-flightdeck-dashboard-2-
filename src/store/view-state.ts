@@ -50,6 +50,20 @@ export function selectDashboardFilter(
   };
 }
 
+export function selectDashboardFilters(
+  state: DashboardViewState,
+  filters: Partial<DashboardFilters>
+): DashboardViewState {
+  return {
+    ...state,
+    filters: {
+      ...state.filters,
+      ...filters
+    },
+    reviewPreset: "all"
+  };
+}
+
 export function selectTrendGrain(state: DashboardViewState, value: string): DashboardViewState {
   if (value !== "daily" && value !== "weekly" && value !== "monthly") return state;
   return {

@@ -11,6 +11,8 @@ export interface ImportedRow {
 export interface ImportMapping {
   date: string;
   amount: string;
+  debit?: string;
+  credit?: string;
   type?: string;
   head?: string;
   parent?: string;

@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { CsvImportResult, TransactionRecord } from "../finance/types";
-import { renderTransactionDetail } from "./dashboard-renderers";
+import {
+  renderAccountBalances,
+  renderDiagnostics,
+  renderSubcategories,
+  renderTopHeads,
+  renderTransactionDetail
+} from "./dashboard-renderers";
 
 describe("renderTransactionDetail", () => {
   it("shows normalized fields and the matching raw source row", () => {
@@ -24,6 +30,65 @@ describe("renderTransactionDetail", () => {
 
   it("prompts the user to select a row when no record is active", () => {
     expect(renderTransactionDetail(null, result(), money)).toContain("Select a transaction row");
+  });
+});
+
+describe("summary drilldowns", () => {
+  it("renders head, account, and subcategory totals as filter drilldown buttons", () => {
+    expect(renderTopHeads([{ head: "Software", flow: "outflow", amount: 49, count: 1 }], money)).toContain(
+      'data-drilldown-head="Software"'
+    );
+    expect(renderAccountBalances([{ account: "Checking", balance: 100, source: "netActivity" }], money)).toContain(
+      'data-drilldown-account="Checking"'
+    );
+    expect(
+      renderSubcategories(
+        [{ head: "Software", subcategory: "Hosting", flow: "outflow", amount: 49, count: 1 }],
+        money
+      )
+    ).toContain('data-drilldown-subcategory="Hosting"');
+  });
+});
+
+describe("renderDiagnostics", () => {
+  it("renders duplicate and transfer diagnostics as transaction review actions", () => {
+    const html = renderDiagnostics(
+      {
+        revenue: 100,
+        outflow: 100,
+        netCash: 0,
+        transactionCount: 2,
+        periodTrend: [],
+        topHeads: [],
+        topSubcategories: [],
+        accountBalances: [],
+        warnings: [],
+        cashHealth: {
+          averageMonthlyOutflow: 0,
+          runwayMonths: null,
+          largestTransaction: null,
+          revenueConcentration: 0
+        },
+        diagnostics: {
+          duplicateGroups: [{ key: "dup", records: [record("dup-1"), record("dup-2")] }],
+          transferCandidates: [
+            {
+              dateISO: "2026-03-02",
+              amount: 100,
+              fromAccount: "Checking",
+              toAccount: "Savings",
+              outflowId: "out-1",
+              revenueId: "in-1"
+            }
+          ]
+        }
+      },
+      money
+    );
+
+    expect(html).toContain('data-transaction-id="dup-1"');
+    expect(html).toContain('data-transaction-id="out-1"');
+    expect(html).toContain('data-transaction-id="in-1"');
   });
 });
 

@@ -1,9 +1,11 @@
-import { parseAmount } from "../finance/amount";
+import { parseAmount, parseSplitDebitCreditAmount } from "../finance/amount";
 import { parseDate } from "../finance/date";
 import type { DateFormat, ImportedRow, ImportMapping } from "../finance/types";
 
 const OPTIONAL_MAPPING_KEYS = [
   "type",
+  "debit",
+  "credit",
   "account",
   "runningBalance",
   "head",
@@ -34,7 +36,7 @@ export function analyzeImportReadiness(
 ): ImportReadiness {
   const missingRequiredColumns = [
     ...(!mapping.date ? ["date"] : []),
-    ...(!mapping.amount ? ["amount"] : [])
+    ...(!mapping.amount && !mapping.debit && !mapping.credit ? ["amount"] : [])
   ];
   let acceptedRows = 0;
   let invalidDateRows = 0;
@@ -42,7 +44,12 @@ export function analyzeImportReadiness(
 
   for (const row of rows) {
     const hasValidDate = mapping.date ? Boolean(parseDate(row[mapping.date], dateFormat)) : false;
-    const hasValidAmount = mapping.amount ? parseAmount(row[mapping.amount]) !== null : false;
+    const hasValidAmount = mapping.amount
+      ? parseAmount(row[mapping.amount]) !== null
+      : parseSplitDebitCreditAmount(
+          mapping.debit ? row[mapping.debit] : "",
+          mapping.credit ? row[mapping.credit] : ""
+        ) !== null;
 
     if (!hasValidDate) invalidDateRows += 1;
     if (!hasValidAmount) invalidAmountRows += 1;

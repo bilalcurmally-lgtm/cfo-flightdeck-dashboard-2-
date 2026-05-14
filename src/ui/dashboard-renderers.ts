@@ -145,7 +145,14 @@ export function renderTopHeads(heads: HeadSummary[], formatMoney: MoneyFormatter
                 <strong>${escapeHtml(head.head)}</strong>
                 <span>${head.count} transaction${head.count === 1 ? "" : "s"}</span>
               </div>
-              <span class="pill ${head.flow}">${escapeHtml(formatMoney(head.amount))}</span>
+              <button
+                class="drilldown-button"
+                data-drilldown-flow="${escapeHtml(head.flow)}"
+                data-drilldown-head="${escapeHtml(head.head)}"
+                type="button"
+              >
+                <span class="pill ${head.flow}">${escapeHtml(formatMoney(head.amount))}</span>
+              </button>
             </li>
           `
         )
@@ -167,7 +174,13 @@ export function renderAccountBalances(accounts: AccountBalance[], formatMoney: M
                 <strong>${escapeHtml(account.account)}</strong>
                 <span>${account.source === "runningBalance" ? "imported balance" : "net activity"}</span>
               </div>
-              <strong>${escapeHtml(formatMoney(account.balance))}</strong>
+              <button
+                class="drilldown-button"
+                data-drilldown-account="${escapeHtml(account.account)}"
+                type="button"
+              >
+                <strong>${escapeHtml(formatMoney(account.balance))}</strong>
+              </button>
             </li>
           `
         )
@@ -194,7 +207,15 @@ export function renderSubcategories(
                   item.count === 1 ? "" : "s"
                 }</span>
               </div>
-              <span class="pill ${item.flow}">${escapeHtml(formatMoney(item.amount))}</span>
+              <button
+                class="drilldown-button"
+                data-drilldown-flow="${escapeHtml(item.flow)}"
+                data-drilldown-head="${escapeHtml(item.head)}"
+                data-drilldown-subcategory="${escapeHtml(item.subcategory)}"
+                type="button"
+              >
+                <span class="pill ${item.flow}">${escapeHtml(formatMoney(item.amount))}</span>
+              </button>
             </li>
           `
         )
@@ -220,18 +241,29 @@ export function renderDiagnostics(summary: FinanceSummary, formatMoney: MoneyFor
     .slice(0, 4)
     .map((group) => {
       const record = group.records[0];
-      return `<li><strong>${escapeHtml(record.dateISO)} ${escapeHtml(record.account)}</strong><span>${escapeHtml(
-        record.description
-      )} · ${escapeHtml(formatMoney(record.amount))} · ${group.records.length} matches</span></li>`;
+      return `<li>
+        <div>
+          <strong>${escapeHtml(record.dateISO)} ${escapeHtml(record.account)}</strong>
+          <span>${escapeHtml(record.description)} · ${escapeHtml(formatMoney(record.amount))} · ${group.records.length} matches</span>
+        </div>
+        <button class="row-action" data-transaction-id="${escapeHtml(record.id)}" type="button">Review</button>
+      </li>`;
     })
     .join("");
   const transferItems = summary.diagnostics.transferCandidates
     .slice(0, 4)
     .map(
       (transfer) =>
-        `<li><strong>${escapeHtml(transfer.dateISO)} ${escapeHtml(formatMoney(transfer.amount))}</strong><span>${escapeHtml(
-          transfer.fromAccount
-        )} to ${escapeHtml(transfer.toAccount)}</span></li>`
+        `<li>
+          <div>
+            <strong>${escapeHtml(transfer.dateISO)} ${escapeHtml(formatMoney(transfer.amount))}</strong>
+            <span>${escapeHtml(transfer.fromAccount)} to ${escapeHtml(transfer.toAccount)}</span>
+          </div>
+          <div class="diagnostic-actions">
+            <button class="row-action" data-transaction-id="${escapeHtml(transfer.outflowId)}" type="button">Outflow</button>
+            <button class="row-action" data-transaction-id="${escapeHtml(transfer.revenueId)}" type="button">Revenue</button>
+          </div>
+        </li>`
     )
     .join("");
 
