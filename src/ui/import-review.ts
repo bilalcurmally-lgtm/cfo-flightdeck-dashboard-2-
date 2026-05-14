@@ -141,7 +141,7 @@ export function renderMappingReviewPanel(result: CsvImportResult, readiness: Imp
       <div class="panel-heading">
         <div>
           <h2 id="mapping-title">Review Import Mapping</h2>
-          <p>Confirm the required date and amount columns, then adjust optional fields if this CSV uses different labels.</p>
+          <p>Confirm the required date and amount columns, then adjust optional fields if this file uses different labels.</p>
         </div>
         <span>${result.rawRows.length} row${result.rawRows.length === 1 ? "" : "s"} found</span>
       </div>
@@ -216,9 +216,13 @@ export function renderMappingValidation(readiness: ImportReadiness): string {
 }
 
 export function renderRejectedRows(result: CsvImportResult): string {
+  const amountSource =
+    result.mapping.amount || (result.mapping.debit || result.mapping.credit ? "split Debit/Credit" : "missing");
   const detected = [
     ["Date", result.mapping.date || "missing"],
-    ["Amount", result.mapping.amount || "missing"],
+    ["Amount", amountSource],
+    ["Debit", result.mapping.debit || "not used"],
+    ["Credit", result.mapping.credit || "not used"],
     ["Type", result.mapping.type || "not used"],
     ["Head", result.mapping.head || "fallback"],
     ["Subcategory", result.mapping.subcategory || "fallback"],

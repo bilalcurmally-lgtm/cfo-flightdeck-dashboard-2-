@@ -18,6 +18,21 @@ const DEFAULT_OUTFLOW_TOKENS = [
 export function detectImportMapping(rows: ImportedRow[]): ImportMapping {
   const columns = Object.keys(rows[0] || {});
   const lowerColumns = columns.map((column) => column.toLowerCase());
+  const debit = matchColumn(columns, lowerColumns, [
+    "debit",
+    "withdrawal",
+    "paid",
+    "amount paid",
+    "debit amount"
+  ]);
+  const credit = matchColumn(columns, lowerColumns, [
+    "credit",
+    "deposit",
+    "received",
+    "amount received",
+    "credit amount"
+  ]);
+  const amount = matchGenericAmountColumn(columns, lowerColumns, debit, credit);
 
   return {
     date: matchColumn(columns, lowerColumns, [
@@ -29,26 +44,9 @@ export function detectImportMapping(rows: ImportedRow[]): ImportMapping {
       "posted date",
       "value date"
     ]),
-    amount: matchColumn(columns, lowerColumns, [
-      "amount",
-      "net amount",
-      "value",
-      "transaction amount"
-    ]),
-    debit: matchColumn(columns, lowerColumns, [
-      "debit",
-      "withdrawal",
-      "paid",
-      "amount paid",
-      "debit amount"
-    ]),
-    credit: matchColumn(columns, lowerColumns, [
-      "credit",
-      "deposit",
-      "received",
-      "amount received",
-      "credit amount"
-    ]),
+    amount,
+    debit,
+    credit,
     type: matchColumn(columns, lowerColumns, ["type", "flow", "direction", "transaction type"]),
     head: matchColumn(columns, lowerColumns, [
       "head",
@@ -101,6 +99,28 @@ export function detectImportMapping(rows: ImportedRow[]): ImportMapping {
       "account balance"
     ])
   };
+}
+
+function matchGenericAmountColumn(
+  columns: string[],
+  lowerColumns: string[],
+  debit: string,
+  credit: string
+): string {
+  const exact = matchColumn(columns, lowerColumns, [
+    "amount",
+    "net amount",
+    "value",
+    "transaction amount"
+  ]);
+
+  if (!exact || exact === debit || exact === credit) return "";
+  if (isDirectionalAmountColumn(exact)) return "";
+  return exact;
+}
+
+function isDirectionalAmountColumn(column: string): boolean {
+  return /\b(debit|credit|withdrawal|deposit|paid|received)\b/i.test(column);
 }
 
 export function importTransactionsFromCsv(

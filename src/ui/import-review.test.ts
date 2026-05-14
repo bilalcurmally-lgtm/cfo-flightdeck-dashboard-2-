@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 import type { CsvImportResult } from "../finance/types";
 import { analyzeImportReadiness } from "../import/validation";
 import type { ParsedExcelSheet } from "../import/excel";
-import { renderMappingReviewPanel, renderWorksheetOption, renderWorksheetPickerPanel } from "./import-review";
+import {
+  renderMappingReviewPanel,
+  renderRejectedRows,
+  renderWorksheetOption,
+  renderWorksheetPickerPanel
+} from "./import-review";
 
 describe("renderWorksheetOption", () => {
   it("renders a worksheet row preview alongside sheet metadata", () => {
@@ -107,6 +112,32 @@ describe("renderMappingReviewPanel", () => {
     expect(html).toContain("2/2 rows ready");
     expect(html).toContain('class="table-wrap mapping-preview"');
     expect(html).toContain("<td>Northstar Studio</td>");
+    expect(html).toContain("Confirm the required date and amount columns, then adjust optional fields if this file uses different labels.");
+  });
+
+  it("shows split debit and credit mappings in the import summary", () => {
+    const result: CsvImportResult = {
+      rawRows: [{ Date: "2026-05-01", Debit: "1200", Credit: "", Particulars: "Rent" }],
+      records: [],
+      rejectedRows: [],
+      mapping: {
+        date: "Date",
+        amount: "",
+        debit: "Debit",
+        credit: "Credit",
+        description: "Particulars"
+      },
+      dateFormat: "ymd"
+    };
+
+    const html = renderRejectedRows(result);
+
+    expect(html).toContain("<dt>Amount</dt>");
+    expect(html).toContain("<dd>split Debit/Credit</dd>");
+    expect(html).toContain("<dt>Debit</dt>");
+    expect(html).toContain("<dd>Debit</dd>");
+    expect(html).toContain("<dt>Credit</dt>");
+    expect(html).toContain("<dd>Credit</dd>");
   });
 });
 

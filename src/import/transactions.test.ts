@@ -49,6 +49,21 @@ describe("detectImportMapping", () => {
     expect(mapping.credit).toBe("Credit");
   });
 
+  it("does not treat directional debit or credit amount columns as a generic amount", () => {
+    const mapping = detectImportMapping([
+      {
+        Date: "2026-05-01",
+        "Debit Amount": "1200",
+        "Credit Amount": "",
+        Narration: "Rent"
+      }
+    ]);
+
+    expect(mapping.amount).toBe("");
+    expect(mapping.debit).toBe("Debit Amount");
+    expect(mapping.credit).toBe("Credit Amount");
+  });
+
   it("detects common bank export aliases for date, description, and counterparty", () => {
     const mapping = detectImportMapping([
       {
@@ -167,5 +182,22 @@ describe("importTransactionsFromCsv", () => {
       signedNet: 3000,
       description: "Client payment"
     });
+  });
+
+  it("auto-imports debit amount and credit amount columns without overriding them as Amount", () => {
+    const result = importTransactionsFromCsv(`Date,Debit Amount,Credit Amount,Narration
+2026-05-01,1200,,Rent
+2026-05-02,,3000,Client payment`);
+
+    expect(result.mapping).toMatchObject({
+      amount: "",
+      debit: "Debit Amount",
+      credit: "Credit Amount",
+      description: "Narration"
+    });
+    expect(result.records.map(({ flow, amount, signedNet }) => ({ flow, amount, signedNet }))).toEqual([
+      { flow: "outflow", amount: 1200, signedNet: -1200 },
+      { flow: "revenue", amount: 3000, signedNet: 3000 }
+    ]);
   });
 });
