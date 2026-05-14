@@ -23,7 +23,7 @@ export function parseSplitDebitCreditAmount(debitValue: unknown, creditValue: un
   const credit = parseAmount(creditValue);
 
   if (debit === null && credit === null) return null;
-  return (credit ?? 0) - (debit ?? 0);
+  return Math.abs(credit ?? 0) - Math.abs(debit ?? 0);
 }
 
 export function classifyFlow(

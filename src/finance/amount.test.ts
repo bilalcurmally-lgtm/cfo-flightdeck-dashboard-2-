@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyFlow, parseAmount } from "./amount";
+import { classifyFlow, parseAmount, parseSplitDebitCreditAmount } from "./amount";
 
 describe("parseAmount", () => {
   it("parses numbers, currencies, commas, decimals, and parenthesized negatives", () => {
@@ -27,6 +27,13 @@ describe("parseAmount", () => {
 
   it("keeps zero as a valid amount", () => {
     expect(parseAmount("0")).toBe(0);
+  });
+});
+
+describe("parseSplitDebitCreditAmount", () => {
+  it("treats debit and credit columns as directional even when cells include DR or CR suffixes", () => {
+    expect(parseSplitDebitCreditAmount("1,200 DR", "")).toBe(-1200);
+    expect(parseSplitDebitCreditAmount("", "3,000 CR")).toBe(3000);
   });
 });
 
