@@ -80,6 +80,74 @@ describe("excelRowsToImportedRows", () => {
     ).toEqual([{ Date: "2026-03-01", Amount: "100", Amount_2: "200" }]);
   });
 
+  it("expands grouped parent and child amount columns into transaction rows", () => {
+    const rows = excelRowsToImportedRows([
+      ["", "", "Revenue", "", "Expense", ""],
+      ["Date", "Description", "Sales", "Retainers", "Rent", "Internet"],
+      ["2026-05-01", "May operating totals", 250000, 100000, 50000, 12000]
+    ]);
+
+    expect(rows).toEqual([
+      {
+        Date: "2026-05-01",
+        Description: "May operating totals",
+        Flow: "Revenue",
+        "Parent Group": "Revenue",
+        Head: "Sales",
+        Amount: "250000"
+      },
+      {
+        Date: "2026-05-01",
+        Description: "May operating totals",
+        Flow: "Revenue",
+        "Parent Group": "Revenue",
+        Head: "Retainers",
+        Amount: "100000"
+      },
+      {
+        Date: "2026-05-01",
+        Description: "May operating totals",
+        Flow: "Expense",
+        "Parent Group": "Expense",
+        Head: "Rent",
+        Amount: "50000"
+      },
+      {
+        Date: "2026-05-01",
+        Description: "May operating totals",
+        Flow: "Expense",
+        "Parent Group": "Expense",
+        Head: "Internet",
+        Amount: "12000"
+      }
+    ]);
+
+    expect(
+      importTransactionsFromRows(rows).records.map(({ head, parent, flow, amount, signedNet }) => ({
+        head,
+        parent,
+        flow,
+        amount,
+        signedNet
+      }))
+    ).toEqual([
+      { head: "Sales", parent: "Revenue", flow: "revenue", amount: 250000, signedNet: 250000 },
+      { head: "Retainers", parent: "Revenue", flow: "revenue", amount: 100000, signedNet: 100000 },
+      { head: "Rent", parent: "Expense", flow: "outflow", amount: 50000, signedNet: -50000 },
+      { head: "Internet", parent: "Expense", flow: "outflow", amount: 12000, signedNet: -12000 }
+    ]);
+  });
+
+  it("keeps normal value amount columns flat when a title row appears above the header", () => {
+    expect(
+      excelRowsToImportedRows([
+        ["Monthly bank statement", "", ""],
+        ["Date", "Description", "Value"],
+        ["2026-05-01", "Client payment", 250000]
+      ])
+    ).toEqual([{ Date: "2026-05-01", Description: "Client payment", Value: "250000" }]);
+  });
+
   it("keeps parsed sheet metadata available for workbook selection", () => {
     const sheets: ParsedExcelSheet[] = [
       {

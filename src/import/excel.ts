@@ -1,4 +1,5 @@
 import readXlsxFile, { readSheet } from "read-excel-file/browser";
+import { parseAmount } from "../finance/amount";
 import type { ImportedRow } from "../finance/types";
 import { normalizeImportedHeaders } from "./headers";
 
@@ -55,15 +56,18 @@ export function excelRowsToImportedRows(rows: unknown[][]): ImportedRow[] {
   if (headerIndex < 0) return [];
 
   const headers = normalizeImportedHeaders(rows[headerIndex]);
-
-  return rows
+  const bodyRows = rows
     .slice(headerIndex + 1)
-    .filter((row) => row.some((value) => String(value ?? "").trim() !== ""))
-    .map((row) =>
-      Object.fromEntries(
-        headers.map((header, index) => [header, normalizeCell(row[index], header)])
-      )
-    );
+    .filter((row) => row.some((value) => String(value ?? "").trim() !== ""));
+
+  const groupedRows = expandGroupedAmountRows(rows[headerIndex - 1], headers, bodyRows);
+  if (groupedRows) return groupedRows;
+
+  return bodyRows.map((row) =>
+    Object.fromEntries(
+      headers.map((header, index) => [header, normalizeCell(row[index], header)])
+    )
+  );
 }
 
 export function combineCompatibleExcelSheets(
@@ -154,6 +158,90 @@ function normalizeCell(value: unknown, header = ""): string {
   }
   if (value === null || value === undefined) return "";
   return String(value).trim();
+}
+
+function expandGroupedAmountRows(
+  parentHeaderRow: unknown[] | undefined,
+  headers: string[],
+  bodyRows: unknown[][]
+): ImportedRow[] | null {
+  if (!parentHeaderRow || hasExplicitAmountHeaders(headers)) return null;
+
+  const dateIndex = headers.findIndex(isDateLikeHeader);
+  if (dateIndex < 0) return null;
+
+  const parentHeaders = fillForward(parentHeaderRow.map((value) => String(value ?? "").trim()));
+  const metadataIndexes = headers
+    .map((header, index) => ({ header, index }))
+    .filter(({ header }) => isGroupedMetadataHeader(header))
+    .map(({ index }) => index);
+  const amountIndexes = headers
+    .map((header, index) => ({ header, index }))
+    .filter(({ index }) => !metadataIndexes.includes(index) && parentHeaders[index])
+    .map(({ index }) => index);
+
+  if (!amountIndexes.length) return null;
+  if (!amountIndexes.some((index) => String(parentHeaderRow[index] ?? "").trim())) return null;
+
+  const expandedRows: ImportedRow[] = [];
+  for (const row of bodyRows) {
+    for (const amountIndex of amountIndexes) {
+      const amount = normalizeCell(row[amountIndex], headers[amountIndex]);
+      if (parseAmount(amount) === null) continue;
+
+      const importedRow = Object.fromEntries(
+        metadataIndexes.map((index) => [headers[index], normalizeCell(row[index], headers[index])])
+      );
+      const parent = parentHeaders[amountIndex];
+      expandedRows.push({
+        ...importedRow,
+        Flow: parent,
+        "Parent Group": parent,
+        Head: headers[amountIndex],
+        Amount: amount
+      });
+    }
+  }
+
+  return expandedRows.length ? expandedRows : null;
+}
+
+function hasExplicitAmountHeaders(headers: string[]): boolean {
+  return headers.some((header) => {
+    const normalized = header.toLowerCase();
+    return (
+      normalized.includes("amount") ||
+      normalized.includes("debit") ||
+      normalized.includes("credit") ||
+      normalized === "value"
+    );
+  });
+}
+
+function isGroupedMetadataHeader(header: string): boolean {
+  const normalized = header.toLowerCase();
+  return [
+    "date",
+    "description",
+    "memo",
+    "narration",
+    "particulars",
+    "account",
+    "vendor",
+    "customer",
+    "client",
+    "counterparty",
+    "reference",
+    "notes"
+  ].some((token) => normalized === token || normalized.includes(token));
+}
+
+function fillForward(values: string[]): string[] {
+  let last = "";
+  return values.map((value) => {
+    if (value) last = value;
+    return last;
+  });
 }
 
 function isDateLikeHeader(header: string): boolean {
