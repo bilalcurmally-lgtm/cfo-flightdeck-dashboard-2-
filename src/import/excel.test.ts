@@ -56,6 +56,21 @@ describe("excelRowsToImportedRows", () => {
     ]);
   });
 
+  it("normalizes numeric Excel serial dates only in date-like columns", () => {
+    expect(
+      excelRowsToImportedRows([
+        ["Txn Date", "Debit Amount", "Reference"],
+        [45292, 1200, 45292]
+      ])
+    ).toEqual([
+      {
+        "Txn Date": "2024-01-01",
+        "Debit Amount": "1200",
+        Reference: "45292"
+      }
+    ]);
+  });
+
   it("preserves duplicate worksheet columns instead of overwriting values", () => {
     expect(
       excelRowsToImportedRows([

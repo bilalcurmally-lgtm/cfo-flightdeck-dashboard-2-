@@ -61,7 +61,7 @@ export function excelRowsToImportedRows(rows: unknown[][]): ImportedRow[] {
     .filter((row) => row.some((value) => String(value ?? "").trim() !== ""))
     .map((row) =>
       Object.fromEntries(
-        headers.map((header, index) => [header, normalizeCell(row[index])])
+        headers.map((header, index) => [header, normalizeCell(row[index], header)])
       )
     );
 }
@@ -146,10 +146,26 @@ function findHeaderRowIndex(rows: unknown[][]): number {
   return bestHeaderScore > 0 ? bestHeaderIndex : firstNonEmptyIndex;
 }
 
-function normalizeCell(value: unknown): string {
+function normalizeCell(value: unknown, header = ""): string {
   if (value instanceof Date) return value.toISOString().slice(0, 10);
+  if (isDateLikeHeader(header) && typeof value === "number") {
+    const date = excelSerialDateToIso(value);
+    if (date) return date;
+  }
   if (value === null || value === undefined) return "";
   return String(value).trim();
+}
+
+function isDateLikeHeader(header: string): boolean {
+  return header.trim().toLowerCase().includes("date");
+}
+
+function excelSerialDateToIso(value: number): string | null {
+  if (!Number.isFinite(value) || value < 1 || value > 80000) return null;
+
+  const wholeDays = Math.floor(value);
+  const unixTime = (wholeDays - 25569) * 86400 * 1000;
+  return new Date(unixTime).toISOString().slice(0, 10);
 }
 
 function sameHeaders(headers: string[], expectedHeaders: string[]): boolean {

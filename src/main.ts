@@ -7,6 +7,7 @@ import type { FinanceSummary } from "./finance/summary";
 import { buildDashboardView } from "./finance/dashboard-view";
 import { reviewPresetLabel } from "./finance/review-presets";
 import { parseExcelWorkbook, type ParsedExcelSheet } from "./import/excel";
+import { classifyImportFile } from "./import/files";
 import { SAMPLE_DATASETS } from "./import/sample-datasets";
 import { importTransactionsFromCsv, importTransactionsFromRows } from "./import/transactions";
 import { analyzeImportReadiness } from "./import/validation";
@@ -114,16 +115,12 @@ function renderReferencePanel(): void {
 }
 
 async function loadImportFile(file: File): Promise<LoadedImportFile> {
-  if (isExcelFile(file)) {
+  if (classifyImportFile(file) === "xlsx") {
     return { kind: "excel", sheets: await parseExcelWorkbook(file) };
   }
 
   const text = await file.text();
   return { kind: "csv", result: importTransactionsFromCsv(text), source: text };
-}
-
-function isExcelFile(file: File): boolean {
-  return /\.xlsx$/i.test(file.name) || file.type.includes("spreadsheetml");
 }
 
 function showImportError(sourceName: string, error: unknown): void {
