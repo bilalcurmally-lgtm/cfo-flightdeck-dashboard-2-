@@ -18,6 +18,13 @@ describe("parseAmount", () => {
     expect(parseAmount("3,000 CR")).toBe(3000);
   });
 
+  it("parses trailing and unicode minus signs from spreadsheet exports", () => {
+    expect(parseAmount("1,200-")).toBe(-1200);
+    expect(parseAmount("−1,200")).toBe(-1200);
+    expect(parseAmount("1,200−")).toBe(-1200);
+    expect(parseAmount("PKR 1,200.50-")).toBe(-1200.5);
+  });
+
   it("returns null for missing or non-numeric input", () => {
     expect(parseAmount(null)).toBeNull();
     expect(parseAmount(undefined)).toBeNull();
