@@ -139,6 +139,22 @@ describe("renderMappingReviewPanel", () => {
     expect(html).toContain("<dt>Credit</dt>");
     expect(html).toContain("<dd>Credit</dd>");
   });
+
+  it("uses format-neutral copy when the raw preview has no rows", () => {
+    const html = renderMappingReviewPanel(
+      {
+        rawRows: [],
+        records: [],
+        rejectedRows: [],
+        mapping: { date: "", amount: "" },
+        dateFormat: "ymd"
+      },
+      analyzeImportReadiness([], { date: "", amount: "" }, "ymd")
+    );
+
+    expect(html).toContain("No rows found in this file.");
+    expect(html).not.toContain("No rows found in this CSV.");
+  });
 });
 
 function sheet(overrides: Partial<ParsedExcelSheet>): ParsedExcelSheet {

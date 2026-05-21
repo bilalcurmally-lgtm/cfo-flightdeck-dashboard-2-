@@ -148,6 +148,31 @@ describe("excelRowsToImportedRows", () => {
     ).toEqual([{ Date: "2026-05-01", Description: "Client payment", Value: "250000" }]);
   });
 
+  it("uses the parent group as the head when a grouped child header is blank", () => {
+    expect(
+      excelRowsToImportedRows([
+        ["", "Revenue", "Expense"],
+        ["Date", "", "Rent"],
+        ["2026-05-01", 350000, 50000]
+      ])
+    ).toEqual([
+      {
+        Date: "2026-05-01",
+        Flow: "Revenue",
+        "Parent Group": "Revenue",
+        Head: "Revenue",
+        Amount: "350000"
+      },
+      {
+        Date: "2026-05-01",
+        Flow: "Expense",
+        "Parent Group": "Expense",
+        Head: "Rent",
+        Amount: "50000"
+      }
+    ]);
+  });
+
   it("keeps parsed sheet metadata available for workbook selection", () => {
     const sheets: ParsedExcelSheet[] = [
       {
@@ -252,6 +277,31 @@ describe("combineCompatibleExcelSheets", () => {
 });
 
 describe("parseExcelWorkbook", () => {
+  it("parses grouped parent and child columns from a real xlsx workbook", async () => {
+    const workbook = makeWorkbookBlob([
+      {
+        name: "Grouped",
+        rows: [
+          ["", "", "Revenue", "", "Expense", ""],
+          ["Date", "Description", "Sales", "Retainers", "Rent", "Internet"],
+          ["2026-05-01", "May operating totals", 250000, 100000, 50000, 12000]
+        ]
+      }
+    ]);
+
+    const [sheet] = await parseExcelWorkbook(workbook);
+    const result = importTransactionsFromRows(sheet.rows);
+
+    expect(sheet.rows).toHaveLength(4);
+    expect(result.rejectedRows).toEqual([]);
+    expect(result.records.map(({ head, parent, flow, signedNet }) => ({ head, parent, flow, signedNet }))).toEqual([
+      { head: "Sales", parent: "Revenue", flow: "revenue", signedNet: 250000 },
+      { head: "Retainers", parent: "Revenue", flow: "revenue", signedNet: 100000 },
+      { head: "Rent", parent: "Expense", flow: "outflow", signedNet: -50000 },
+      { head: "Internet", parent: "Expense", flow: "outflow", signedNet: -12000 }
+    ]);
+  });
+
   it("parses and combines a real xlsx workbook with helper and monthly sheets", async () => {
     const workbook = makeWorkbookBlob([
       {

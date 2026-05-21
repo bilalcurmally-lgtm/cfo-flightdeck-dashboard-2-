@@ -197,13 +197,17 @@ function expandGroupedAmountRows(
         ...importedRow,
         Flow: parent,
         "Parent Group": parent,
-        Head: headers[amountIndex],
+        Head: groupedHeadName(headers[amountIndex], parent),
         Amount: amount
       });
     }
   }
 
   return expandedRows.length ? expandedRows : null;
+}
+
+function groupedHeadName(header: string, parent: string): string {
+  return /^column_\d+$/i.test(header) ? parent : header;
 }
 
 function hasExplicitAmountHeaders(headers: string[]): boolean {

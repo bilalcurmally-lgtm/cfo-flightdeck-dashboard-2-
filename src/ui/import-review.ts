@@ -108,7 +108,7 @@ function renderWorksheetPreview(sheet: ParsedExcelSheet): string {
 
 export function renderRawPreview(result: CsvImportResult): string {
   const columns = Object.keys(result.rawRows[0] || {}).slice(0, 8);
-  if (!columns.length) return `<p class="empty">No rows found in this CSV.</p>`;
+  if (!columns.length) return `<p class="empty">No rows found in this file.</p>`;
 
   return `
     <div class="table-wrap mapping-preview">
