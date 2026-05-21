@@ -9,7 +9,7 @@ export function parseAmount(value: unknown): number | null {
   const normalized = raw
     .replace(/[$£€,]/g, "")
     .replace(/\brs\.?/gi, "")
-    .replace(/\b(?:pkr|usd|eur|gbp)\b/gi, "")
+    .replace(/\b(?:pkr|usd|eur|gbp)/gi, "")
     .replace(/\b(?:dr|cr)\b\.?$/i, "")
     .replace(/-$/, "")
     .replace(/\(([^)]+)\)/, "-$1")
