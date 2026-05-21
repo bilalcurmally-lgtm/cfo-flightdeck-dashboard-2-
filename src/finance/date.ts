@@ -3,25 +3,37 @@ import type { DateFormat, PeriodGrain, TransactionRecord } from "./types";
 export function parseDate(value: unknown, dateFormat: DateFormat = "dmy"): Date | null {
   if (!value) return null;
 
-  const date = new Date(String(value));
+  const raw = String(value);
+
+  const ymdMatch = raw.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/);
+  if (ymdMatch) {
+    const [, y, m, d] = ymdMatch;
+    return dateFromParts(Number(y), Number(m), Number(d));
+  }
+
+  const match = raw.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/);
+  if (match) {
+    const [, part1, part2, part3] = match;
+    const year = part3.length === 2 ? Number(`20${part3}`) : Number(part3);
+
+    if (dateFormat === "mdy") return dateFromParts(year, Number(part1), Number(part2));
+    return dateFromParts(year, Number(part2), Number(part1));
+  }
+
+  const date = new Date(raw);
   if (!Number.isNaN(date.getTime())) {
     return new Date(date.getFullYear(), date.getMonth(), date.getDate());
   }
 
-  const ymdMatch = String(value).match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/);
-  if (ymdMatch) {
-    const [, y, m, d] = ymdMatch;
-    return new Date(Number(y), Number(m) - 1, Number(d));
+  return null;
+}
+
+function dateFromParts(year: number, month: number, day: number): Date | null {
+  const date = new Date(year, month - 1, day);
+  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
+    return null;
   }
-
-  const match = String(value).match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/);
-  if (!match) return null;
-
-  const [, part1, part2, part3] = match;
-  const year = part3.length === 2 ? Number(`20${part3}`) : Number(part3);
-
-  if (dateFormat === "mdy") return new Date(year, Number(part1) - 1, Number(part2));
-  return new Date(year, Number(part2) - 1, Number(part1));
+  return date;
 }
 
 export function toIsoDate(date: Date): string {
