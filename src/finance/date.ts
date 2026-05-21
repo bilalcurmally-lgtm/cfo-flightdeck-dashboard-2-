@@ -11,6 +11,13 @@ export function parseDate(value: unknown, dateFormat: DateFormat = "dmy"): Date 
     return dateFromParts(Number(y), Number(m), Number(d));
   }
 
+  const isoDateTimeMatch = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})T/);
+  if (isoDateTimeMatch) {
+    const [, y, m, d] = isoDateTimeMatch;
+    const date = dateFromParts(Number(y), Number(m), Number(d));
+    if (!date) return null;
+  }
+
   const match = raw.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/);
   if (match) {
     const [, part1, part2, part3] = match;
