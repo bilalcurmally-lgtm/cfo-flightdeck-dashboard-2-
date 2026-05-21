@@ -6,8 +6,8 @@ describe("buildTransactionsCsv", () => {
   it("exports normalized transaction rows", () => {
     expect(buildTransactionsCsv([record()])).toBe(
       [
-        "date,flow,account,head,parent,subcategory,description,counterparty,amount,signedNet,runningBalance",
-        '2026-03-01,outflow,Checking,Software,Operating Costs,Design,"Tool, with comma",Adobe,220,-220,1800'
+        "date,sourceSheet,flow,account,head,parent,subcategory,description,counterparty,amount,signedNet,runningBalance",
+        '2026-03-01,Mar 2026,outflow,Checking,Software,Operating Costs,Design,"Tool, with comma",Adobe,220,-220,1800'
       ].join("\n")
     );
   });
@@ -29,6 +29,7 @@ function record(): TransactionRecord {
     periodDaily: "2026-03-01",
     periodWeekly: "2026-02-23",
     periodMonthly: "2026-03",
+    sourceSheet: "Mar 2026",
     head: "Software",
     parent: "Operating Costs",
     subcategory: "Design",

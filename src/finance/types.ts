@@ -30,6 +30,7 @@ export interface TransactionRecord {
   periodDaily: string;
   periodWeekly: string;
   periodMonthly: string;
+  sourceSheet?: string;
   head: string;
   parent: string;
   subcategory: string;

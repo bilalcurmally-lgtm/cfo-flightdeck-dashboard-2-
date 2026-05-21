@@ -53,7 +53,7 @@ describe("dashboard text export builders", () => {
     expect(buildTransactionsCsvExport("Sample Finance.csv", result.records, generatedAt)).toMatchObject({
       filename: "sample-finance-normalized-transactions-2026-04-26.csv",
       mediaType: "text/csv;charset=utf-8",
-      contents: expect.stringContaining("date,flow,account,head")
+      contents: expect.stringContaining("date,sourceSheet,flow,account,head")
     });
     expect(buildFilteredTransactionsCsvExport("Sample Finance.csv", result.records, generatedAt)).toMatchObject({
       filename: "sample-finance-2026-04-26-filtered-transactions.csv",

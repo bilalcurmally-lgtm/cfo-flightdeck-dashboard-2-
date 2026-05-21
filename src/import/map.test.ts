@@ -127,6 +127,37 @@ describe("mapRowToRecord", () => {
     expect(record?.runningBalance).toBe(1200);
   });
 
+  it("preserves worksheet provenance from combined workbook rows", () => {
+    const record = mapRowToRecord(
+      { Date: "2026-01-01", Amount: "100", Worksheet: "Jan 2026" },
+      0,
+      { date: "Date", amount: "Amount" },
+      revenueTokens,
+      outflowTokens,
+      "ymd"
+    );
+
+    expect(record?.sourceSheet).toBe("Jan 2026");
+  });
+
+  it("prefers generated worksheet provenance when the source row already had a worksheet field", () => {
+    const record = mapRowToRecord(
+      {
+        Date: "2026-01-01",
+        Amount: "100",
+        Worksheet: "Office Import Tab",
+        Worksheet_2: "Jan 2026"
+      },
+      0,
+      { date: "Date", amount: "Amount" },
+      revenueTokens,
+      outflowTokens,
+      "ymd"
+    );
+
+    expect(record?.sourceSheet).toBe("Jan 2026");
+  });
+
   it("maps split debit and credit columns into signed cash flow", () => {
     const debitRecord = mapRowToRecord(
       { Date: "2026-05-01", Debit: "1200", Credit: "", Description: "Rent" },

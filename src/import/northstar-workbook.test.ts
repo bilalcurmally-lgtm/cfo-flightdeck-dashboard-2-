@@ -276,6 +276,9 @@ describe("Northstar Trading Co. fictional workbook fixture", () => {
 
     expect(importResult.rejectedRows).toEqual([]);
     expect(importResult.records).toHaveLength(10);
+    expect(new Set(importResult.records.map((record) => record.sourceSheet))).toEqual(
+      new Set(["Jan 2026", "Feb 2026", "Mar 2026"])
+    );
 
     const revenueAmount = importResult.records
       .filter((record) => record.flow === "revenue")
@@ -333,7 +336,7 @@ describe("Northstar Trading Co. fictional workbook fixture", () => {
     const lines = transactionsCsv.contents.split("\n");
     expect(lines).toHaveLength(result.records.length + 1);
     expect(lines[0]).toBe(
-      "date,flow,account,head,parent,subcategory,description,counterparty,amount,signedNet,runningBalance"
+      "date,sourceSheet,flow,account,head,parent,subcategory,description,counterparty,amount,signedNet,runningBalance"
     );
     expect(transactionsCsv.filename).toContain("northstar");
     expect(transactionsCsv.filename.endsWith(".csv")).toBe(true);

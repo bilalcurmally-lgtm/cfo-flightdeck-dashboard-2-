@@ -15,6 +15,7 @@ on these fields after the import tests pass.
 - `periodDaily`: same as `dateISO`.
 - `periodWeekly`: Monday start date for the transaction week.
 - `periodMonthly`: `YYYY-MM`.
+- `sourceSheet`: Excel worksheet provenance when a combined workbook import provides it.
 - `account`: imported account/bank/wallet name when present; otherwise `Unassigned Account`.
 - `runningBalance`: imported running/account balance when present; otherwise `null`.
 - `subcategory`: imported subcategory/detail category when present; otherwise `Unassigned Subcategory`.
@@ -91,6 +92,7 @@ The mapping review shows import readiness before calculations render:
 The normalized transaction CSV is the human/accountant-friendly export. It includes:
 
 - `date`
+- `sourceSheet`
 - `flow`
 - `head`
 - `parent`
