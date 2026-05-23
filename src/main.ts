@@ -9,6 +9,7 @@ import { reviewPresetLabel } from "./finance/review-presets";
 import { parseExcelWorkbook, type ParsedExcelSheet } from "./import/excel";
 import { classifyImportFile } from "./import/files";
 import { SAMPLE_DATASETS } from "./import/sample-datasets";
+import { buildNorthstarWorkbookBlob } from "./import/excel-test-fixtures";
 import { importTransactionsFromCsv, importTransactionsFromRows } from "./import/transactions";
 import { analyzeImportReadiness } from "./import/validation";
 import {
@@ -56,6 +57,7 @@ document.querySelector<HTMLDivElement>("#app")!.innerHTML = renderAppShell(SAMPL
 
 const fileInput = document.querySelector<HTMLInputElement>("#csv-file")!;
 const sampleButton = document.querySelector<HTMLButtonElement>("#sample-button")!;
+const northstarWorkbookButton = document.querySelector<HTMLButtonElement>("#northstar-workbook-button")!;
 const sampleSelect = document.querySelector<HTMLSelectElement>("#sample-select")!;
 const clearButton = document.querySelector<HTMLButtonElement>("#clear-button")!;
 const referenceButton = document.querySelector<HTMLButtonElement>("#reference-button")!;
@@ -90,6 +92,16 @@ sampleButton.addEventListener("click", async () => {
     renderMappingReview(importTransactionsFromCsv(text), sample.path.replace(/^\//, ""), text);
   } catch (error) {
     showImportError(sample.label, error);
+  }
+});
+
+northstarWorkbookButton.addEventListener("click", async () => {
+  try {
+    status.textContent = "Building Northstar Excel demo locally...";
+    const sheets = await parseExcelWorkbook(buildNorthstarWorkbookBlob());
+    renderWorksheetPicker("northstar-trading-demo.xlsx", sheets);
+  } catch (error) {
+    showImportError("Northstar Excel demo", error);
   }
 });
 

@@ -36,6 +36,7 @@ export function renderAppShell(samples: SampleDataset[]): string {
           </select>
         </label>
         <button id="sample-button" type="button">Load Sample</button>
+        <button id="northstar-workbook-button" type="button">Load Excel Demo</button>
         <button id="clear-button" type="button" disabled>Clear</button>
         <button id="reference-button" type="button" aria-expanded="false">Formulas</button>
       </div>

@@ -9,6 +9,7 @@ describe("renderAppShell", () => {
     expect(html).toContain('id="csv-file"');
     expect(html).toContain('id="sample-select"');
     expect(html).toContain('id="sample-button"');
+    expect(html).toContain('id="northstar-workbook-button"');
     expect(html).toContain('id="clear-button"');
     expect(html).toContain('id="reference-button"');
     expect(html).toContain('value="/sample-freelancer.csv"');
