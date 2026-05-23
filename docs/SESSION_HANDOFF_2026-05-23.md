@@ -71,6 +71,8 @@ The recurring CRLF warnings are from Git touching existing Windows-line-ending f
 
 ## First Things To Knock Out Next Session
 
+### Backend First
+
 1. Multi-sheet accountant Excel export packet.
    - Add an `.xlsx` export with sheets such as `Transactions`, `Monthly Trend`, `Diagnostics`, `Rejected Rows`, and `Source Sheets`.
    - Reuse `src/export/xlsx-workbook.ts`.
@@ -89,6 +91,29 @@ The recurring CRLF warnings are from Git touching existing Windows-line-ending f
 
 5. Mapping presets / recurring bank formats.
    - Save/import column mapping profiles for repeat bank/client exports once real formats arrive.
+
+### Frontend / Product Stack
+
+1. First-run onboarding state.
+   - Users should feel the dashboard before understanding every feature.
+   - Candidate direction: sample/demo-forward pre-import state with clear `Load Sample`, `Load Excel Demo`, and `Load your own file`.
+
+2. KPI cockpit treatment.
+   - Promote revenue, outflow, net cash, average burn, and runway into a stronger first-viewport instrument panel.
+   - The calculations already exist; this is hierarchy and visual treatment.
+
+3. Founder runway emphasis.
+   - Make runway visually unavoidable once data is loaded.
+
+4. README/product story refresh.
+   - README is behind the product and should be updated so finished features are not mistaken for missing features.
+
+5. Later product expansion.
+   - Budget vs Actual before Receivables.
+   - Prefer one coherent small-business financial cockpit over a separate admin dashboard.
+
+6. Visual exploration.
+   - Explore Bloomberg-terminal density and cockpit confidence while preserving Billu.Works audit legibility and the `DESIGN.md` soft financial cockpit rules.
 
 ## Current Git Notes
 
