@@ -24,6 +24,12 @@ export interface ReviewerReport {
     revenueConcentration: number;
   };
   qualitySignals: string[];
+  diagnosticSummary: {
+    duplicateGroups: number;
+    duplicateRecords: number;
+    transferCandidates: number;
+    transferRecords: number;
+  };
   accountBalances: FinanceSummary["accountBalances"];
   topSubcategories: FinanceSummary["topSubcategories"];
   diagnostics: FinanceSummary["diagnostics"];
@@ -65,6 +71,7 @@ export function buildReviewerReport(
       revenueConcentration: summary.cashHealth.revenueConcentration
     },
     qualitySignals: summary.warnings.map((warning) => warning.message),
+    diagnosticSummary: summarizeDiagnostics(summary.diagnostics),
     accountBalances: summary.accountBalances,
     topSubcategories: summary.topSubcategories,
     diagnostics: summary.diagnostics,
@@ -91,6 +98,27 @@ function summarizeSourceSheets(
   }
 
   return Array.from(counts, ([name, acceptedRows]) => ({ name, acceptedRows }));
+}
+
+function summarizeDiagnostics(
+  diagnostics: FinanceSummary["diagnostics"]
+): ReviewerReport["diagnosticSummary"] {
+  const duplicateRecordIds = new Set(
+    diagnostics.duplicateGroups.flatMap((group) => group.records.map((record) => record.id))
+  );
+  const transferRecordIds = new Set(
+    diagnostics.transferCandidates.flatMap((candidate) => [
+      candidate.outflowId,
+      candidate.revenueId
+    ])
+  );
+
+  return {
+    duplicateGroups: diagnostics.duplicateGroups.length,
+    duplicateRecords: duplicateRecordIds.size,
+    transferCandidates: diagnostics.transferCandidates.length,
+    transferRecords: transferRecordIds.size
+  };
 }
 
 export function reviewerReportFilename(sourceName: string, generatedAt = new Date()): string {

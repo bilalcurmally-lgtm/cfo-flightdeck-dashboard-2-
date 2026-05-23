@@ -377,6 +377,12 @@ describe("Northstar Trading Co. fictional workbook fixture", () => {
     expect(reviewerReport.import.acceptedRows).toBe(result.records.length);
     expect(reviewerReport.import.rejectedRows).toBe(0);
     expect(reviewerReport.import.sourceSheets).toEqual([]);
+    expect(reviewerReport.diagnosticSummary).toEqual({
+      duplicateGroups: 0,
+      duplicateRecords: 0,
+      transferCandidates: 0,
+      transferRecords: 0
+    });
     expect(reviewerReport.summary.revenue).toBe(1_910_000);
     expect(reviewerReport.summary.outflow).toBe(1_834_500);
     expect(reviewerReport.summary.netCash).toBe(75_500);

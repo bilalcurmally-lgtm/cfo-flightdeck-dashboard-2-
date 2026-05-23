@@ -105,7 +105,7 @@ The normalized transaction CSV is the human/accountant-friendly export. It inclu
 The reviewer JSON export is the machine-readable audit export generated locally from already-computed dashboard state. It includes:
 
 - import row counts, date format, detected mapping, and accepted-row counts by source worksheet when available.
-- summary totals, cash health, account balances, diagnostics, quality signals, top heads, and monthly trend.
+- summary totals, cash health, account balances, diagnostics, diagnostic counts, quality signals, top heads, and monthly trend.
 - 13-week forecast rows and manual future cash events.
 - privacy text noting that the report is generated in-browser without default transaction upload.
 

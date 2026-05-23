@@ -68,6 +68,43 @@ describe("buildReviewerReport", () => {
       { name: "Feb 2026", acceptedRows: 1 }
     ]);
   });
+
+  it("adds a compact diagnostic summary for reviewer triage", () => {
+    const duplicateA = { ...record(), id: "dup-a" };
+    const duplicateB = { ...record(), id: "dup-b" };
+    const transferOut = { ...record(), id: "transfer-out", flow: "outflow" as const, signedNet: -1000 };
+    const transferIn = { ...record(), id: "transfer-in" };
+
+    const report = buildReviewerReport(
+      "sample-finance.csv",
+      importResult(),
+      {
+        ...summary(),
+        diagnostics: {
+          duplicateGroups: [{ key: "same-row", records: [duplicateA, duplicateB] }],
+          transferCandidates: [
+            {
+              dateISO: "2026-03-01",
+              amount: 1000,
+              fromAccount: "Operating",
+              toAccount: "Savings",
+              outflowId: transferOut.id,
+              revenueId: transferIn.id
+            }
+          ]
+        }
+      },
+      forecast(),
+      new Date("2026-04-26T12:00:00Z")
+    );
+
+    expect(report.diagnosticSummary).toEqual({
+      duplicateGroups: 1,
+      duplicateRecords: 2,
+      transferCandidates: 1,
+      transferRecords: 2
+    });
+  });
 });
 
 describe("reviewerReportFilename", () => {
