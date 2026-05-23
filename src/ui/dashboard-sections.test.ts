@@ -50,6 +50,7 @@ describe("renderExportPanel", () => {
     const html = renderExportPanel();
 
     expect(html).toContain('id="export-transactions"');
+    expect(html).toContain('id="export-transactions-xlsx"');
     expect(html).toContain('id="export-visible-transactions"');
     expect(html).toContain('id="export-reviewer"');
     expect(html).toContain('id="export-trend"');

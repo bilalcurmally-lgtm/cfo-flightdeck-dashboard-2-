@@ -5,6 +5,7 @@ import {
   buildFilteredTransactionsCsvExport,
   buildReviewerExportReport,
   buildTransactionsCsvExport,
+  buildTransactionsWorkbookExport,
   buildTrendCsvExport,
   buildTrendSvgExport
 } from "./dashboard-export-payloads";
@@ -58,6 +59,10 @@ describe("dashboard text export builders", () => {
     expect(buildFilteredTransactionsCsvExport("Sample Finance.csv", result.records, generatedAt)).toMatchObject({
       filename: "sample-finance-2026-04-26-filtered-transactions.csv",
       mediaType: "text/csv;charset=utf-8"
+    });
+    expect(buildTransactionsWorkbookExport("Sample Finance.csv", result.records, generatedAt)).toMatchObject({
+      filename: "sample-finance-normalized-transactions-2026-04-26.xlsx",
+      mediaType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     });
   });
 

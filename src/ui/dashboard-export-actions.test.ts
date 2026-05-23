@@ -12,6 +12,7 @@ describe("bindDashboardExportActions", () => {
     const buttons = {
       "#export-reviewer": button(),
       "#export-transactions": button(),
+      "#export-transactions-xlsx": button(),
       "#export-visible-transactions": button(),
       "#export-trend": button(),
       "#export-trend-svg": button(),
@@ -19,6 +20,7 @@ describe("bindDashboardExportActions", () => {
     };
     const textDownloads: string[] = [];
     const jsonDownloads: string[] = [];
+    const blobDownloads: string[] = [];
     let printCount = 0;
 
     bindDashboardExportActions({
@@ -33,7 +35,9 @@ describe("bindDashboardExportActions", () => {
       getReviewPreset: () => "all",
       getCurrency: () => "USD",
       downloads: {
-        blob: () => undefined,
+        blob: (filename) => {
+          blobDownloads.push(filename);
+        },
         json: (filename) => {
           jsonDownloads.push(filename);
         },
@@ -49,12 +53,14 @@ describe("bindDashboardExportActions", () => {
 
     buttons["#export-reviewer"].fire("click");
     buttons["#export-transactions"].fire("click");
+    buttons["#export-transactions-xlsx"].fire("click");
     buttons["#export-visible-transactions"].fire("click");
     buttons["#export-trend"].fire("click");
     buttons["#export-trend-svg"].fire("click");
     buttons["#print-report"].fire("click");
 
     expect(jsonDownloads).toEqual(["sample-review-summary-2026-05-04.json"]);
+    expect(blobDownloads).toEqual(["sample-normalized-transactions-2026-05-04.xlsx"]);
     expect(textDownloads).toEqual([
       "sample-normalized-transactions-2026-05-04.csv",
       "sample-2026-05-04-filtered-transactions.csv",

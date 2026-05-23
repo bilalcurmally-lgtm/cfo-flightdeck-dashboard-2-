@@ -124,10 +124,11 @@ export function renderExportPanel(): string {
     <section class="export-panel" aria-labelledby="export-title">
       <div>
         <h2 id="export-title">Exports</h2>
-        <p>Use transaction CSV for spreadsheet review, JSON for the full audit state, or trend CSV for the visible filtered chart data.</p>
+        <p>Use transaction CSV or Excel for spreadsheet review, JSON for the full audit state, or trend CSV for the visible filtered chart data.</p>
       </div>
       <div class="export-actions">
         <button id="export-transactions" type="button">Transactions CSV</button>
+        <button id="export-transactions-xlsx" type="button">Transactions Excel</button>
         <button id="export-visible-transactions" type="button">Filtered CSV</button>
         <button id="export-reviewer" type="button">Reviewer JSON</button>
         <button id="export-trend" type="button">Trend CSV</button>

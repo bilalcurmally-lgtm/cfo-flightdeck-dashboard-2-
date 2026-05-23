@@ -4,6 +4,7 @@ import {
   buildFilteredTransactionsCsvExport,
   buildReviewerExportReport,
   buildTransactionsCsvExport,
+  buildTransactionsWorkbookExport,
   buildTrendCsvExport,
   buildTrendSvgExport
 } from "../export/dashboard-export-payloads";
@@ -82,6 +83,18 @@ export function bindDashboardExportActions({
 
     const csv = buildTransactionsCsvExport(activeImport.sourceName, activeImport.result.records, now());
     downloads.text(csv.filename, csv.contents, csv.mediaType);
+  });
+
+  root.querySelector<HTMLButtonElement>("#export-transactions-xlsx")?.addEventListener("click", () => {
+    const activeImport = getActiveImport();
+    if (!activeImport) return;
+
+    const workbook = buildTransactionsWorkbookExport(
+      activeImport.sourceName,
+      activeImport.result.records,
+      now()
+    );
+    downloads.blob(workbook.filename, workbook.blob);
   });
 
   root

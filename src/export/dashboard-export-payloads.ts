@@ -7,6 +7,10 @@ import { filteredTransactionsFilename } from "../ui/downloads";
 import { buildMonthlyTrendCsv, monthlyTrendCsvFilename } from "./monthly-trend-csv";
 import { buildReviewerReport, type ReviewerReport } from "./reviewer-report";
 import { buildTransactionsCsv, transactionsCsvFilename } from "./transactions-csv";
+import {
+  buildTransactionsWorkbook,
+  transactionsWorkbookFilename
+} from "./transactions-workbook";
 import { trendSvgFilename } from "./trend-svg";
 import { buildVisibleTrendSvg } from "./visible-trend-svg";
 
@@ -23,6 +27,12 @@ export interface ReviewerExportReportInput {
 export interface TextExportDescriptor {
   filename: string;
   contents: string;
+  mediaType: string;
+}
+
+export interface BlobExportDescriptor {
+  filename: string;
+  blob: Blob;
   mediaType: string;
 }
 
@@ -70,6 +80,19 @@ export function buildTransactionsCsvExport(
     filename: transactionsCsvFilename(sourceName, generatedAt),
     contents: buildTransactionsCsv(records),
     mediaType: "text/csv;charset=utf-8"
+  };
+}
+
+export function buildTransactionsWorkbookExport(
+  sourceName: string,
+  records: TransactionRecord[],
+  generatedAt = new Date()
+): BlobExportDescriptor {
+  const mediaType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+  return {
+    filename: transactionsWorkbookFilename(sourceName, generatedAt),
+    blob: buildTransactionsWorkbook(records),
+    mediaType
   };
 }
 

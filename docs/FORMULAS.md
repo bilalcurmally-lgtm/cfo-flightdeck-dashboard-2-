@@ -89,7 +89,7 @@ The mapping review shows import readiness before calculations render:
 
 ## Exports
 
-The normalized transaction CSV is the human/accountant-friendly export. It includes:
+The normalized transaction CSV and Excel workbook are the human/accountant-friendly exports. They include:
 
 - `date`
 - `sourceSheet`
@@ -109,6 +109,8 @@ The reviewer JSON export is the machine-readable audit export generated locally 
 - 13-week forecast rows and manual future cash events.
 - privacy text noting that the report is generated in-browser without default transaction upload.
 
+The normalized Excel workbook exports the same fields as the transaction CSV on a `Transactions` worksheet, with numeric amount and balance columns preserved as spreadsheet numbers.
+
 The visible trend CSV exports the currently filtered chart data only, using the selected daily,
 weekly, or monthly trend grain. It includes:
 
@@ -118,8 +120,8 @@ weekly, or monthly trend grain. It includes:
 - `netCash`
 
 The visible trend SVG and PNG exports use the same currently filtered trend data and selected
-grain. Export filenames share the same source-name normalization across transaction CSV, filtered
-CSV, reviewer JSON, trend CSV, trend SVG, and trend PNG.
+grain. Export filenames share the same source-name normalization across transaction CSV, transaction
+Excel, filtered CSV, reviewer JSON, trend CSV, trend SVG, and trend PNG.
 
 ## Local Settings
 
