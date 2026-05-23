@@ -13,6 +13,13 @@ Scope: dashboard backend/import/export work. Pet/mascot work has been moved out 
 - A gstack checkpoint was also saved at:
   `C:\Users\Bilal\.gstack\projects\v2\checkpoints\20260523-122424-next-backend-big-tickets.md`
 
+## Vault Policy
+
+- Hard rule: keep the in-repo project vault current for every meaningful dashboard session.
+- Use `docs/SESSION_HANDOFF_YYYY-MM-DD.md` as the durable handoff record.
+- Each handoff should capture current git state, shipped changes, verification, and first next-session priorities.
+- Gstack checkpoints are useful, but they do not replace the in-repo vault note.
+
 ## What Changed Recently
 
 ### Excel Import And Workbook Handling
