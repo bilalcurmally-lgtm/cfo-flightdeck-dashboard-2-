@@ -260,6 +260,32 @@ describe("combineCompatibleExcelSheets", () => {
     expect(combined.skippedSheets).toEqual([]);
   });
 
+  it("chooses the largest compatible transaction-like group in mixed workbooks", () => {
+    const combined = combineCompatibleExcelSheets([
+      sheet("Transactions", [
+        {
+          Date: "2026-01-01",
+          Account: "Checking",
+          Amount: "100",
+          Head: "Sales"
+        }
+      ]),
+      sheet("Jan 2026", [{ Date: "2026-01-01", Amount: "100", Description: "Invoice" }]),
+      sheet("Feb 2026", [{ Date: "2026-02-01", Amount: "-25", Description: "Tools" }]),
+      sheet("Mar 2026", [{ Date: "2026-03-01", Amount: "250", Description: "Retainer" }])
+    ]);
+
+    expect(combined.includedSheets).toEqual(["Jan 2026", "Feb 2026", "Mar 2026"]);
+    expect(combined.rows.map((row) => row.Worksheet)).toEqual([
+      "Jan 2026",
+      "Feb 2026",
+      "Mar 2026"
+    ]);
+    expect(combined.skippedSheets).toEqual([
+      { name: "Transactions", reason: "Headers do not match Jan 2026" }
+    ]);
+  });
+
   it("uses a unique worksheet source column when the workbook already has Worksheet", () => {
     const combined = combineCompatibleExcelSheets([
       sheet("Jan 2026", [{ Date: "2026-01-01", Amount: "100", Worksheet: "Office" }])

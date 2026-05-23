@@ -74,8 +74,8 @@ export function combineCompatibleExcelSheets(
   sheets: ParsedExcelSheet[],
   sourceColumn = "Worksheet"
 ): CombinedExcelSheets {
-  const firstDataSheet = sheets.find(isTransactionLikeSheet);
-  if (!firstDataSheet) {
+  const selectedGroup = selectCompatibleSheetGroup(sheets);
+  if (!selectedGroup.length) {
     return {
       rows: [],
       includedSheets: [],
@@ -83,11 +83,13 @@ export function combineCompatibleExcelSheets(
     };
   }
 
-  const expectedHeaders = Object.keys(firstDataSheet.rows[0]);
+  const baseSheet = selectedGroup[0];
+  const expectedHeaders = Object.keys(baseSheet.rows[0]);
   const worksheetColumn = uniqueColumnName(sourceColumn, expectedHeaders);
   const rows: ImportedRow[] = [];
   const includedSheets: string[] = [];
   const skippedSheets: CombinedExcelSheets["skippedSheets"] = [];
+  const selectedSheetNames = new Set(selectedGroup.map((sheet) => sheet.name));
 
   for (const sheet of sheets) {
     if (!sheet.rows.length) {
@@ -106,11 +108,10 @@ export function combineCompatibleExcelSheets(
       continue;
     }
 
-    const headers = Object.keys(sheet.rows[0]);
-    if (!sameHeaders(headers, expectedHeaders)) {
+    if (!selectedSheetNames.has(sheet.name)) {
       skippedSheets.push({
         name: sheet.name,
-        reason: `Headers do not match ${firstDataSheet.name}`
+        reason: `Headers do not match ${baseSheet.name}`
       });
       continue;
     }
@@ -124,6 +125,24 @@ export function combineCompatibleExcelSheets(
     includedSheets,
     skippedSheets
   };
+}
+
+function selectCompatibleSheetGroup(sheets: ParsedExcelSheet[]): ParsedExcelSheet[] {
+  const groups = new Map<string, ParsedExcelSheet[]>();
+
+  for (const sheet of sheets) {
+    if (!isTransactionLikeSheet(sheet)) continue;
+    const key = headerGroupKey(Object.keys(sheet.rows[0]));
+    const group = groups.get(key) ?? [];
+    group.push(sheet);
+    groups.set(key, group);
+  }
+
+  return [...groups.values()].sort((a, b) => {
+    const countDelta = b.length - a.length;
+    if (countDelta) return countDelta;
+    return totalSheetRows(b) - totalSheetRows(a);
+  })[0] ?? [];
 }
 
 function findHeaderRowIndex(rows: unknown[][]): number {
@@ -260,15 +279,16 @@ function excelSerialDateToIso(value: number): string | null {
   return new Date(unixTime).toISOString().slice(0, 10);
 }
 
-function sameHeaders(headers: string[], expectedHeaders: string[]): boolean {
-  if (headers.length !== expectedHeaders.length) return false;
-  const normalizedHeaders = headers.map(normalizeHeaderForComparison).sort();
-  const normalizedExpectedHeaders = expectedHeaders.map(normalizeHeaderForComparison).sort();
-  return normalizedHeaders.every((header, index) => header === normalizedExpectedHeaders[index]);
+function headerGroupKey(headers: string[]): string {
+  return headers.map(normalizeHeaderForComparison).sort().join("|");
 }
 
 function normalizeHeaderForComparison(header: string): string {
   return header.trim().toLowerCase();
+}
+
+function totalSheetRows(sheets: ParsedExcelSheet[]): number {
+  return sheets.reduce((total, sheet) => total + sheet.rows.length, 0);
 }
 
 function isTransactionLikeSheet(sheet: ParsedExcelSheet): boolean {
