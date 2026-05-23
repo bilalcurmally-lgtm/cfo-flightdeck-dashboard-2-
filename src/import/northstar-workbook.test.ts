@@ -279,6 +279,20 @@ describe("Northstar Trading Co. fictional workbook fixture", () => {
     expect(new Set(importResult.records.map((record) => record.sourceSheet))).toEqual(
       new Set(["Jan 2026", "Feb 2026", "Mar 2026"])
     );
+    expect(
+      buildReviewerExportReport({
+        sourceName: "Northstar monthly tabs",
+        result: importResult,
+        cashOnHand: 0,
+        futureEventsText: "",
+        trendGrain: "monthly",
+        generatedAt: new Date("2026-04-01T00:00:00Z")
+      }).import.sourceSheets
+    ).toEqual([
+      { name: "Jan 2026", acceptedRows: 4 },
+      { name: "Feb 2026", acceptedRows: 3 },
+      { name: "Mar 2026", acceptedRows: 3 }
+    ]);
 
     const revenueAmount = importResult.records
       .filter((record) => record.flow === "revenue")
@@ -362,6 +376,7 @@ describe("Northstar Trading Co. fictional workbook fixture", () => {
     expect(reviewerReport.sourceName).toBe("Northstar");
     expect(reviewerReport.import.acceptedRows).toBe(result.records.length);
     expect(reviewerReport.import.rejectedRows).toBe(0);
+    expect(reviewerReport.import.sourceSheets).toEqual([]);
     expect(reviewerReport.summary.revenue).toBe(1_910_000);
     expect(reviewerReport.summary.outflow).toBe(1_834_500);
     expect(reviewerReport.summary.netCash).toBe(75_500);

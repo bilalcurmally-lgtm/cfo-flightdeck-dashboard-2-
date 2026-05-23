@@ -45,6 +45,29 @@ describe("buildReviewerReport", () => {
       }
     });
   });
+
+  it("summarizes accepted rows by source worksheet when provenance is available", () => {
+    const result = importResult();
+    result.records = [
+      { ...record(), id: "jan-1", sourceSheet: "Jan 2026" },
+      { ...record(), id: "jan-2", sourceSheet: "Jan 2026" },
+      { ...record(), id: "feb-1", sourceSheet: "Feb 2026" },
+      { ...record(), id: "csv-1", sourceSheet: undefined }
+    ];
+
+    const report = buildReviewerReport(
+      "northstar.xlsx",
+      result,
+      summary(),
+      forecast(),
+      new Date("2026-04-26T12:00:00Z")
+    );
+
+    expect(report.import.sourceSheets).toEqual([
+      { name: "Jan 2026", acceptedRows: 2 },
+      { name: "Feb 2026", acceptedRows: 1 }
+    ]);
+  });
 });
 
 describe("reviewerReportFilename", () => {

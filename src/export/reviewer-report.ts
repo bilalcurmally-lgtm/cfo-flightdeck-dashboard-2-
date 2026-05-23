@@ -13,6 +13,7 @@ export interface ReviewerReport {
     rejectedRows: number;
     dateFormat: string;
     mapping: CsvImportResult["mapping"];
+    sourceSheets: Array<{ name: string; acceptedRows: number }>;
   };
   summary: {
     revenue: number;
@@ -52,7 +53,8 @@ export function buildReviewerReport(
       acceptedRows: result.records.length,
       rejectedRows: result.rejectedRows.length,
       dateFormat: result.dateFormat,
-      mapping: result.mapping
+      mapping: result.mapping,
+      sourceSheets: summarizeSourceSheets(result.records)
     },
     summary: {
       revenue: summary.revenue,
@@ -75,6 +77,20 @@ export function buildReviewerReport(
       weeks: forecast.weeks
     }
   };
+}
+
+function summarizeSourceSheets(
+  records: CsvImportResult["records"]
+): Array<{ name: string; acceptedRows: number }> {
+  const counts = new Map<string, number>();
+
+  for (const record of records) {
+    const sourceSheet = record.sourceSheet?.trim();
+    if (!sourceSheet) continue;
+    counts.set(sourceSheet, (counts.get(sourceSheet) ?? 0) + 1);
+  }
+
+  return Array.from(counts, ([name, acceptedRows]) => ({ name, acceptedRows }));
 }
 
 export function reviewerReportFilename(sourceName: string, generatedAt = new Date()): string {
