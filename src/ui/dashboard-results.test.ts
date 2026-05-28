@@ -25,6 +25,10 @@ describe("renderDashboardResults", () => {
     });
 
     expect(html).toContain("sample.csv");
+    expect(html).toContain('aria-label="Cockpit summary"');
+    expect(html.indexOf('aria-label="Cockpit summary"')).toBeLessThan(
+      html.indexOf('id="filter-title"')
+    );
     expect(html).toContain("1 of 1 record shown");
     expect(html).toContain("Cash Health");
     expect(html).toContain('id="export-trend-png"');

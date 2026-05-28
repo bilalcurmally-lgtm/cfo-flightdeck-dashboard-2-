@@ -1,0 +1,967 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Stage 1 Patch v4 — Pre-Import Panel (Codex-clean, implementation-ready)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --cream:   oklch(0.972 0.012 92);
+    --cream-2: oklch(0.955 0.014 92);
+    --sage:    oklch(0.93  0.022 142);
+    --rule:    oklch(0.83  0.022 142);
+    --rule-soft: oklch(0.88 0.018 142);
+    --ink:     oklch(0.22  0.015 150);
+    --ink-2:   oklch(0.36  0.018 150);
+    --ink-3:   oklch(0.50  0.018 150);
+    --green:   oklch(0.32  0.045 155);
+    --forest:  oklch(0.48  0.085 155);
+    --clay:    oklch(0.60  0.120 50);
+    --code-bg: oklch(0.94  0.014 142);
+    --font-sans: "Inter", system-ui, sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--cream);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 14.5px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page { max-width: 1080px; margin: 0 auto; padding: 44px 48px 80px; }
+
+  .doc-meta {
+    display: grid; grid-template-columns: 1fr auto;
+    align-items: end; gap: 24px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--rule);
+    margin-bottom: 32px;
+  }
+  .doc-eyebrow {
+    font-family: var(--font-mono);
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em;
+    color: var(--ink-3); margin-bottom: 8px;
+  }
+  h1 {
+    font-size: 30px; line-height: 1.15; font-weight: 600;
+    letter-spacing: -0.015em; margin: 0 0 4px;
+    color: var(--green); text-wrap: balance;
+  }
+  .doc-sub { color: var(--ink-2); font-size: 15px; max-width: 70ch; }
+  .doc-meta-right {
+    text-align: right; font-family: var(--font-mono);
+    font-size: 11px; color: var(--ink-3); line-height: 1.7;
+  }
+  .doc-meta-right b { color: var(--ink); font-weight: 500; }
+
+  section { margin-top: 36px; }
+  .sec-head {
+    display: grid; grid-template-columns: 84px 1fr;
+    gap: 18px; align-items: baseline;
+    margin-bottom: 12px;
+  }
+  .sec-num {
+    font-family: var(--font-mono);
+    font-size: 11.5px; color: var(--ink-3);
+    letter-spacing: 0.08em; padding-top: 7px;
+  }
+  h2 {
+    font-size: 18px; font-weight: 600; letter-spacing: -0.005em;
+    margin: 0; color: var(--ink);
+  }
+  h2 small {
+    display: block; font-size: 13.5px; font-weight: 400;
+    color: var(--ink-2); margin-top: 4px;
+  }
+  h3 {
+    font-size: 12px; font-weight: 600; margin: 18px 0 6px;
+    color: var(--ink); text-transform: uppercase; letter-spacing: 0.08em;
+  }
+  .body { grid-column: 2; }
+  p { margin: 0 0 10px; max-width: 76ch; }
+  ul, ol { margin: 0 0 8px; padding-left: 1.2em; }
+  li { margin-bottom: 3px; font-size: 13.5px; color: var(--ink-2); }
+  li::marker { color: var(--ink-3); }
+  li b { color: var(--ink); }
+  strong { color: var(--green); font-weight: 600; }
+
+  code {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    background: var(--code-bg);
+    border: 1px solid var(--rule-soft);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: var(--green);
+    white-space: nowrap;
+  }
+
+  pre.code {
+    background: var(--cream-2);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 14px 16px;
+    margin: 8px 0 14px;
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    line-height: 1.6;
+    color: var(--ink);
+    overflow-x: auto;
+    white-space: pre;
+    tab-size: 2;
+  }
+  pre.code .k { color: var(--clay); }
+  pre.code .t { color: var(--green); }
+  pre.code .s { color: var(--forest); }
+  pre.code .c { color: var(--ink-3); font-style: italic; }
+  pre.code .f { color: var(--green); font-weight: 500; }
+  pre.code .h {
+    display: block;
+    font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--ink-3); margin-bottom: 8px;
+  }
+  pre.code .h b { color: var(--green); font-weight: 500; }
+  pre.code .add { display: block; color: var(--ink); }
+  pre.code .add::before { content: "+ "; color: var(--forest); font-weight: 600; }
+  pre.code .del { display: block; color: var(--ink-3); text-decoration: line-through; text-decoration-color: var(--clay); }
+  pre.code .del::before { content: "− "; color: var(--clay); font-weight: 600; text-decoration: none; }
+
+  .note {
+    background: oklch(0.96 0.025 60);
+    border: 1px solid oklch(0.86 0.05 60);
+    border-radius: 6px;
+    padding: 11px 15px;
+    margin: 14px 0;
+    color: var(--ink-2);
+    font-size: 13px;
+  }
+  .note b { color: var(--clay); }
+  .note.ok {
+    background: oklch(0.96 0.02 155);
+    border-color: oklch(0.82 0.05 155);
+  }
+  .note.ok b { color: var(--green); }
+
+  .corr {
+    display: grid;
+    grid-template-columns: 18px 1fr;
+    gap: 10px;
+    padding: 10px 14px;
+    border: 1px solid var(--rule);
+    background: var(--cream-2);
+    border-radius: 6px;
+    margin-bottom: 8px;
+    font-size: 13px;
+    color: var(--ink-2);
+  }
+  .corr .n {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--green);
+    font-weight: 600;
+    padding-top: 2px;
+  }
+  .corr b { color: var(--ink); font-weight: 600; }
+
+  .check {
+    border-left: 2px solid var(--green);
+    background: oklch(0.96 0.02 155);
+    padding: 6px 14px;
+    border-radius: 0 6px 6px 0;
+    margin-top: 12px;
+  }
+  .check h4 {
+    margin: 0 0 4px;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--green);
+  }
+  .check ul { margin: 0 0 4px; }
+  .check li { font-size: 13px; color: var(--ink-2); }
+
+  footer {
+    margin-top: 56px;
+    padding-top: 14px;
+    border-top: 1px solid var(--rule);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink-3);
+    display: flex; justify-content: space-between;
+  }
+
+  @media (max-width: 820px) {
+    .page { padding: 26px 20px 60px; }
+    .sec-head { grid-template-columns: 1fr; }
+    .body { grid-column: 1; }
+    .doc-meta { grid-template-columns: 1fr; }
+    .doc-meta-right { text-align: left; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="doc-meta">
+    <div>
+      <div class="doc-eyebrow">Billu.Works · Finance V2 · Stage 1 · v4 · Codex-clean</div>
+      <h1>Pre-import panel — final, implementation-ready.</h1>
+      <div class="doc-sub">Second Codex pass landed seven blockers; this revision resolves all of them. Real <code>SampleDataset</code> shape (<code>{ label, path }</code> from <code>../import/sample-datasets</code>), every dynamic value escaped via the existing <code>escapeHtml</code>, async-friendly handler types, accessible hidden input, and an explicit boot sequence in <code>main.ts</code>.</div>
+    </div>
+    <div class="doc-meta-right">
+      <div><b>Version</b> · v4 · supersedes v3</div>
+      <div><b>Touches</b> · 5 files</div>
+      <div><b>New file</b> · <code>pre-import-actions.ts</code></div>
+      <div><b>Risk</b> · medium · 1 deletion + 1 boot rewire</div>
+      <div><b>Blockers from v3</b> · 7 · all resolved</div>
+    </div>
+  </div>
+
+  <!-- 00 V4 CHANGELOG -->
+  <section>
+    <div class="sec-head">
+      <div class="sec-num">00 / v4 diff</div>
+      <div class="body">
+        <h2>Seven Codex blockers from v3, all resolved.<small>Read this first; every fix is reflected in the code blocks below.</small></h2>
+      </div>
+    </div>
+    <div class="body" style="grid-column: 2;">
+
+      <div class="corr">
+        <div class="n">F1</div>
+        <div><b>File saved to disk.</b> This document is written as a distinct <code>Stage 1 Patch v4.html</code> at the project root, separate from <code>Stage 1 Patch v3.html</code>. Codex can inspect it from the filesystem directly.</div>
+      </div>
+      <div class="corr">
+        <div class="n">F2</div>
+        <div><b>Real <code>SampleDataset</code> shape.</b> Import path is <code>../import/sample-datasets</code> (not <code>../data/samples</code>). Shape is <code>{ label: string; path: string }</code>; there is no <code>id</code> field. All references switched to <code>sample.path</code> as the stable handle, attribute renamed to <code>data-bw-sample-path</code>, and lookup uses <code>SAMPLE_DATASETS.find(s =&gt; s.path === path)</code>.</div>
+      </div>
+      <div class="corr">
+        <div class="n">F3</div>
+        <div><b>Every dynamic value escaped.</b> <code>dashboard-renderers.ts</code> now imports <code>escapeHtml</code> from <code>./html</code> and wraps every interpolated string &mdash; sample labels, sample paths, choice labels/descs/metas. No raw template interpolation of user-visible strings.</div>
+      </div>
+      <div class="corr">
+        <div class="n">F4</div>
+        <div><b>Handler types allow async.</b> <code>PreImportActionHandlers</code> declares <code>() =&gt; void | Promise&lt;void&gt;</code> and <code>(samplePath?: string) =&gt; void | Promise&lt;void&gt;</code>. The click dispatcher calls them with the <code>void</code> operator so floating promises are explicit and lint-clean.</div>
+      </div>
+      <div class="corr">
+        <div class="n">F5</div>
+        <div><b>Hidden file input is accessible.</b> <code>&lt;input id="csv-file"&gt;</code> keeps the <code>bw-sr-only</code> class and gains <code>aria-label="Import CSV or .xlsx"</code> so screen readers still announce the control after the visible label is removed.</div>
+      </div>
+      <div class="corr">
+        <div class="n">F6</div>
+        <div><b>Exact boot sequence in <code>main.ts</code>.</b> Six ordered steps, spelled out: <code>renderAppShell</code> once → query stable nodes → extract async <code>loadSelectedSample(samplePath?)</code> / <code>loadNorthstarDemo</code> / <code>openFilePicker</code> → <code>bindPreImportActions</code> once → <code>paintPreImport()</code> immediately → Clear handler resets state + <code>fileInput.value</code> + status + clear-disabled, then <code>paintPreImport()</code>.</div>
+      </div>
+      <div class="corr">
+        <div class="n">F7</div>
+        <div><b>Tests assert the path contract.</b> T1/T3 verify the sample alt-link uses <code>data-bw-sample-path</code> and forwards a <em>path</em> (not an id) to <code>loadSelectedSample</code>. T4 keeps the existing guards that <code>.import-panel</code> is gone and <code>#csv-file</code> remains.</div>
+      </div>
+
+      <h3>Architecture (unchanged from v3, kept here for completeness)</h3>
+      <ol>
+        <li><strong><code>app-shell.ts</code></strong> emits: app bar (brand + privacy chip + <em>Load new file</em> button) · stable hidden <code>&lt;input id="csv-file"&gt;</code> · empty <code>&lt;div id="results"&gt;&lt;/div&gt;</code>. The legacy <code>.import-panel</code> markup is removed.</li>
+        <li><strong><code>main.ts</code></strong>: at boot, paints <code>renderPreImportPanel(SAMPLE_DATASETS)</code> into <code>#results</code> and binds actions once via <code>bindPreImportActions(...)</code>. Clear re-paints. Existing renderers (<code>renderWorksheetPicker</code>, <code>renderMappingReview</code>, <code>renderImportResult</code>) keep overwriting <code>#results</code>; the pre-import panel naturally disappears when they paint, and re-appears on Clear.</li>
+        <li><strong><code>pre-import-actions.ts</code></strong> (new): mirrors <code>dashboard-filter-actions.ts</code>. Exports <code>bindPreImportActions({ root, openFilePicker, loadNorthstarDemo, loadSelectedSample })</code>. Owns its own delegated listener on <code>root</code>.</li>
+        <li><strong>App-bar &ldquo;Load new file&rdquo;</strong> button carries the same <code>data-bw-action="import-file"</code> contract; lives <em>outside</em> the pre-import panel root but inside the bind root. Single source of truth: <code>#csv-file</code> is clicked programmatically.</li>
+        <li><strong>Handlers</strong> are module-private functions in <code>main.ts</code> — not on <code>window</code>, not exported, not globals.</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- 01 styles.css -->
+  <section>
+    <div class="sec-head">
+      <div class="sec-num">01 / styles.css</div>
+      <div class="body">
+        <h2>Append to <code>src/styles.css</code>.<small>Adds: sample alt-links and the hidden-input visually-hidden helper. CSS for the panel + app-bar button is the same as v2.</small></h2>
+      </div>
+    </div>
+    <div class="body" style="grid-column: 2;">
+
+<pre class="code"><span class="h">// <b>src/styles.css</b> &mdash; append at bottom</span>
+
+<span class="c">/* Stage 1: pre-import panel + app-bar load + sample alt-links -------------- */</span>
+
+<span class="c">/* Visually-hide the persistent #csv-file input while keeping it operable. */</span>
+<span class="k">.bw-sr-only</span> {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: <span class="t">rect</span>(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+<span class="c">/* App-bar persistent "Load new file" affordance */</span>
+<span class="k">.bw-appbar-load</span> {
+  font-family: ui-monospace, SFMono-Regular, Consolas, <span class="s">"Liberation Mono"</span>, Menlo, monospace;
+  font-size: 11.5px;
+  letter-spacing: 0.02em;
+  padding: 5px 10px;
+  border-radius: 4px;
+  border: 1px solid <span class="t">var</span>(--color-line);
+  background: <span class="t">var</span>(--color-panel);
+  color: <span class="t">var</span>(--color-ink);
+  cursor: pointer;
+  display: inline-flex; align-items: center; gap: 4px;
+}
+<span class="k">.bw-appbar-load:hover</span>         { border-color: <span class="t">var</span>(--color-primary); }
+<span class="k">.bw-appbar-load:focus-visible</span> { outline: 2px solid <span class="t">var</span>(--color-primary); outline-offset: 2px; }
+
+<span class="c">/* Pre-import panel (rendered into #results when there&rsquo;s nothing else to show) */</span>
+<span class="k">.bw-importpanel</span> {
+  display: grid;
+  grid-template-columns: 1.25fr 1fr;
+  background: <span class="t">var</span>(--color-canvas);
+  border: 1px solid <span class="t">var</span>(--color-line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+<span class="k">.bw-importpanel__left</span>  { padding: 28px; border-right: 1px solid <span class="t">var</span>(--color-line); }
+<span class="k">.bw-importpanel__right</span> { padding: 24px; background: <span class="t">var</span>(--color-success-soft); }
+<span class="k">.bw-importpanel__eyebrow</span> {
+  font-family: ui-monospace, SFMono-Regular, Consolas, <span class="s">"Liberation Mono"</span>, Menlo, monospace;
+  font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase;
+  color: <span class="t">var</span>(--color-muted); margin: 0 0 8px;
+}
+<span class="k">.bw-importpanel__h</span> {
+  font-size: 20px; font-weight: 600; letter-spacing: -0.01em;
+  color: <span class="t">var</span>(--color-primary); margin: 0 0 6px; text-wrap: balance;
+}
+<span class="k">.bw-importpanel__lead</span> {
+  color: <span class="t">var</span>(--color-ink-soft); font-size: 13.5px; margin: 0 0 18px; max-width: 44ch;
+}
+
+<span class="c">/* Three choice cards */</span>
+<span class="k">.bw-choices</span> {
+  display: grid;
+  grid-template-columns: <span class="t">repeat</span>(3, 1fr);
+  gap: 10px;
+}
+<span class="k">.bw-choice</span> {
+  display: flex; flex-direction: column; gap: 6px; text-align: left;
+  padding: 14px;
+  background: <span class="t">var</span>(--color-panel);
+  border: 1px solid <span class="t">var</span>(--color-line);
+  border-radius: 6px;
+  font: inherit;
+  color: <span class="t">var</span>(--color-ink);
+  cursor: pointer;
+}
+<span class="k">.bw-choice:hover</span>          { border-color: <span class="t">var</span>(--color-primary); }
+<span class="k">.bw-choice:focus-visible</span>  { outline: 2px solid <span class="t">var</span>(--color-primary); outline-offset: 2px; }
+<span class="k">.bw-choice[aria-disabled="true"]</span> { opacity: 0.5; cursor: not-allowed; }
+<span class="k">.bw-choice--primary</span> {
+  background: <span class="t">var</span>(--color-primary);
+  border-color: <span class="t">var</span>(--color-primary-strong);
+  color: #fffffc;
+}
+<span class="k">.bw-choice--primary:hover</span> { background: <span class="t">var</span>(--color-primary-strong); }
+<span class="k">.bw-choice__label</span> { font-size: 13.5px; font-weight: 600; }
+<span class="k">.bw-choice__desc</span>  {
+  font-family: ui-monospace, SFMono-Regular, Consolas, <span class="s">"Liberation Mono"</span>, Menlo, monospace;
+  font-size: 10.5px; color: <span class="t">var</span>(--color-muted);
+}
+<span class="k">.bw-choice--primary .bw-choice__desc</span> { color: rgba(255, 255, 252, 0.75); }
+<span class="k">.bw-choice__meta</span> {
+  margin-top: auto;
+  font-family: ui-monospace, SFMono-Regular, Consolas, <span class="s">"Liberation Mono"</span>, Menlo, monospace;
+  font-size: 9.5px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: <span class="t">var</span>(--color-muted);
+}
+<span class="k">.bw-choice--primary .bw-choice__meta</span> { color: rgba(255, 255, 252, 0.65); }
+
+<span class="c">/* Inline sample-pickers beneath the third card */</span>
+<span class="k">.bw-samples</span> {
+  margin-top: 10px;
+  font-family: ui-monospace, SFMono-Regular, Consolas, <span class="s">"Liberation Mono"</span>, Menlo, monospace;
+  font-size: 10.5px;
+  color: <span class="t">var</span>(--color-muted);
+  letter-spacing: 0.04em;
+}
+<span class="k">.bw-samples__link</span> {
+  background: none; border: 0; padding: 2px 6px;
+  font: inherit; color: <span class="t">var</span>(--color-primary);
+  border-radius: 3px;
+  cursor: pointer;
+}
+<span class="k">.bw-samples__link:hover</span>          { background: <span class="t">var</span>(--color-panel); }
+<span class="k">.bw-samples__link:focus-visible</span>  { outline: 2px solid <span class="t">var</span>(--color-primary); outline-offset: 1px; }
+<span class="k">.bw-samples__sep</span> { color: <span class="t">var</span>(--color-line); }
+
+<span class="c">/* Right column: reassurance cards */</span>
+<span class="k">.bw-reassure</span> { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+<span class="k">.bw-reassure li</span> {
+  background: <span class="t">var</span>(--color-panel);
+  border: 1px solid <span class="t">var</span>(--color-line);
+  border-radius: 4px; padding: 10px 12px;
+  font-size: 13px; color: <span class="t">var</span>(--color-ink); line-height: 1.45;
+}
+<span class="k">.bw-reassure li b</span> {
+  display: block;
+  font-family: ui-monospace, SFMono-Regular, Consolas, <span class="s">"Liberation Mono"</span>, Menlo, monospace;
+  font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+  color: <span class="t">var</span>(--color-primary); margin-bottom: 4px; font-weight: 500;
+}
+
+<span class="k">@media</span> (max-width: 880px) {
+  <span class="k">.bw-importpanel</span> { grid-template-columns: 1fr; }
+  <span class="k">.bw-importpanel__left</span> { border-right: 0; border-bottom: 1px solid <span class="t">var</span>(--color-line); }
+  <span class="k">.bw-choices</span> { grid-template-columns: 1fr; }
+}</pre>
+
+      <p>Leave any pre-existing <code>.import-panel</code> rule untouched; once the markup is gone (Edit C), it&rsquo;s orphaned and can be swept in a separate cleanup commit.</p>
+    </div>
+  </section>
+
+  <!-- 02 dashboard-renderers.ts -->
+  <section>
+    <div class="sec-head">
+      <div class="sec-num">02 / dashboard-renderers.ts</div>
+      <div class="body">
+        <h2>Two renderers, both pure.<small><code>renderPreImportPanel(samples)</code> takes the <code>SAMPLE_DATASETS</code> array; <code>renderAppbarLoadAction()</code> is parameterless.</small></h2>
+      </div>
+    </div>
+    <div class="body" style="grid-column: 2;">
+
+<pre class="code"><span class="h">// <b>src/ui/dashboard-renderers.ts</b> &mdash; add at bottom of file</span>
+
+<span class="c">// Real shape from src/import/sample-datasets.ts:</span>
+<span class="c">//   export type SampleDataset = { label: string; path: string };</span>
+<span class="k">import type</span> { SampleDataset } <span class="k">from</span> <span class="s">"../import/sample-datasets"</span>;
+<span class="k">import</span> { escapeHtml } <span class="k">from</span> <span class="s">"./html"</span>;
+
+<span class="k">function</span> <span class="f">renderChoice</span>(opts: {
+  action: <span class="s">"import-file"</span> | <span class="s">"load-excel-demo"</span> | <span class="s">"load-sample-csv"</span>;
+  label: <span class="t">string</span>; desc: <span class="t">string</span>; meta: <span class="t">string</span>;
+  primary?: <span class="t">boolean</span>;
+}): <span class="t">string</span> {
+  <span class="k">const</span> cls = opts.primary ? <span class="s">"bw-choice bw-choice--primary"</span> : <span class="s">"bw-choice"</span>;
+  <span class="c">// `action` is a closed string-literal union so it doesn't need escaping,</span>
+  <span class="c">// but label/desc/meta may be (or become) data-driven — escape them all.</span>
+  <span class="k">return</span> <span class="s">`
+    &lt;button type="button" class="${cls}" data-bw-action="${opts.action}"&gt;
+      &lt;span class="bw-choice__label"&gt;${escapeHtml(opts.label)}&lt;/span&gt;
+      &lt;span class="bw-choice__desc"&gt;${escapeHtml(opts.desc)}&lt;/span&gt;
+      &lt;span class="bw-choice__meta"&gt;${escapeHtml(opts.meta)}&lt;/span&gt;
+    &lt;/button&gt;
+  `</span>;
+}
+
+<span class="k">function</span> <span class="f">renderSampleAltLinks</span>(samples: <span class="t">readonly</span> SampleDataset[]): <span class="t">string</span> {
+  <span class="k">if</span> (samples.length &lt;= 1) <span class="k">return</span> <span class="s">""</span>;
+  <span class="k">const</span> links = samples.map((s, i) =&gt; <span class="s">`
+    ${i &gt; 0 ? <span class="s">'&lt;span class="bw-samples__sep" aria-hidden="true"&gt; · &lt;/span&gt;'</span> : <span class="s">""</span>}
+    &lt;button type="button" class="bw-samples__link"
+            data-bw-action="load-sample-csv"
+            data-bw-sample-path="${escapeHtml(s.path)}"&gt;${escapeHtml(s.label)}&lt;/button&gt;
+  `</span>).join(<span class="s">""</span>);
+  <span class="k">return</span> <span class="s">`&lt;p class="bw-samples"&gt;or load: ${links}&lt;/p&gt;`</span>;
+}
+
+<span class="k">export function</span> <span class="f">renderPreImportPanel</span>(samples: <span class="t">readonly</span> SampleDataset[]): <span class="t">string</span> {
+  <span class="k">return</span> <span class="s">`
+    &lt;section class="bw-importpanel" aria-labelledby="bw-importpanel-h"&gt;
+      &lt;div class="bw-importpanel__left"&gt;
+        &lt;p class="bw-importpanel__eyebrow"&gt;Start a session&lt;/p&gt;
+        &lt;h2 id="bw-importpanel-h" class="bw-importpanel__h"&gt;Bring a CSV, an Excel export, or borrow our sample books.&lt;/h2&gt;
+        &lt;p class="bw-importpanel__lead"&gt;All three paths land you in the same mapping review — nothing imports silently.&lt;/p&gt;
+        &lt;div class="bw-choices" role="group" aria-label="Load data"&gt;
+          ${renderChoice({ action: <span class="s">"import-file"</span>,     label: <span class="s">"Import your file"</span>,  desc: <span class="s">"CSV or .xlsx · drag-drop or browse"</span>, meta: <span class="s">"PRIMARY"</span>, primary: <span class="k">true</span> })}
+          ${renderChoice({ action: <span class="s">"load-excel-demo"</span>, label: <span class="s">"Load Excel demo"</span>,   desc: <span class="s">"Northstar Trading Co. · 8 sheets"</span>,   meta: <span class="s">"BUILT-IN"</span> })}
+          ${renderChoice({ action: <span class="s">"load-sample-csv"</span>, label: <span class="s">"Load sample CSV"</span>,   desc: <span class="s">"Freelancer · agency · founder"</span>,      meta: <span class="s">`${samples.length} PRESETS`</span> })}
+        &lt;/div&gt;
+        ${renderSampleAltLinks(samples)}
+      &lt;/div&gt;
+      &lt;aside class="bw-importpanel__right" aria-label="Privacy guarantees"&gt;
+        &lt;p class="bw-importpanel__eyebrow"&gt;Why this is safe&lt;/p&gt;
+        &lt;ul class="bw-reassure"&gt;
+          &lt;li&gt;&lt;b&gt;No upload&lt;/b&gt;Parsed in your browser. Nothing is sent to a server.&lt;/li&gt;
+          &lt;li&gt;&lt;b&gt;No account&lt;/b&gt;Nothing to sign into. Close the tab and the data is gone.&lt;/li&gt;
+          &lt;li&gt;&lt;b&gt;No AI by default&lt;/b&gt;All calculations are transparent formulas.&lt;/li&gt;
+          &lt;li&gt;&lt;b&gt;Review before math&lt;/b&gt;You confirm column mappings before any KPI is shown.&lt;/li&gt;
+        &lt;/ul&gt;
+      &lt;/aside&gt;
+    &lt;/section&gt;
+  `</span>;
+}
+
+<span class="k">export function</span> <span class="f">renderAppbarLoadAction</span>(): <span class="t">string</span> {
+  <span class="k">return</span> <span class="s">`
+    &lt;button type="button" class="bw-appbar-load" data-bw-action="import-file" title="Load a different CSV or .xlsx"&gt;
+      &lt;svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true"&gt;
+        &lt;path d="M6 1.5v6m0 0L3.5 5m2.5 2.5L8.5 5M2 9.5h8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/&gt;
+      &lt;/svg&gt;
+      Load new file
+    &lt;/button&gt;
+  `</span>;
+}</pre>
+
+      <div class="note ok">
+        <b>v4 fixes applied here ·</b> <code>F2</code> import is now <code>../import/sample-datasets</code> and uses <code>sample.path</code> + <code>data-bw-sample-path</code>. <code>F3</code> every dynamic value (<code>label</code>, <code>desc</code>, <code>meta</code>, <code>s.label</code>, <code>s.path</code>) flows through <code>escapeHtml</code> from <code>./html</code>. The <code>data-bw-action</code> values are a closed string-literal union so they are safe by construction, not by escape. Naming: <code>renderImportPanel</code> → <code>renderPreImportPanel</code> stays.
+      </div>
+    </div>
+  </section>
+
+  <!-- 03 NEW MODULE -->
+  <section>
+    <div class="sec-head">
+      <div class="sec-num">03 / pre-import-actions.ts</div>
+      <div class="body">
+        <h2>New file: <code>src/ui/pre-import-actions.ts</code>.<small>Follows the existing <code>dashboard-filter-actions.ts</code> / <code>worksheet-picker-actions.ts</code> shape.</small></h2>
+      </div>
+    </div>
+    <div class="body" style="grid-column: 2;">
+
+<pre class="code"><span class="h">// <b>src/ui/pre-import-actions.ts</b> &mdash; <em>new file</em></span>
+
+<span class="c">// Existing sample / Northstar flows are async in main.ts, so handler types must</span>
+<span class="c">// allow either signature. The dispatcher uses `void` so floating promises are</span>
+<span class="c">// explicit and lint-clean (no-floating-promises stays green).</span>
+<span class="k">export type</span> <span class="t">PreImportActionHandlers</span> = {
+  <span class="n">openFilePicker</span>:     () =&gt; <span class="t">void</span> | <span class="t">Promise</span>&lt;<span class="t">void</span>&gt;;
+  <span class="n">loadNorthstarDemo</span>:  () =&gt; <span class="t">void</span> | <span class="t">Promise</span>&lt;<span class="t">void</span>&gt;;
+  <span class="n">loadSelectedSample</span>: (samplePath?: <span class="t">string</span>) =&gt; <span class="t">void</span> | <span class="t">Promise</span>&lt;<span class="t">void</span>&gt;;
+};
+
+<span class="k">export type</span> <span class="t">BindPreImportActionsOpts</span> = <span class="t">PreImportActionHandlers</span> &amp; {
+  <span class="n">root</span>: <span class="t">HTMLElement</span>;
+};
+
+<span class="c">/**
+ * Delegate clicks on data-bw-action elements inside &lt;root&gt; to the supplied
+ * handlers. Returns an unbind function. The listener is attached to &lt;root&gt;,
+ * which is stable across innerHTML swaps of its descendants — no rebinding
+ * needed when the panel is re-painted by Clear or error recovery.
+ */</span>
+<span class="k">export function</span> <span class="f">bindPreImportActions</span>(opts: <span class="t">BindPreImportActionsOpts</span>): () =&gt; <span class="t">void</span> {
+  <span class="k">const</span> handler = (e: <span class="t">Event</span>) =&gt; {
+    <span class="k">const</span> btn = (e.target <span class="k">as</span> <span class="t">HTMLElement</span>).closest&lt;<span class="t">HTMLElement</span>&gt;(<span class="s">"[data-bw-action]"</span>);
+    <span class="k">if</span> (!btn) <span class="k">return</span>;
+    <span class="k">if</span> (btn.hasAttribute(<span class="s">"disabled"</span>) || btn.getAttribute(<span class="s">"aria-disabled"</span>) === <span class="s">"true"</span>) <span class="k">return</span>;
+    <span class="k">switch</span> (btn.getAttribute(<span class="s">"data-bw-action"</span>)) {
+      <span class="k">case</span> <span class="s">"import-file"</span>:     <span class="k">void</span> opts.openFilePicker(); <span class="k">break</span>;
+      <span class="k">case</span> <span class="s">"load-excel-demo"</span>: <span class="k">void</span> opts.loadNorthstarDemo(); <span class="k">break</span>;
+      <span class="k">case</span> <span class="s">"load-sample-csv"</span>: <span class="k">void</span> opts.loadSelectedSample(btn.dataset.bwSamplePath); <span class="k">break</span>;
+    }
+  };
+
+  opts.root.addEventListener(<span class="s">"click"</span>, handler);
+  <span class="k">return</span> () =&gt; opts.root.removeEventListener(<span class="s">"click"</span>, handler);
+}</pre>
+
+      <p>Bind <em>once</em> to a root that contains both the app-bar load button and <code>#results</code>. The repo&rsquo;s app root element (commonly <code>document.body</code> or the outer <code>.app</code> wrapper) is the natural choice. Listener attached to a parent element survives <code>innerHTML</code> replacement of any descendant, so re-paints don&rsquo;t require rebinding.</p>
+
+      <div class="note">
+        <b>Note ·</b> The third case forwards <code>data-bw-sample-path</code> as an optional argument. When the user clicks the big &ldquo;Load sample CSV&rdquo; choice (no <code>data-bw-sample-path</code>), <code>loadSelectedSample(undefined)</code> falls back to the default behavior (first sample). When a specific alt-link is clicked, the sample <em>path</em> is forwarded — paths are the stable handle in <code>SAMPLE_DATASETS</code>, not ids.
+      </div>
+    </div>
+  </section>
+
+  <!-- 04 app-shell.ts -->
+  <section>
+    <div class="sec-head">
+      <div class="sec-num">04 / app-shell.ts</div>
+      <div class="body">
+        <h2>Remove the legacy panel; keep a stable hidden file input; add the &ldquo;Load new file&rdquo; button.<small>Concrete diff against the current shell.</small></h2>
+      </div>
+    </div>
+    <div class="body" style="grid-column: 2;">
+
+<pre class="code"><span class="h">// <b>src/ui/app-shell.ts</b></span>
+
+<span class="k">import</span> { renderAppbarLoadAction } <span class="k">from</span> <span class="s">"./dashboard-renderers"</span>;
+<span class="k">import type</span> { SampleDataset } <span class="k">from</span> <span class="s">"../import/sample-datasets"</span>;
+
+<span class="k">export function</span> <span class="f">renderAppShell</span>(_samples: <span class="t">readonly</span> SampleDataset[]): <span class="t">string</span> {
+  <span class="c">// _samples is no longer needed for the shell (the picker moved into</span>
+  <span class="c">// renderPreImportPanel), but we keep the parameter so callers don't churn.</span>
+  <span class="k">return</span> <span class="s">`
+    &lt;div class="app"&gt;
+      &lt;header class="appbar"&gt;
+        &lt;span class="appbar__brand"&gt;Billu.Works · Finance&lt;/span&gt;
+        &lt;span class="appbar__spacer"&gt;&lt;/span&gt;
+        &lt;span class="appbar__privacy"&gt;Local-only · nothing leaves this tab&lt;/span&gt;</span>
+<span class="add">        ${renderAppbarLoadAction()}</span>
+      &lt;/header&gt;
+
+      &lt;!-- Stable hidden file input. Kept in the shell so it survives every #results re-paint.
+           aria-label preserves screen-reader access now that the visible label is gone. --&gt;</span>
+<span class="add">      &lt;input id="csv-file" class="bw-sr-only" type="file"</span>
+<span class="add">             accept=".csv,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"</span>
+<span class="add">             aria-label="Import CSV or .xlsx"&gt;</span>
+
+<span class="del">      &lt;section class="import-panel"&gt;</span>
+<span class="del">        &lt;label for="csv-file"&gt;Import CSV or .xlsx&lt;/label&gt;</span>
+<span class="del">        &lt;input id="csv-file" type="file" ...&gt;</span>
+<span class="del">        &lt;button id="sample-button"&gt;Load sample&lt;/button&gt;</span>
+<span class="del">        &lt;select id="sample-select"&gt;...&lt;/select&gt;</span>
+<span class="del">        &lt;button id="northstar-workbook-button"&gt;Load Excel demo&lt;/button&gt;</span>
+<span class="del">        ...the rest of the static panel...</span>
+<span class="del">      &lt;/section&gt;</span>
+
+      &lt;div id="results"&gt;&lt;/div&gt;
+    &lt;/div&gt;
+  `</span>;
+}</pre>
+
+      <p>The <code>change</code> event listener on <code>#csv-file</code> (wherever it&rsquo;s installed today in <code>main.ts</code>) keeps working unchanged &mdash; the element is just visually hidden, not removed.</p>
+
+      <div class="note">
+        <b>Boot wiring will break (C2) ·</b> Lines in <code>main.ts</code> like <code>document.querySelector("#sample-button")!</code>, <code>document.querySelector("#northstar-workbook-button")!</code>, <code>document.querySelector("#sample-select")!</code> must be deleted in §05 below. <code>#csv-file</code> stays.
+      </div>
+    </div>
+  </section>
+
+  <!-- 05 main.ts -->
+  <section>
+    <div class="sec-head">
+      <div class="sec-num">05 / main.ts</div>
+      <div class="body">
+        <h2>The exact boot sequence (F6).<small>Six ordered steps. <code>renderAppShell</code> once, query stable nodes, extract async handlers, bind once, paint immediately, then wire Clear.</small></h2>
+      </div>
+    </div>
+    <div class="body" style="grid-column: 2;">
+
+      <h3>The full boot sequence</h3>
+      <p>Six ordered steps. Steps 1&ndash;4 run once at module load; step 5 paints the pre-import surface; step 6 wires Clear so the surface re-appears on demand.</p>
+
+<pre class="code"><span class="h">// <b>src/main.ts</b> &mdash; boot sequence</span>
+
+<span class="k">import</span> { SAMPLE_DATASETS } <span class="k">from</span> <span class="s">"./import/sample-datasets"</span>;
+<span class="k">import</span> { renderAppShell } <span class="k">from</span> <span class="s">"./ui/app-shell"</span>;
+<span class="k">import</span> { renderPreImportPanel } <span class="k">from</span> <span class="s">"./ui/dashboard-renderers"</span>;
+<span class="k">import</span> { bindPreImportActions } <span class="k">from</span> <span class="s">"./ui/pre-import-actions"</span>;
+<span class="c">// ...existing imports: renderWorksheetPicker, renderMappingReview, renderImportResult,</span>
+<span class="c">// loadNorthstarWorkbook, fetchSampleCsv, parseCsvFile, etc.</span>
+
+<span class="c">// 1. Emit the shell exactly once.</span>
+document.body.innerHTML = <span class="f">renderAppShell</span>(SAMPLE_DATASETS);
+
+<span class="c">// 2. Query the stable nodes. Old #sample-button, #sample-select,</span>
+<span class="c">//    #northstar-workbook-button query lines are deleted (see below).</span>
+<span class="k">const</span> fileInput       = <span class="f">document.querySelector</span>&lt;<span class="t">HTMLInputElement</span>&gt;(<span class="s">"#csv-file"</span>)!;
+<span class="k">const</span> clearButton     = <span class="f">document.querySelector</span>&lt;<span class="t">HTMLButtonElement</span>&gt;(<span class="s">"#clear-button"</span>)!;
+<span class="k">const</span> referenceButton = <span class="f">document.querySelector</span>&lt;<span class="t">HTMLButtonElement</span>&gt;(<span class="s">"#reference-button"</span>)!;
+<span class="k">const</span> referencePanel  = <span class="f">document.querySelector</span>&lt;<span class="t">HTMLElement</span>&gt;(<span class="s">"#reference-panel"</span>)!;
+<span class="k">const</span> statusEl        = <span class="f">document.querySelector</span>&lt;<span class="t">HTMLElement</span>&gt;(<span class="s">"#status"</span>)!;
+<span class="k">const</span> resultsEl       = <span class="f">document.querySelector</span>&lt;<span class="t">HTMLElement</span>&gt;(<span class="s">"#results"</span>)!;
+
+<span class="c">// 3. Module-private handlers extracted from the old inline button bodies.</span>
+<span class="c">//    Async by nature — sample fetch + Northstar workbook parse are both Promise-based.</span>
+<span class="k">function</span> <span class="f">openFilePicker</span>(): <span class="t">void</span> {
+  fileInput.click();
+}
+
+<span class="k">async function</span> <span class="f">loadNorthstarDemo</span>(): <span class="t">Promise</span>&lt;<span class="t">void</span>&gt; {
+  <span class="c">// move the existing body of the old #northstar-workbook-button handler here:</span>
+  <span class="c">//   await loadNorthstarWorkbook() → renderWorksheetPicker into #results, etc.</span>
+}
+
+<span class="k">async function</span> <span class="f">loadSelectedSample</span>(samplePath?: <span class="t">string</span>): <span class="t">Promise</span>&lt;<span class="t">void</span>&gt; {
+  <span class="c">// SampleDataset is { label, path } — path is the stable handle, not id.</span>
+  <span class="k">const</span> chosen = samplePath
+    ? SAMPLE_DATASETS.find(s =&gt; s.path === samplePath) ?? SAMPLE_DATASETS[0]
+    : SAMPLE_DATASETS[0];
+  <span class="c">// move the existing body of the old #sample-button handler here:</span>
+  <span class="c">//   await fetchSampleCsv(chosen.path) → parseCsvFile → renderMappingReview, etc.</span>
+}
+
+<span class="c">// 4. Bind the delegated dispatcher once, on document.body so it covers both</span>
+<span class="c">//    the app-bar &ldquo;Load new file&rdquo; button (in app-shell) and the</span>
+<span class="c">//    pre-import panel (in #results).</span>
+<span class="f">bindPreImportActions</span>({
+  root: document.body,
+  openFilePicker,
+  loadNorthstarDemo,
+  loadSelectedSample,
+});
+
+<span class="c">// 5. Paint the pre-import surface immediately so the user sees it on first paint.</span>
+<span class="k">function</span> <span class="f">paintPreImport</span>(): <span class="t">void</span> {
+  resultsEl.innerHTML = <span class="f">renderPreImportPanel</span>(SAMPLE_DATASETS);
+}
+<span class="f">paintPreImport</span>();
+
+<span class="c">// 6. The Clear handler resets every piece of session state, then re-paints.</span>
+<span class="c">//    Mapping review / worksheet picker / dashboard renderers continue to</span>
+<span class="c">//    overwrite #results as they do today, so the pre-import panel</span>
+<span class="c">//    naturally disappears on a successful load and re-appears here.</span>
+clearButton.addEventListener(<span class="s">"click"</span>, () =&gt; {
+  <span class="c">/* existing reset of in-memory session state */</span>
+  fileInput.value = <span class="s">""</span>;
+  statusEl.textContent = <span class="s">""</span>;
+  clearButton.disabled = <span class="k">true</span>;
+  <span class="f">paintPreImport</span>();
+});
+
+<span class="c">// (existing) the #csv-file change listener stays untouched — the input is</span>
+<span class="c">// just visually hidden, not removed.</span>
+fileInput.addEventListener(<span class="s">"change"</span>, <span class="c">/* existing handler */</span>);</pre>
+
+      <h3>Deletions in the old boot</h3>
+<pre class="code"><span class="h">// <b>src/main.ts</b> &mdash; remove these lines</span>
+<span class="del">const sampleButton    = document.querySelector("#sample-button")!;</span>
+<span class="del">const sampleSelect    = document.querySelector("#sample-select")!;</span>
+<span class="del">const northstarButton = document.querySelector("#northstar-workbook-button")!;</span>
+<span class="del">sampleButton.addEventListener("click",    () =&gt; { /* inline body → loadSelectedSample */ });</span>
+<span class="del">northstarButton.addEventListener("click", () =&gt; { /* inline body → loadNorthstarDemo */ });</span></pre>
+
+      <div class="note">
+        <b>Why <code>document.body</code> as the bind root ·</b> The app-bar &ldquo;Load new file&rdquo; button is rendered by <code>app-shell.ts</code>, the pre-import choices are rendered by <code>main.ts</code> into <code>#results</code>. They live in different subtrees, but <code>document.body</code> contains both. Binding to <code>body</code> means a single delegated handler covers both surfaces and survives every re-paint.
+      </div>
+
+      <div class="note ok">
+        <b>Optional ·</b> a fatal-import-error fallback can also call <code>paintPreImport()</code> to restore the surface after an error toast. Not required for the Stage 1 ship gate.
+      </div>
+
+      <h3>About the vestigial <code>SAMPLE_DATASETS</code> parameter on <code>renderAppShell</code></h3>
+      <p>The shell no longer consumes <code>SAMPLE_DATASETS</code> for its own markup. Two acceptable choices:</p>
+      <ul>
+        <li><strong>Keep the parameter for now</strong> &mdash; no caller change required, less churn. <code>renderAppShell(SAMPLE_DATASETS)</code> still compiles; the parameter is just unused.</li>
+        <li><strong>Drop the parameter</strong> &mdash; cleaner, but means touching the boot site. Either is fine; pick by repo-wide consistency.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 06 TESTS -->
+  <section>
+    <div class="sec-head">
+      <div class="sec-num">06 / Tests</div>
+      <div class="body">
+        <h2>Six assertions aligned to the real architecture.<small>T1–T5 cover the renderers, the action module, and the shell shape directly. T1 + T3 carry the F7 sample-path contract; T4 carries the F5 aria-label + legacy-panel guards.</small></h2>
+      </div>
+    </div>
+    <div class="body" style="grid-column: 2;">
+
+      <h3>T1 · <code>renderPreImportPanel</code> emits three actions + sample alt-links</h3>
+<pre class="code"><span class="h">// <b>src/ui/dashboard-renderers.test.ts</b></span>
+<span class="k">import</span> { test, expect } <span class="k">from</span> <span class="s">"vitest"</span>;
+<span class="k">import</span> { renderPreImportPanel } <span class="k">from</span> <span class="s">"./dashboard-renderers"</span>;
+
+<span class="k">const</span> samples = [
+  { label: <span class="s">"Freelancer"</span>, path: <span class="s">"/samples/freelancer.csv"</span> },
+  { label: <span class="s">"Agency"</span>,     path: <span class="s">"/samples/agency.csv"</span> },
+  { label: <span class="s">"Founder"</span>,    path: <span class="s">"/samples/founder.csv"</span> },
+];
+
+test(<span class="s">"renders three primary choice buttons in fixed order"</span>, () =&gt; {
+  <span class="k">const</span> root = <span class="f">document.createElement</span>(<span class="s">"div"</span>);
+  root.innerHTML = <span class="f">renderPreImportPanel</span>(samples);
+  <span class="k">const</span> btns = root.querySelectorAll&lt;<span class="t">HTMLButtonElement</span>&gt;(<span class="s">".bw-choice"</span>);
+  expect(btns.length).toBe(3);
+  expect(btns[0].dataset.bwAction).toBe(<span class="s">"import-file"</span>);
+  expect(btns[1].dataset.bwAction).toBe(<span class="s">"load-excel-demo"</span>);
+  expect(btns[2].dataset.bwAction).toBe(<span class="s">"load-sample-csv"</span>);
+});
+
+test(<span class="s">"emits one sample alt-link per dataset, keyed by path"</span>, () =&gt; {
+  <span class="k">const</span> root = <span class="f">document.createElement</span>(<span class="s">"div"</span>);
+  root.innerHTML = <span class="f">renderPreImportPanel</span>(samples);
+  <span class="k">const</span> links = root.querySelectorAll&lt;<span class="t">HTMLButtonElement</span>&gt;(<span class="s">".bw-samples__link"</span>);
+  expect(links.length).toBe(3);
+  <span class="c">// F7: stable handle is data-bw-sample-path (not data-bw-sample / not an id).</span>
+  expect([...links].map(l =&gt; l.dataset.bwSamplePath))
+    .toEqual([<span class="s">"/samples/freelancer.csv"</span>, <span class="s">"/samples/agency.csv"</span>, <span class="s">"/samples/founder.csv"</span>]);
+  expect([...links].map(l =&gt; l.textContent?.trim()))
+    .toEqual([<span class="s">"Freelancer"</span>, <span class="s">"Agency"</span>, <span class="s">"Founder"</span>]);
+});
+
+test(<span class="s">"escapes label and path in sample alt-links"</span>, () =&gt; {
+  <span class="k">const</span> evil = [
+    { label: <span class="s">'Freelancer&lt;script&gt;'</span>, path: <span class="s">'/samples/"&gt;evil.csv'</span> },
+    { label: <span class="s">'Agency'</span>,           path: <span class="s">'/samples/agency.csv'</span> },
+  ];
+  <span class="k">const</span> root = <span class="f">document.createElement</span>(<span class="s">"div"</span>);
+  root.innerHTML = <span class="f">renderPreImportPanel</span>(evil);
+  <span class="c">// No injected &lt;script&gt;, attribute value preserved verbatim via escape.</span>
+  expect(root.querySelector(<span class="s">"script"</span>)).toBeNull();
+  <span class="k">const</span> first = root.querySelector&lt;<span class="t">HTMLButtonElement</span>&gt;(<span class="s">".bw-samples__link"</span>)!;
+  expect(first.dataset.bwSamplePath).toBe(<span class="s">'/samples/"&gt;evil.csv'</span>);
+  expect(first.textContent).toContain(<span class="s">"&lt;script&gt;"</span>);
+});</pre>
+
+      <h3>T2 · <code>renderAppbarLoadAction</code> dispatches to import-file</h3>
+<pre class="code">test(<span class="s">"app-bar Load new file button dispatches to import-file"</span>, () =&gt; {
+  <span class="k">const</span> root = <span class="f">document.createElement</span>(<span class="s">"div"</span>);
+  root.innerHTML = <span class="f">renderAppbarLoadAction</span>();
+  <span class="k">const</span> btn = root.querySelector&lt;<span class="t">HTMLButtonElement</span>&gt;(<span class="s">"[data-bw-action]"</span>);
+  expect(btn).not.toBeNull();
+  expect(btn!.dataset.bwAction).toBe(<span class="s">"import-file"</span>);
+});</pre>
+
+      <h3>T3 · <code>bindPreImportActions</code> routes clicks correctly</h3>
+<pre class="code"><span class="h">// <b>src/ui/pre-import-actions.test.ts</b></span>
+<span class="k">import</span> { test, expect, vi } <span class="k">from</span> <span class="s">"vitest"</span>;
+<span class="k">import</span> { bindPreImportActions } <span class="k">from</span> <span class="s">"./pre-import-actions"</span>;
+
+test(<span class="s">"routes each data-bw-action to its handler"</span>, () =&gt; {
+  document.body.innerHTML = <span class="s">`
+    &lt;button data-bw-action="import-file"&gt;A&lt;/button&gt;
+    &lt;button data-bw-action="load-excel-demo"&gt;B&lt;/button&gt;
+    &lt;button data-bw-action="load-sample-csv" data-bw-sample-path="/samples/founder.csv"&gt;C&lt;/button&gt;
+  `</span>;
+  <span class="k">const</span> openFilePicker = <span class="f">vi.fn</span>();
+  <span class="k">const</span> loadNorthstarDemo = <span class="f">vi.fn</span>();
+  <span class="k">const</span> loadSelectedSample = <span class="f">vi.fn</span>();
+
+  <span class="k">const</span> unbind = <span class="f">bindPreImportActions</span>({
+    root: document.body, openFilePicker, loadNorthstarDemo, loadSelectedSample,
+  });
+
+  document.querySelectorAll&lt;<span class="t">HTMLButtonElement</span>&gt;(<span class="s">"button"</span>).forEach(b =&gt; b.click());
+  expect(openFilePicker).toHaveBeenCalledTimes(1);
+  expect(loadNorthstarDemo).toHaveBeenCalledTimes(1);
+  <span class="c">// F7: handler receives the sample path, not an id.</span>
+  expect(loadSelectedSample).toHaveBeenCalledWith(<span class="s">"/samples/founder.csv"</span>);
+
+  <span class="f">unbind</span>();
+  document.querySelector&lt;<span class="t">HTMLButtonElement</span>&gt;(<span class="s">'[data-bw-action="import-file"]'</span>)!.click();
+  expect(openFilePicker).toHaveBeenCalledTimes(1); <span class="c">// no further call after unbind</span>
+});</pre>
+
+      <h3>T4 · shell has the new shape, not the legacy panel</h3>
+<pre class="code"><span class="h">// <b>src/ui/app-shell.test.ts</b></span>
+<span class="k">import</span> { test, expect } <span class="k">from</span> <span class="s">"vitest"</span>;
+<span class="k">import</span> { renderAppShell } <span class="k">from</span> <span class="s">"./app-shell"</span>;
+<span class="k">import</span> { SAMPLE_DATASETS } <span class="k">from</span> <span class="s">"../import/sample-datasets"</span>;
+
+test(<span class="s">"shell has accessible hidden #csv-file, app-bar Load button, #results, and NO legacy .import-panel"</span>, () =&gt; {
+  <span class="k">const</span> root = <span class="f">document.createElement</span>(<span class="s">"div"</span>);
+  root.innerHTML = <span class="f">renderAppShell</span>(SAMPLE_DATASETS);
+  <span class="k">const</span> input = root.querySelector&lt;<span class="t">HTMLInputElement</span>&gt;(<span class="s">"#csv-file"</span>);
+  expect(input).not.toBeNull();
+  <span class="c">// F5: hidden input stays accessible to screen readers.</span>
+  expect(input!.getAttribute(<span class="s">"aria-label"</span>)).toBe(<span class="s">"Import CSV or .xlsx"</span>);
+  expect(input!.classList.contains(<span class="s">"bw-sr-only"</span>)).toBe(<span class="k">true</span>);
+  expect(root.querySelector(<span class="s">".bw-appbar-load"</span>)).not.toBeNull();
+  expect(root.querySelector(<span class="s">"#results"</span>)).not.toBeNull();
+  expect(root.querySelector(<span class="s">".import-panel"</span>)).toBeNull();
+  expect(root.querySelector(<span class="s">"#sample-button"</span>)).toBeNull();
+  expect(root.querySelector(<span class="s">"#sample-select"</span>)).toBeNull();
+  expect(root.querySelector(<span class="s">"#northstar-workbook-button"</span>)).toBeNull();
+});</pre>
+
+      <h3>T5 · Clear re-paints the pre-import panel</h3>
+<pre class="code"><span class="h">// <b>src/main.test.ts</b> (or a small integration spec)</span>
+<span class="k">import</span> { test, expect } <span class="k">from</span> <span class="s">"vitest"</span>;
+<span class="k">import</span> { __resetForTest, __handleClearForTest } <span class="k">from</span> <span class="s">"./main"</span>; <span class="c">// internal hooks</span>
+
+test(<span class="s">"Clear handler repaints the pre-import panel into #results"</span>, () =&gt; {
+  document.body.innerHTML = <span class="s">'&lt;div id="results"&gt;&lt;div class="some-stale-thing"/&gt;&lt;/div&gt;'</span>;
+  <span class="f">__handleClearForTest</span>();
+  expect(document.querySelector(<span class="s">".bw-importpanel"</span>)).not.toBeNull();
+  expect(document.querySelector(<span class="s">".some-stale-thing"</span>)).toBeNull();
+});</pre>
+
+      <div class="note">
+        <b>Test surface ·</b> T5 uses two tiny internal hooks (<code>__handleClearForTest</code>, optionally <code>__resetForTest</code>) that just call the same code path the Clear button triggers. They are <em>not</em> globals and <em>not</em> part of the public surface &mdash; underscore-prefix convention plus <code>@internal</code> tsdoc. If your harness can drive a real click on the Clear button via jsdom, prefer that and drop these hooks.
+      </div>
+    </div>
+  </section>
+
+  <!-- 07 MANUAL VERIFY -->
+  <section>
+    <div class="sec-head">
+      <div class="sec-num">07 / Manual verify</div>
+      <div class="body">
+        <h2>What I should see before merging.</h2>
+      </div>
+    </div>
+    <div class="body" style="grid-column: 2;">
+      <div class="check">
+        <h4>Boot</h4>
+        <ul>
+          <li>App bar shows brand + privacy chip + <em>Load new file</em> button on the right.</li>
+          <li>Below the bar, <code>#results</code> contains the two-column pre-import panel: three choice buttons on the left, four reassurance cards on the right.</li>
+          <li>Below the three choice buttons: a small mono line &ldquo;or load: Freelancer · Agency · Founder&rdquo; (one entry per <code>SAMPLE_DATASETS</code> item).</li>
+          <li>Legacy <code>.import-panel</code> markup is gone &mdash; no <code>#sample-button</code>, <code>#sample-select</code>, or <code>#northstar-workbook-button</code> visible.</li>
+          <li><code>#csv-file</code> still exists in the DOM (hidden via <code>.bw-sr-only</code>) and accepts focus via the file picker dialog.</li>
+        </ul>
+      </div>
+      <div class="check">
+        <h4>Behavior</h4>
+        <ul>
+          <li>In-panel <em>Import your file</em> and the app-bar <em>Load new file</em> both open the OS file picker (both call <code>#csv-file.click()</code>).</li>
+          <li>In-panel <em>Load Excel demo</em> triggers the Northstar workbook flow and lands on the worksheet picker (existing behavior, just relocated).</li>
+          <li>In-panel <em>Load sample CSV</em> button (no specific sample) loads <code>SAMPLE_DATASETS[0]</code>. Each alt-link loads that specific sample.</li>
+          <li>After a successful load, the panel is replaced by the worksheet picker / mapping review / dashboard. <em>Load new file</em> in the app bar remains visible.</li>
+          <li>Clicking <em>Clear</em>: <code>#results</code> shows the pre-import panel again (not empty). Actions still work without rebinding.</li>
+          <li>An import error that triggers <code>onImportFatal</code> repaints the pre-import panel as a fallback (if you wired option C in §05).</li>
+        </ul>
+      </div>
+      <div class="check">
+        <h4>Regressions</h4>
+        <ul>
+          <li>Mapping review, rejected rows, transactions table render identically to before.</li>
+          <li>The Print Report, Transactions xlsx, Reviewer JSON, and Trend exports still work.</li>
+          <li><code>npm test</code> green: T1–T5 pass (including the F7 path-contract assertions) plus all pre-existing tests.</li>
+          <li>No console errors at boot or after Clear.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 08 TOKEN MAP -->
+  <section>
+    <div class="sec-head">
+      <div class="sec-num">08 / Tokens</div>
+      <div class="body">
+        <h2>Resolved mapping (same as v2; condensed).</h2>
+      </div>
+    </div>
+    <div class="body" style="grid-column: 2;">
+      <ul style="list-style: none; padding-left: 0; display: grid; gap: 4px;">
+        <li><code>--color-panel</code> &mdash; choice cards, reassurance cards, app-bar button bg</li>
+        <li><code>--color-canvas</code> &mdash; pre-import outer card bg</li>
+        <li><code>--color-success-soft</code> &mdash; right-column reassurance panel bg</li>
+        <li><code>--color-line</code> &mdash; all hairline borders</li>
+        <li><code>--color-primary</code> &mdash; primary choice bg, heading, reassurance eyebrows, sample-link text, focus rings</li>
+        <li><code>--color-primary-strong</code> &mdash; primary choice border + hover bg</li>
+        <li><code>#fffffc</code> &mdash; foreground on primary choice (literal; the on-primary case doesn&rsquo;t need a token)</li>
+        <li><code>--color-ink</code> &mdash; choice/reassurance body</li>
+        <li><code>--color-ink-soft</code> &mdash; lead paragraph</li>
+        <li><code>--color-muted</code> &mdash; eyebrows, choice desc, choice meta, sample picker label</li>
+        <li><em>Mono stack inlined</em> &mdash; <code>ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace</code>. No new token needed.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 09 DONE WHEN -->
+  <section>
+    <div class="sec-head">
+      <div class="sec-num">09 / Done when</div>
+      <div class="body">
+        <h2>Stage 1 ship gate.</h2>
+      </div>
+    </div>
+    <div class="body" style="grid-column: 2;">
+      <ul>
+        <li><b>styles.css</b> appended with the Stage 1 block. Existing rules untouched.</li>
+        <li><b>dashboard-renderers.ts</b> exports <code>renderPreImportPanel(samples)</code> + <code>renderAppbarLoadAction()</code>.</li>
+        <li><b>pre-import-actions.ts</b> exists, exports <code>bindPreImportActions</code>, has its own test.</li>
+        <li><b>app-shell.ts</b> renders the new app-bar button + hidden <code>#csv-file</code>; legacy <code>.import-panel</code> markup deleted; dead <code>SAMPLE_DATASETS</code> consumption either removed or marked unused.</li>
+        <li><b>main.ts</b> extracts the three load flows; drops dead <code>querySelector!</code> lines for the removed elements; paints the pre-import panel at boot + Clear (+ optional error fallback); binds actions once.</li>
+        <li><b>Five tests pass</b> (T1–T5). <code>npm test</code> green, no pre-existing test regressed.</li>
+        <li><b>Browser smoke</b> matches §07 manual verify in full.</li>
+      </ul>
+
+      <p>When all seven are checked, Stage 1 lands. Next: Stage 2 (cockpit KPI strip) edits the section <em>after</em> a successful import &mdash; specifically the body of <code>renderImportResult</code> / the dashboard renderer chain &mdash; and is fully independent of this patch.</p>
+    </div>
+  </section>
+
+  <footer>
+    <span>billu.works · finance · v2 · stage 1 · v4 · codex-clean</span>
+    <span>// 5 files · 1 new module · 7 blockers resolved</span>
+  </footer>
+
+</div>
+</body>
+</html>

@@ -23,6 +23,7 @@ import {
 } from "./store/view-state";
 import { renderAppShell } from "./ui/app-shell";
 import { renderCurrencyOptions } from "./ui/dashboard-sections";
+import { renderPreImportPanel } from "./ui/dashboard-renderers";
 import { renderDashboardResults } from "./ui/dashboard-results";
 import { formatCurrency, formatRunway } from "./ui/formatters";
 import {
@@ -40,6 +41,7 @@ import { bindImportReviewActions, type ImportReviewSource } from "./ui/import-re
 import { bindWorksheetPickerActions } from "./ui/worksheet-picker-actions";
 import { bindTransactionPreviewActions } from "./ui/transaction-preview-actions";
 import { renderReferencePanelContent } from "./ui/reference";
+import { bindPreImportActions } from "./ui/pre-import-actions";
 
 type LoadedImportFile =
   | { kind: "csv"; result: CsvImportResult; source: string }
@@ -56,14 +58,13 @@ let referenceOpen = false;
 document.querySelector<HTMLDivElement>("#app")!.innerHTML = renderAppShell(SAMPLE_DATASETS);
 
 const fileInput = document.querySelector<HTMLInputElement>("#csv-file")!;
-const sampleButton = document.querySelector<HTMLButtonElement>("#sample-button")!;
-const northstarWorkbookButton = document.querySelector<HTMLButtonElement>("#northstar-workbook-button")!;
-const sampleSelect = document.querySelector<HTMLSelectElement>("#sample-select")!;
 const clearButton = document.querySelector<HTMLButtonElement>("#clear-button")!;
 const referenceButton = document.querySelector<HTMLButtonElement>("#reference-button")!;
 const referencePanel = document.querySelector<HTMLElement>("#reference-panel")!;
 const status = document.querySelector<HTMLParagraphElement>("#status")!;
 const results = document.querySelector<HTMLElement>("#results")!;
+
+paintPreImport();
 
 fileInput.addEventListener("change", async () => {
   const file = fileInput.files?.[0];
@@ -82,8 +83,33 @@ fileInput.addEventListener("change", async () => {
   }
 });
 
-sampleButton.addEventListener("click", async () => {
-  const sample = SAMPLE_DATASETS.find((item) => item.path === sampleSelect.value) ?? SAMPLE_DATASETS[0];
+bindPreImportActions({
+  openFilePicker,
+  loadNorthstarDemo,
+  loadSelectedSample
+});
+
+clearButton.addEventListener("click", () => {
+  activeImport = null;
+  draftImport = null;
+  resetDashboardViewState();
+  fileInput.value = "";
+  paintPreImport();
+  status.textContent = "Import cleared. Waiting for a CSV or Excel file.";
+  clearButton.disabled = true;
+});
+
+referenceButton.addEventListener("click", () => {
+  referenceOpen = !referenceOpen;
+  renderReferencePanel();
+});
+
+function openFilePicker(): void {
+  fileInput.click();
+}
+
+async function loadSelectedSample(samplePath?: string): Promise<void> {
+  const sample = SAMPLE_DATASETS.find((item) => item.path === samplePath) ?? SAMPLE_DATASETS[0];
   try {
     status.textContent = `Loading ${sample.label.toLowerCase()} sample CSV...`;
     const response = await fetch(sample.path);
@@ -93,9 +119,9 @@ sampleButton.addEventListener("click", async () => {
   } catch (error) {
     showImportError(sample.label, error);
   }
-});
+}
 
-northstarWorkbookButton.addEventListener("click", async () => {
+async function loadNorthstarDemo(): Promise<void> {
   try {
     status.textContent = "Building Northstar Excel demo locally...";
     const sheets = await parseExcelWorkbook(buildNorthstarWorkbookBlob());
@@ -103,22 +129,11 @@ northstarWorkbookButton.addEventListener("click", async () => {
   } catch (error) {
     showImportError("Northstar Excel demo", error);
   }
-});
+}
 
-clearButton.addEventListener("click", () => {
-  activeImport = null;
-  draftImport = null;
-  resetDashboardViewState();
-  fileInput.value = "";
-  results.innerHTML = "";
-  status.textContent = "Import cleared. Waiting for a CSV or Excel file.";
-  clearButton.disabled = true;
-});
-
-referenceButton.addEventListener("click", () => {
-  referenceOpen = !referenceOpen;
-  renderReferencePanel();
-});
+function paintPreImport(): void {
+  results.innerHTML = renderPreImportPanel(SAMPLE_DATASETS);
+}
 
 function renderReferencePanel(): void {
   referenceButton.setAttribute("aria-expanded", String(referenceOpen));
@@ -138,7 +153,7 @@ async function loadImportFile(file: File): Promise<LoadedImportFile> {
 function showImportError(sourceName: string, error: unknown): void {
   activeImport = null;
   draftImport = null;
-  results.innerHTML = "";
+  paintPreImport();
   clearButton.disabled = true;
   const message = error instanceof Error ? error.message : "Unknown import error.";
   status.textContent = `${sourceName}: could not read this import. ${message}`;

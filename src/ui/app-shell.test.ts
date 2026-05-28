@@ -3,24 +3,20 @@ import { SAMPLE_DATASETS } from "../import/sample-datasets";
 import { renderAppShell } from "./app-shell";
 
 describe("renderAppShell", () => {
-  it("renders the import controls and sample dataset options", () => {
+  it("renders stable shell controls without the legacy import panel", () => {
     const html = renderAppShell(SAMPLE_DATASETS);
 
     expect(html).toContain('id="csv-file"');
-    expect(html).toContain('id="sample-select"');
-    expect(html).toContain('id="sample-button"');
-    expect(html).toContain('id="northstar-workbook-button"');
+    expect(html).toContain('aria-label="Choose a CSV or Excel file"');
+    expect(html).toContain('data-bw-action="import-file"');
     expect(html).toContain('id="clear-button"');
     expect(html).toContain('id="reference-button"');
-    expect(html).toContain('value="/sample-freelancer.csv"');
-    expect(html).toContain(">Agency</option>");
-  });
-
-  it("escapes custom sample labels and paths", () => {
-    const html = renderAppShell([{ label: "<Bad>", path: "/sample?a=<x>" }]);
-
-    expect(html).toContain("&lt;Bad&gt;");
-    expect(html).toContain("/sample?a=&lt;x&gt;");
-    expect(html).not.toContain("<Bad>");
+    expect(html).toContain('id="status"');
+    expect(html).toContain('id="reference-panel"');
+    expect(html).toContain('id="results"');
+    expect(html).not.toContain('class="import-panel"');
+    expect(html).not.toContain('id="sample-select"');
+    expect(html).not.toContain('id="sample-button"');
+    expect(html).not.toContain('id="northstar-workbook-button"');
   });
 });

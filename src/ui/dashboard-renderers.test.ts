@@ -3,10 +3,44 @@ import type { CsvImportResult, TransactionRecord } from "../finance/types";
 import {
   renderAccountBalances,
   renderDiagnostics,
+  renderAppbarLoadAction,
+  renderPreImportPanel,
   renderSubcategories,
   renderTopHeads,
   renderTransactionDetail
 } from "./dashboard-renderers";
+
+describe("renderPreImportPanel", () => {
+  it("renders the three first-run load paths and sample path shortcuts", () => {
+    const html = renderPreImportPanel([
+      { label: "Freelancer", path: "/sample-freelancer.csv" },
+      { label: "Agency", path: "/sample-agency.csv" }
+    ]);
+
+    expect(html).toContain('data-bw-action="import-file"');
+    expect(html).toContain('data-bw-action="load-excel-demo"');
+    expect(html).toContain('data-bw-action="load-sample-csv"');
+    expect(html).toContain('data-bw-sample-path="/sample-freelancer.csv"');
+    expect(html).toContain('data-bw-sample-path="/sample-agency.csv"');
+  });
+
+  it("escapes dynamic sample labels and paths", () => {
+    const html = renderPreImportPanel([{ label: "<Bad>", path: "/sample?a=<x>" }]);
+
+    expect(html).toContain("&lt;Bad&gt;");
+    expect(html).toContain("/sample?a=&lt;x&gt;");
+    expect(html).not.toContain("<Bad>");
+  });
+});
+
+describe("renderAppbarLoadAction", () => {
+  it("renders a compact import action for the persistent shell", () => {
+    const html = renderAppbarLoadAction();
+
+    expect(html).toContain('data-bw-action="import-file"');
+    expect(html).toContain("Load new file");
+  });
+});
 
 describe("renderTransactionDetail", () => {
   it("shows normalized fields and the matching raw source row", () => {

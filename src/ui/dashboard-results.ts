@@ -2,6 +2,7 @@ import type { DashboardViewData } from "../finance/dashboard-view";
 import type { DashboardFilters } from "../finance/filters";
 import type { ReviewPreset } from "../finance/review-presets";
 import type { CsvImportResult, PeriodGrain } from "../finance/types";
+import { deriveCockpit } from "../finance/cockpit-kpis";
 import {
   renderCashHealthPanel,
   renderDashboardFilterPanel,
@@ -13,6 +14,7 @@ import {
   renderSettingsPanel,
   renderSummaryGrid
 } from "./dashboard-sections";
+import { renderCockpitStrip } from "./dashboard-cockpit";
 import { renderPrintableReport } from "./print-report";
 
 export interface DashboardResultsRenderInput {
@@ -30,7 +32,17 @@ export interface DashboardResultsRenderInput {
 }
 
 export function renderDashboardResults(input: DashboardResultsRenderInput): string {
+  const cockpit = deriveCockpit({
+    summary: input.view.summary,
+    records: input.view.filteredRecords,
+    rejectedRows: input.result.rejectedRows
+  });
+
   return `
+    ${renderCockpitStrip(cockpit, {
+      formatMoney: input.formatMoney,
+      formatRunway: input.formatRunway
+    })}
     ${renderDashboardFilterPanel({
       records: input.result.records,
       filteredRecordCount: input.view.filteredRecords.length,
