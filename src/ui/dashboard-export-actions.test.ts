@@ -70,6 +70,43 @@ describe("bindDashboardExportActions", () => {
     ]);
     expect(printCount).toBe(1);
   });
+
+  it("uses reviewed records for reviewer JSON when review exclusions are active", () => {
+    const reviewerButton = button();
+    let reviewerPayload: unknown;
+
+    bindDashboardExportActions({
+      root: root({ "#export-reviewer": reviewerButton }),
+      status: { textContent: "" },
+      visibleSummary: summary(),
+      visibleRecords: [record()],
+      getActiveImport: () => ({ result: importResult(), sourceName: "sample.csv" }),
+      getReviewerExportResult: () => ({
+        ...importResult(),
+        records: []
+      }),
+      getCashOnHand: () => 5000,
+      getFutureEventsText: () => "",
+      getTrendGrain: () => "monthly",
+      getReviewPreset: () => "all",
+      getCurrency: () => "USD",
+      downloads: {
+        blob: () => undefined,
+        json: (_filename, payload) => {
+          reviewerPayload = payload;
+        },
+        text: () => undefined
+      },
+      now: () => new Date("2026-05-04T12:00:00.000Z")
+    });
+
+    reviewerButton.fire("click");
+
+    expect(reviewerPayload).toMatchObject({
+      import: { acceptedRows: 0 },
+      summary: { revenue: 0 }
+    });
+  });
 });
 
 describe("buildTrendSvgExportInput", () => {

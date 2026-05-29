@@ -39,6 +39,58 @@ describe("renderDashboardResults", () => {
     expect(html).toContain("Duplicate & Transfer Checks");
     expect(html).toContain("Transaction Detail");
   });
+
+  it("keeps excluded review items available for include after KPI re-derive", () => {
+    const transferIn = record("transfer-in", "revenue", "Savings", "Transfer");
+    const transferOut = record("transfer-out", "outflow", "Checking", "Transfer");
+    const currentSummary = {
+      ...summary(transferIn),
+      diagnostics: { duplicateGroups: [], transferCandidates: [] }
+    };
+    const reviewSummary = {
+      ...summary(transferIn),
+      diagnostics: {
+        duplicateGroups: [],
+        transferCandidates: [
+          {
+            dateISO: "2026-03-01",
+            amount: 100,
+            fromAccount: "Checking",
+            toAccount: "Savings",
+            outflowId: transferOut.id,
+            revenueId: transferIn.id
+          }
+        ]
+      }
+    };
+
+    const html = renderDashboardResults({
+      result: csvImportResult(transferIn),
+      sourceName: "sample.csv",
+      view: {
+        ...dashboardView(transferIn),
+        baseFilteredRecords: [],
+        filteredRecords: [],
+        summary: currentSummary,
+        baseSummary: currentSummary,
+        reviewSummary
+      },
+      activeFilters: DEFAULT_FILTERS,
+      activeTrendGrain: "monthly",
+      activeReviewPreset: "all",
+      reviewPresetLabel: "All",
+      currencyOptionsHtml: "",
+      cashOnHand: 5000,
+      excludedTransactionIds: [transferIn.id, transferOut.id],
+      excludedReviewItemIds: [`transfer:${transferOut.id}:${transferIn.id}`],
+      formatMoney: (value) => `$${value}`,
+      formatRunway: (months) => `${months} months`
+    });
+
+    expect(html).toContain("Needs review");
+    expect(html).toContain('aria-pressed="true"');
+    expect(html).toContain("Include in KPIs");
+  });
 });
 
 function dashboardView(selectedRecord: TransactionRecord): DashboardViewData {
@@ -46,6 +98,7 @@ function dashboardView(selectedRecord: TransactionRecord): DashboardViewData {
   return {
     baseFilteredRecords: [selectedRecord],
     baseSummary: summaryValue,
+    reviewSummary: summaryValue,
     filteredRecords: [selectedRecord],
     summary: summaryValue,
     selectedTransactionId: selectedRecord.id,

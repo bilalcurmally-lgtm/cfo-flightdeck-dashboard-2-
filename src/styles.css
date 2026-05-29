@@ -1257,6 +1257,15 @@ button.bw-kpi[aria-expanded="true"] {
   background: var(--color-accent-soft);
 }
 
+button.bw-kpi--review {
+  box-shadow: inset 0 0 0 1px #ee7064;
+}
+
+.bw-kpi--review .bw-kpi__label,
+.bw-kpi--review .bw-kpi__value {
+  color: #743522;
+}
+
 .bw-lineage-panel {
   position: fixed;
   top: 18px;
@@ -1322,6 +1331,95 @@ button.bw-kpi[aria-expanded="true"] {
 .bw-lineage {
   display: grid;
   gap: 13px;
+}
+
+.bw-review {
+  display: grid;
+  gap: 14px;
+}
+
+.bw-review__head {
+  display: grid;
+  gap: 8px;
+}
+
+.bw-review__eyebrow {
+  color: #743522;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.bw-review__intro,
+.bw-review__empty,
+.bw-review__live,
+.bw-review__copy p {
+  margin: 0;
+  color: var(--color-ink-soft);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.bw-review__list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bw-review__item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--color-panel);
+}
+
+.bw-review__copy {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+
+.bw-review__copy strong {
+  color: var(--color-primary-strong);
+}
+
+.bw-review__confidence {
+  width: max-content;
+  border: 1px solid #ee7064;
+  border-radius: 999px;
+  padding: 3px 7px;
+  background: var(--color-danger-soft);
+  color: #743522;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.bw-review__toggle {
+  min-height: 44px;
+  border-color: var(--color-line);
+  background: var(--color-success-soft);
+  color: var(--color-primary-strong);
+  white-space: nowrap;
+}
+
+.bw-review__toggle[aria-pressed="false"] {
+  border-color: #ee7064;
+  background: var(--color-danger-soft);
+  color: #743522;
+}
+
+.bw-review__live {
+  min-height: 1.3em;
+  color: var(--color-primary);
+  font-weight: 700;
 }
 
 .bw-lineage__head {
@@ -1600,6 +1698,14 @@ th.bw-lineage__cell {
 
   .diagnostics-list li {
     grid-template-columns: 1fr;
+  }
+
+  .bw-review__item {
+    grid-template-columns: 1fr;
+  }
+
+  .bw-review__toggle {
+    justify-self: stretch;
   }
 
   .diagnostic-actions {

@@ -6,27 +6,46 @@ export interface DashboardCockpitActionRoot {
 
 export interface DashboardCockpitActionBindings {
   root?: DashboardCockpitActionRoot;
+  onReviewDecision?: (decision: { itemId: string; excluded: boolean }) => void;
 }
 
 export function bindDashboardCockpitActions({
-  root = document
+  root = document,
+  onReviewDecision
 }: DashboardCockpitActionBindings = {}): void {
   const panel = root.querySelector<HTMLElement>("[data-bw-lineage-panel]");
+  const panelTitle = root.querySelector<HTMLElement>("[data-bw-lineage-panel-title]");
   const activeBody = root.querySelector<HTMLElement>("[data-bw-lineage-active]");
   const closeButton = root.querySelector<HTMLButtonElement>("[data-bw-lineage-close]");
   const triggers = Array.from(
     root.querySelectorAll<HTMLButtonElement>("[data-bw-lineage-trigger]")
   );
+  const reviewTriggers = Array.from(
+    root.querySelectorAll<HTMLButtonElement>("[data-bw-review-trigger]")
+  );
   let activeTrigger: HTMLButtonElement | null = null;
 
-  if (!panel || !activeBody || !closeButton || triggers.length === 0) return;
+  if (!panel || !activeBody || !closeButton || (triggers.length === 0 && reviewTriggers.length === 0)) return;
 
   const close = () => {
     panel.hidden = true;
     activeBody.innerHTML = "";
     for (const trigger of triggers) trigger.setAttribute("aria-expanded", "false");
+    for (const trigger of reviewTriggers) trigger.setAttribute("aria-expanded", "false");
     activeTrigger?.focus();
     activeTrigger = null;
+  };
+
+  const openTemplate = (trigger: HTMLButtonElement, template: HTMLTemplateElement | Element, title: string) => {
+    activeTrigger = trigger;
+    activeBody.innerHTML = template.innerHTML;
+    panel.hidden = false;
+    panelTitle && (panelTitle.textContent = title);
+    for (const candidate of triggers) candidate.setAttribute("aria-expanded", "false");
+    for (const candidate of reviewTriggers) candidate.setAttribute("aria-expanded", "false");
+    trigger.setAttribute("aria-expanded", "true");
+    closeButton.focus();
+    bindReviewToggles(activeBody, onReviewDecision);
   };
 
   for (const trigger of triggers) {
@@ -39,12 +58,15 @@ export function bindDashboardCockpitActions({
       );
       if (!template) return;
 
-      activeTrigger = trigger;
-      activeBody.innerHTML = template.innerHTML;
-      panel.hidden = false;
-      for (const candidate of triggers) candidate.setAttribute("aria-expanded", "false");
-      trigger.setAttribute("aria-expanded", "true");
-      closeButton.focus();
+      openTemplate(trigger, template, "Audit trail");
+    });
+  }
+
+  for (const trigger of reviewTriggers) {
+    trigger.addEventListener("click", () => {
+      const template = root.querySelector<HTMLTemplateElement>("[data-bw-review-template]");
+      if (!template) return;
+      openTemplate(trigger, template, "Review queue");
     });
   }
 
@@ -81,6 +103,27 @@ export function bindDashboardCockpitActions({
       first.focus();
     }
   });
+}
+
+function bindReviewToggles(
+  activeBody: HTMLElement,
+  onReviewDecision: DashboardCockpitActionBindings["onReviewDecision"]
+): void {
+  if (!onReviewDecision) return;
+
+  const toggles = Array.from(
+    activeBody.querySelectorAll<HTMLButtonElement>("[data-bw-review-toggle]")
+  );
+  for (const toggle of toggles) {
+    toggle.addEventListener("click", () => {
+      const itemId = toggle.dataset.bwReviewToggle;
+      if (!itemId) return;
+      onReviewDecision({
+        itemId,
+        excluded: toggle.getAttribute("aria-pressed") !== "true"
+      });
+    });
+  }
 }
 
 export const FOCUSABLE_SELECTOR = [

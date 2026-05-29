@@ -16,6 +16,7 @@ import {
 } from "./dashboard-sections";
 import { renderCockpitStrip } from "./dashboard-cockpit";
 import { renderPrintableReport } from "./print-report";
+import { buildReviewDrawerItems } from "./review-queue";
 
 export interface DashboardResultsRenderInput {
   result: CsvImportResult;
@@ -27,6 +28,8 @@ export interface DashboardResultsRenderInput {
   reviewPresetLabel: string;
   currencyOptionsHtml: string;
   cashOnHand: number;
+  excludedTransactionIds?: readonly string[];
+  excludedReviewItemIds?: readonly string[];
   formatMoney: (value: number) => string;
   formatRunway: (months: number | null) => string;
 }
@@ -37,12 +40,18 @@ export function renderDashboardResults(input: DashboardResultsRenderInput): stri
     records: input.view.filteredRecords,
     rejectedRows: input.result.rejectedRows
   });
+  const reviewItems = buildReviewDrawerItems({
+    summary: input.view.reviewSummary,
+    rejectedRows: input.result.rejectedRows,
+    excludedReviewItemIds: new Set(input.excludedReviewItemIds ?? []),
+    formatMoney: input.formatMoney
+  });
 
   return `
     ${renderCockpitStrip(cockpit, {
       formatMoney: input.formatMoney,
       formatRunway: input.formatRunway
-    })}
+    }, reviewItems)}
     ${renderDashboardFilterPanel({
       records: input.result.records,
       filteredRecordCount: input.view.filteredRecords.length,

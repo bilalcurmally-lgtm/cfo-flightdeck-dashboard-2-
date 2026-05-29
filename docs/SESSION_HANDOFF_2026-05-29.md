@@ -310,3 +310,67 @@ and traceable. **Phase B (surface the math) is complete.**
    include/exclude toggles that re-derive KPIs live (the "Needs review" tile is
    already a non-clickable placeholder div, ready to wire). Reuse
    `import-review.ts` patterns; KPIs never blocked.
+
+---
+
+## Session addendum — 2026-05-29 (Codex, Agent Room inaugural test + Phase C1)
+
+Owner used the new Agent Room dashboard as a live coordination test. Codex opened the room at
+`http://127.0.0.1:8787`, registered `codex-desktop`, Claude replied in-message, and the shared
+MCP was wired globally via direct Node commands for Claude, Cursor, and Codex config:
+`node D:\projects\agent-room-mcp\dist\server.js --room D:\projects\.agent-room`.
+
+### Git state
+- Branch `codex/a1-audit-model`.
+- New commit from this session: Phase C1 review drawer + in-session KPI re-derive.
+- Still not pushed or merged to `main`.
+- `.agent-bridge/` and `.playwright-mcp/` remain untracked (intentionally outside code commits).
+
+### What changed
+- The "Needs review" cockpit tile is now a real button (`data-bw-review-trigger`) that opens the
+  existing non-blocking right-side drawer shell as a **Review queue**.
+- Added `src/ui/review-drawer.ts` and `src/ui/review-queue.ts`:
+  - Conservative "Review suggested" wording for duplicate, transfer, and rejected-row items.
+  - Include/exclude toggles for actionable row-backed items.
+  - Warm empty state: "Nothing to review — your numbers look clean."
+  - `aria-live` update text for re-derived runway.
+- Added in-session review exclusions:
+  - `buildDashboardView(...)` accepts `excludedTransactionIds`.
+  - Excluding a transfer removes both the matched outflow + revenue row from KPI math.
+  - Excluding a duplicate group removes all but the first matching row.
+  - Toggling re-renders immediately through the existing `deriveAuditedCockpit` path.
+- Reused the Phase B drawer wiring/focus trap; review toggles remain keyboard-reachable.
+- Added `bw-review*` CSS using DESIGN.md-style flat audit surfaces, coral review chips, and
+  44px touch-target toggles.
+
+### Verification
+- TDD red run confirmed missing review drawer, review action wiring, and exclusion derivation.
+- `npm test`: 56 files, **241 tests** pass.
+- `npm run build`: passes.
+- `npm run test:e2e`: Playwright desktop + mobile lineage guards pass.
+- Browser smoke at `http://127.0.0.1:5173`: loaded sample CSV, applied mapping, opened
+  "Needs review" drawer; review queue rendered in the shared panel and kept cockpit visible.
+- Codex review on first C1 commit found one P2: excluded duplicate/transfer items disappeared
+  from the drawer, preventing "Include in KPIs". Fixed by keeping review-queue diagnostics
+  anchored to the pre-exclusion filtered records while KPI math uses included rows.
+- Codex review on the amended C1 commit found a P2 (excluded rows not represented in KPI
+  lineage) and P3 (review tile count/meta mismatch after partial exclusions). Fixed both:
+  excluded review rows now populate the relevant `lineage.*.excluded` arrays, and the review
+  tile value + meta are derived from the same review item set.
+- Final Codex review pass found one rejected-row grouping edge case: multiple rejected rows
+  collapsed into one drawer item but the tile still displayed raw row count. Fixed by counting
+  review queue items whenever the drawer has an itemized queue.
+- Follow-up Codex review found Reviewer JSON export still rebuilt from original records after
+  review exclusions. Fixed by threading the reviewed record set into the reviewer export path.
+- Follow-up Codex review found overlapping review items could drop row exclusions when one
+  item was included while another still excluded the same row. Fixed by tracking active
+  decisions by review item id and deriving excluded transaction ids as a union.
+- Follow-up Codex review found saved review exclusions could be lost after changing filters.
+  Fixed by deriving excluded transaction ids from the full import review queue, independent of
+  the currently visible filtered queue.
+
+### Next-session priorities
+1. Run review gates for C1 (`/code-review` + `codex review`) and address findings.
+2. Live-browser check with a dataset containing transfer/duplicate candidates to exercise the
+   toggle path visually, not only by unit tests.
+3. If C1 review passes, continue to C2 focused category review.

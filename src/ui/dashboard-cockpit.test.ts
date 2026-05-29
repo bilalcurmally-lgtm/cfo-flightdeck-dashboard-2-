@@ -76,6 +76,65 @@ describe("renderCockpitStrip", () => {
     expect(html).toContain("—");
     expect(html).toContain('aria-label="Cockpit summary"');
   });
+
+  it("summarizes review tile meta from the same item set as the tile count", () => {
+    const html = renderCockpitStrip(
+      {
+        ...baseViewModel(),
+        review: { rejected: 0, duplicates: 0, transfers: 1, total: 1 }
+      },
+      formatters,
+      [
+        {
+          id: "transfer:one",
+          kind: "transfer",
+          title: "Possible transfer",
+          body: "One active transfer.",
+          rowIds: ["out-1", "in-1"],
+          confidence: "medium",
+          excluded: false
+        },
+        {
+          id: "transfer:two",
+          kind: "transfer",
+          title: "Possible transfer",
+          body: "One saved transfer.",
+          rowIds: ["out-2", "in-2"],
+          confidence: "medium",
+          excluded: true
+        }
+      ]
+    );
+
+    expect(html).toContain("Needs review");
+    expect(html).toContain('<span class="bw-kpi__value">2</span>');
+    expect(html).toContain("2 transfers · 1 saved decision");
+    expect(html).not.toContain("1 transfer");
+  });
+
+  it("counts grouped rejected rows as one review item when a review queue is provided", () => {
+    const html = renderCockpitStrip(
+      {
+        ...baseViewModel(),
+        review: { rejected: 4, duplicates: 0, transfers: 0, total: 4 }
+      },
+      formatters,
+      [
+        {
+          id: "rejected:rows",
+          kind: "rejected",
+          title: "Rejected import rows",
+          body: "4 rows could not be imported.",
+          rowIds: [],
+          confidence: "high",
+          excluded: true
+        }
+      ]
+    );
+
+    expect(html).toContain('<span class="bw-kpi__value">1</span>');
+    expect(html).toContain("1 rejected · 1 saved decision");
+  });
 });
 
 const formatters = {

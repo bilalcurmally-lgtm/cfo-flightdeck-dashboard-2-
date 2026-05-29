@@ -2,6 +2,7 @@ import type { AuditMetric, AuditedCockpit } from "../finance/audit";
 import type { CockpitViewModel, ReviewBreakdown } from "../finance/cockpit-kpis";
 import { escapeHtml } from "./html";
 import { renderLineageDrawer } from "./lineage-drawer";
+import { renderReviewDrawer, type ReviewDrawerItem } from "./review-drawer";
 
 export interface CockpitFormatters {
   formatMoney: (value: number) => string;
@@ -14,14 +15,17 @@ interface CockpitTile {
   meta?: string;
   modifier?: "primary" | "anchor" | "tight" | "review";
   metric?: AuditMetric;
+  review?: boolean;
 }
 
 export function renderCockpitStrip(
   viewModel: CockpitViewModel | AuditedCockpit,
-  formatters: CockpitFormatters
+  formatters: CockpitFormatters,
+  reviewItems: readonly ReviewDrawerItem[] = []
 ): string {
   const empty = !viewModel.hasRows;
-  const showReview = viewModel.review.total > 0;
+  const reviewTotal = reviewItems.length > 0 ? reviewItems.length : viewModel.review.total;
+  const showReview = reviewTotal > 0;
   const dash = "—";
   const runwayModifier = viewModel.runwayTone === "tight" ? "tight" : "anchor";
 
@@ -61,9 +65,10 @@ export function renderCockpitStrip(
     showReview
       ? renderTile({
           label: "Needs review",
-          value: String(viewModel.review.total),
-          meta: reviewMeta(viewModel.review),
-          modifier: "review"
+          value: String(reviewTotal),
+          meta: reviewItems.length > 0 ? reviewItemsMeta(reviewItems) : reviewMeta(viewModel.review),
+          modifier: "review",
+          review: true
         })
       : ""
   ].join("");
@@ -73,13 +78,23 @@ export function renderCockpitStrip(
   const rootClass = showReview ? "bw-cockpit bw-cockpit--6" : "bw-cockpit";
   return `
     <section class="${rootClass}" role="group" aria-label="Cockpit summary">${tiles}</section>
-    ${renderLineagePanel(viewModel, formatters)}
+    ${renderLineagePanel(viewModel, formatters, reviewItems)}
   `;
 }
 
-function renderTile({ label, value, meta, modifier, metric }: CockpitTile): string {
+function renderTile({ label, value, meta, modifier, metric, review }: CockpitTile): string {
   const classes = ["bw-kpi", modifier ? `bw-kpi--${modifier}` : ""].filter(Boolean).join(" ");
   const metaClass = modifier === "anchor" || modifier === "tight" ? "bw-kpi__tone" : "bw-kpi__meta";
+
+  if (review) {
+    return `
+      <button class="${classes}" type="button" data-bw-review-trigger aria-expanded="false">
+        <span class="bw-kpi__label">${escapeHtml(label)}</span>
+        <span class="bw-kpi__value">${escapeHtml(value)}</span>
+        ${meta ? `<span class="${metaClass}">${escapeHtml(meta)}</span>` : ""}
+      </button>
+    `;
+  }
 
   if (metric) {
     return `
@@ -102,7 +117,8 @@ function renderTile({ label, value, meta, modifier, metric }: CockpitTile): stri
 
 function renderLineagePanel(
   viewModel: CockpitViewModel | AuditedCockpit,
-  formatters: CockpitFormatters
+  formatters: CockpitFormatters,
+  reviewItems: readonly ReviewDrawerItem[]
 ): string {
   if (!("lineage" in viewModel)) return "";
 
@@ -122,16 +138,23 @@ function renderLineagePanel(
       `
     )
     .join("");
+  const reviewTemplate = `
+    <template data-bw-review-template>
+      ${renderReviewDrawer(reviewItems, {
+        updatedLabel: `Runway updated to ${formatters.formatRunway(viewModel.runwayMonths)}`
+      })}
+    </template>
+  `;
 
   return `
     <aside class="bw-lineage-panel" data-bw-lineage-panel role="dialog" aria-modal="false" aria-label="KPI audit trail" hidden>
       <div class="bw-lineage-panel__bar">
-        <span class="bw-lineage-panel__title">Audit trail</span>
+        <span class="bw-lineage-panel__title" data-bw-lineage-panel-title>Audit trail</span>
         <button class="bw-lineage-panel__close" type="button" data-bw-lineage-close aria-label="Close audit trail">×</button>
       </div>
       <div class="bw-lineage-panel__body" data-bw-lineage-active></div>
     </aside>
-    <div class="bw-lineage-templates" hidden>${templates}</div>
+    <div class="bw-lineage-templates" hidden>${templates}${reviewTemplate}</div>
   `;
 }
 
@@ -154,5 +177,18 @@ function reviewMeta(review: ReviewBreakdown): string {
   if (review.rejected) parts.push(`${review.rejected} rejected`);
   if (review.duplicates) parts.push(`${review.duplicates} dupe${review.duplicates === 1 ? "" : "s"}`);
   if (review.transfers) parts.push(`${review.transfers} transfer${review.transfers === 1 ? "" : "s"}`);
+  return parts.join(" · ");
+}
+
+function reviewItemsMeta(items: readonly ReviewDrawerItem[]): string {
+  const duplicateCount = items.filter((item) => item.kind === "duplicate").length;
+  const transferCount = items.filter((item) => item.kind === "transfer").length;
+  const rejectedCount = items.filter((item) => item.kind === "rejected").length;
+  const savedCount = items.filter((item) => item.excluded).length;
+  const parts = [];
+  if (rejectedCount) parts.push(`${rejectedCount} rejected`);
+  if (duplicateCount) parts.push(`${duplicateCount} dupe${duplicateCount === 1 ? "" : "s"}`);
+  if (transferCount) parts.push(`${transferCount} transfer${transferCount === 1 ? "" : "s"}`);
+  if (savedCount) parts.push(`${savedCount} saved decision${savedCount === 1 ? "" : "s"}`);
   return parts.join(" · ");
 }

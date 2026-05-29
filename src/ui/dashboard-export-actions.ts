@@ -34,6 +34,7 @@ export interface DashboardExportActionBindings {
   visibleSummary: FinanceSummary;
   visibleRecords: TransactionRecord[];
   getActiveImport: () => ActiveExportImport | null;
+  getReviewerExportResult?: () => CsvImportResult | null;
   getCashOnHand: () => number;
   getFutureEventsText: () => string;
   getTrendGrain: () => PeriodGrain;
@@ -50,6 +51,7 @@ export function bindDashboardExportActions({
   visibleSummary,
   visibleRecords,
   getActiveImport,
+  getReviewerExportResult,
   getCashOnHand,
   getFutureEventsText,
   getTrendGrain,
@@ -68,7 +70,7 @@ export function bindDashboardExportActions({
       reviewerReportFilename(activeImport.sourceName, generatedAt),
       buildReviewerExportReport({
         sourceName: activeImport.sourceName,
-        result: activeImport.result,
+        result: getReviewerExportResult?.() ?? activeImport.result,
         cashOnHand: getCashOnHand(),
         futureEventsText: getFutureEventsText(),
         trendGrain: getTrendGrain(),

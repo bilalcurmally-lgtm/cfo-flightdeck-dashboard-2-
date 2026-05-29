@@ -3,7 +3,7 @@ import type {
   CsvImportResult,
   TransactionRecord
 } from "./finance/types";
-import type { FinanceSummary } from "./finance/summary";
+import { summarizeTransactions, type FinanceSummary } from "./finance/summary";
 import { buildDashboardView } from "./finance/dashboard-view";
 import { reviewPresetLabel } from "./finance/review-presets";
 import { parseExcelWorkbook, type ParsedExcelSheet } from "./import/excel";
@@ -26,6 +26,7 @@ import { renderCurrencyOptions } from "./ui/dashboard-sections";
 import { renderPreImportPanel } from "./ui/dashboard-renderers";
 import { renderDashboardResults } from "./ui/dashboard-results";
 import { formatCurrency, formatRunway } from "./ui/formatters";
+import { deriveExcludedTransactionIdsFromQueue } from "./ui/review-queue";
 import {
   readCashOnHand as readCashOnHandInput,
   readFutureEventsText as readFutureEventsTextInput
@@ -55,6 +56,7 @@ let draftImport:
 let settings: AppSettings = loadSettings();
 let viewState = createDashboardViewState();
 let referenceOpen = false;
+const reviewExcludedItemIds = new Set<string>();
 
 document.querySelector<HTMLDivElement>("#app")!.innerHTML = renderAppShell(SAMPLE_DATASETS);
 
@@ -94,6 +96,7 @@ clearButton.addEventListener("click", () => {
   activeImport = null;
   draftImport = null;
   resetDashboardViewState();
+  reviewExcludedItemIds.clear();
   fileInput.value = "";
   paintPreImport();
   status.textContent = "Import cleared. Waiting for a CSV or Excel file.";
@@ -164,6 +167,7 @@ function renderWorksheetPicker(sourceName: string, sheets: ParsedExcelSheet[]): 
   activeImport = null;
   draftImport = null;
   resetDashboardViewState();
+  reviewExcludedItemIds.clear();
   clearButton.disabled = false;
 
   if (sheets.length === 1) {
@@ -189,6 +193,7 @@ function renderMappingReview(
   activeImport = null;
   draftImport = { result, sourceName, source };
   resetDashboardViewState();
+  reviewExcludedItemIds.clear();
   clearButton.disabled = false;
 
   status.textContent = `${sourceName}: review detected columns before calculations render.`;
@@ -203,6 +208,18 @@ function renderImportResult(result: CsvImportResult, sourceName: string): void {
   activeImport = { result, sourceName };
   draftImport = null;
   clearButton.disabled = false;
+  const fullReviewSummary = summarizeTransactions(
+    result.records,
+    result.rejectedRows,
+    readCashOnHand(),
+    viewState.trendGrain
+  );
+  const excludedTransactionIds = deriveExcludedTransactionIdsFromQueue({
+    summary: fullReviewSummary,
+    rejectedRows: result.rejectedRows,
+    excludedReviewItemIds: reviewExcludedItemIds,
+    formatMoney
+  });
   const view = buildDashboardView({
     result,
     filters: viewState.filters,
@@ -210,7 +227,8 @@ function renderImportResult(result: CsvImportResult, sourceName: string): void {
     reviewPreset: viewState.reviewPreset,
     selectedTransactionId: viewState.selectedTransactionId,
     cashOnHand: readCashOnHand(),
-    futureEventsText: readFutureEventsText()
+    futureEventsText: readFutureEventsText(),
+    excludedTransactionIds
   });
   if (view.selectedTransactionId !== viewState.selectedTransactionId) {
     viewState = selectTransaction(viewState, view.selectedTransactionId);
@@ -226,13 +244,21 @@ function renderImportResult(result: CsvImportResult, sourceName: string): void {
     reviewPresetLabel: reviewPresetLabel(viewState.reviewPreset),
     currencyOptionsHtml: renderCurrencyOptions(settings.currency),
     cashOnHand: readCashOnHand(),
+    excludedTransactionIds,
+    excludedReviewItemIds: [...reviewExcludedItemIds],
     formatMoney,
     formatRunway
   });
   bindDashboardFilters();
-  bindDashboardCockpitActions();
+  bindDashboardCockpitActions({
+    onReviewDecision: (decision) => {
+      if (decision.excluded) reviewExcludedItemIds.add(decision.itemId);
+      else reviewExcludedItemIds.delete(decision.itemId);
+      renderImportResult(result, sourceName);
+    }
+  });
   bindLiveInputs();
-  bindExportButton(view.summary, view.filteredRecords);
+  bindExportButton(view.summary, view.filteredRecords, reviewedImportResult(result, excludedTransactionIds));
   bindTransactionPreview();
 }
 
@@ -286,18 +312,35 @@ function bindLiveInputs(): void {
   });
 }
 
-function bindExportButton(visibleSummary: FinanceSummary, visibleRecords: TransactionRecord[]): void {
+function bindExportButton(
+  visibleSummary: FinanceSummary,
+  visibleRecords: TransactionRecord[],
+  reviewerResult: CsvImportResult
+): void {
   bindDashboardExportActions({
     status,
     visibleSummary,
     visibleRecords,
     getActiveImport: () => activeImport,
+    getReviewerExportResult: () => reviewerResult,
     getCashOnHand: readCashOnHand,
     getFutureEventsText: readFutureEventsText,
     getTrendGrain: () => viewState.trendGrain,
     getReviewPreset: () => viewState.reviewPreset,
     getCurrency: () => settings.currency
   });
+}
+
+function reviewedImportResult(
+  result: CsvImportResult,
+  excludedTransactionIds: readonly string[]
+): CsvImportResult {
+  if (excludedTransactionIds.length === 0) return result;
+  const excluded = new Set(excludedTransactionIds);
+  return {
+    ...result,
+    records: result.records.filter((record) => !excluded.has(record.id))
+  };
 }
 
 function formatMoney(value: number): string {
