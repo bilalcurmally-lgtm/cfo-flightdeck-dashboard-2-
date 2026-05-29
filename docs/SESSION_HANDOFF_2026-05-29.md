@@ -245,3 +245,68 @@ How to browser-check going forward: `npm run test:e2e` (auto-starts dev server).
 flow gotcha: a sample doesn't reach the cockpit until **Apply Mapping** is clicked.
 
 Branch `codex/a1-audit-model` tip: `4207f26`. Still not pushed/merged. Next: B2.
+
+---
+
+## Session addendum — 2026-05-29 (Opus, Phase B2 — all KPIs traceable)
+
+Resumed with the B2 pre-flight from memory. **Both tools verified working this
+session**: jCodemunch (`resolve_repo` → indexed, 970 symbols / 126 files;
+`search_symbols`/`get_symbol_source` callable) and Playwright (`npm run test:e2e`
+green, exit 0). Then built **Phase B2** on `codex/a1-audit-model`.
+
+### Decision (owner, this session)
+Average burn had full lineage in the model but no UI entry point. Asked how to
+surface it → owner chose **Both**: a standalone tile AND an expandable avg-burn
+node inside the runway tree.
+
+### Git state
+- Branch `codex/a1-audit-model`, one new commit: **`091d823`**
+  `feat(ui): Phase B2 — avg-burn KPI tile + expandable runway calc-tree`.
+- Built on `2ec77da` (B1 tip). Not pushed; not merged to `main`.
+- `.agent-bridge/` and `.playwright-mcp/` remain untracked (outside the commit).
+
+### What changed (TDD, 3 slices)
+1. **Avg-burn tile** (`dashboard-cockpit.ts`): fifth metric tile
+   `averageMonthlyOutflow` ("Avg burn", meta "per month") inserted before Runway,
+   wired as a lineage trigger + template like the others. Grid is now 5 tiles
+   base / 6 with the review tile → new `.bw-cockpit--6` track; the orphaned
+   `.bw-cockpit--4` rule was removed (code-review finding, no remaining caller).
+2. **Expandable calc-tree buckets** (`lineage-drawer.ts`): each monthly outflow
+   bucket renders a native `<details>` disclosure that expands to its rows
+   (date · head · amount) via new `renderBucketRows`, instead of a dead "N rows"
+   count. Covers both the runway tree and the avg-burn drawer (same renderer).
+   New `bw-lineage__bucket-*` + `__node-rows-summary` CSS (DESIGN.md tokens, flat
+   audit list, ▸/▾ marker).
+3. **Focus-trap reach** (`dashboard-cockpit-actions.ts`): `FOCUSABLE_SELECTOR`
+   exported + `summary` added so the new disclosures stay keyboard-reachable
+   inside the trapped panel.
+
+### Verification
+- `npx tsc --noEmit`: clean.
+- `npx vitest run`: 54 files, **231 tests** pass (228 → +3: cockpit 6-tile/template,
+  bucket-row expansion, `<summary>` focusable via jsdom `.matches()`).
+- `npx vite build`: passes.
+- `npm run test:e2e`: Playwright desktop + Pixel-7 green (collapsed `<details>`
+  keep the runway calc-node no-overlap guard passing).
+- `/code-review` (medium): 1 finding (dead `.bw-cockpit--4`) — fixed.
+- `codex review --commit 091d823` (codex-cli 0.125.0, high reasoning): **GATE PASS**,
+  0 actionable findings. (Note: codex `review` rejects a positional prompt alongside
+  `--commit`/`--base`, so the filesystem-boundary prompt was dropped; codex stayed on
+  the repo diff anyway.)
+
+### Exit criterion met
+Every cockpit KPI (Revenue, Outflow, Net cash, Avg burn, Runway) is now clickable
+and traceable. **Phase B (surface the math) is complete.**
+
+### Next-session priorities
+1. ~~`codex review` on `091d823`~~ — **done this session**: GATE PASS, 0 findings
+   (codex-cli 0.125.0, high reasoning). Both review passes complete for B2. (Bridge
+   `0015` had Codex holding on B2; that gate is now cleared.)
+2. Visual confirm in a live browser that the avg-burn tile + expandable buckets
+   read well on desktop and mobile (the 6-tile row is tighter; e2e only guards
+   overlap, not aesthetics).
+3. **Phase C1** (master plan): "Needs review" badge → review drawer with
+   include/exclude toggles that re-derive KPIs live (the "Needs review" tile is
+   already a non-clickable placeholder div, ready to wire). Reuse
+   `import-review.ts` patterns; KPIs never blocked.
