@@ -103,7 +103,7 @@ A single pure function is the spine of items 2, 3, and the workflow:
 function deriveAuditedCockpit(
   records: readonly TransactionRecord[],
   decisions: ExclusionDecision[],      // user include/exclude, keyed by signature
-  settings: DashboardSettings
+  settings: AppSettings           // existing type in src/store/settings.ts
 ): AuditedCockpit
 ```
 
@@ -131,7 +131,7 @@ interface Workspace {
   decisions: ExclusionDecision[];          // include/exclude, keyed by txn signature
   categoryOverrides: CategoryOverride[];    // keyed by txn signature
   reviewQueue: ReviewItem[];               // unresolved items carried across imports
-  settings: DashboardSettings;
+  settings: AppSettings;                   // existing type in src/store/settings.ts
 }
 
 interface ImportSnapshot {
@@ -272,8 +272,9 @@ commit. Each phase ends with a `/checkpoint`.
 - Capture lineage for the two archetypes: **revenue** (direct rows) and **runway** (calc tree
   with `cashOnHand` assumption). Refactor `cockpit-kpis.ts`/`cash-health.ts` to feed it
   without changing existing numeric outputs.
-- Tests: golden-file lineage snapshots for the sample CSVs (`docs` samples); shadow paths
-  from 3.5. Existing 212 tests must stay green.
+- Tests: golden-file lineage snapshots for the sample CSVs in `public/` (`sample-finance.csv`,
+  `sample-freelancer.csv`, `sample-founder.csv`, `sample-agency.csv`; contracts in
+  `src/import/sample-datasets.ts`); shadow paths from 3.5. Existing 212 tests must stay green.
 - Exit: one sample import → `AuditedCockpit` with correct revenue rows AND a correct runway
   calc tree, fully tested. **No visible UI change yet.**
 
