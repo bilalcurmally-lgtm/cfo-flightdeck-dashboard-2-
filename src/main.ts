@@ -33,6 +33,7 @@ import {
 import { bindDashboardSettingsActions } from "./ui/dashboard-settings-actions";
 import { bindDashboardFilterActions } from "./ui/dashboard-filter-actions";
 import { bindDashboardExportActions } from "./ui/dashboard-export-actions";
+import { bindDashboardCockpitActions } from "./ui/dashboard-cockpit-actions";
 import {
   renderMappingReviewPanel,
   renderWorksheetPickerPanel
@@ -229,6 +230,7 @@ function renderImportResult(result: CsvImportResult, sourceName: string): void {
     formatRunway
   });
   bindDashboardFilters();
+  bindDashboardCockpitActions();
   bindLiveInputs();
   bindExportButton(view.summary, view.filteredRecords);
   bindTransactionPreview();

@@ -1,5 +1,7 @@
+import type { AuditMetric, AuditedCockpit } from "../finance/audit";
 import type { CockpitViewModel, ReviewBreakdown } from "../finance/cockpit-kpis";
 import { escapeHtml } from "./html";
+import { renderLineageDrawer } from "./lineage-drawer";
 
 export interface CockpitFormatters {
   formatMoney: (value: number) => string;
@@ -11,10 +13,11 @@ interface CockpitTile {
   value: string;
   meta?: string;
   modifier?: "primary" | "anchor" | "tight" | "review";
+  metric?: AuditMetric;
 }
 
 export function renderCockpitStrip(
-  viewModel: CockpitViewModel,
+  viewModel: CockpitViewModel | AuditedCockpit,
   formatters: CockpitFormatters
 ): string {
   const empty = !viewModel.hasRows;
@@ -26,24 +29,28 @@ export function renderCockpitStrip(
     renderTile({
       label: "Revenue",
       value: empty ? dash : formatters.formatMoney(viewModel.revenue),
-      meta: empty ? "no rows in current filter" : `${viewModel.inflowCount} rows`
+      meta: empty ? "no rows in current filter" : `${viewModel.inflowCount} rows`,
+      metric: "revenue"
     }),
     renderTile({
       label: "Outflow",
       value: empty ? dash : formatters.formatMoney(viewModel.outflow),
-      meta: empty ? "no rows in current filter" : `${viewModel.outflowCount} rows`
+      meta: empty ? "no rows in current filter" : `${viewModel.outflowCount} rows`,
+      metric: "outflow"
     }),
     renderTile({
       label: "Net cash",
       value: empty ? dash : signedMoney(viewModel.netCash, formatters.formatMoney),
       meta: empty ? "" : `${viewModel.inflowCount + viewModel.outflowCount} rows`,
-      modifier: "primary"
+      modifier: "primary",
+      metric: "netCash"
     }),
     renderTile({
       label: "Runway",
       value: empty ? dash : formatters.formatRunway(viewModel.runwayMonths),
       meta: empty ? "" : runwayMeta(viewModel, formatters),
-      modifier: runwayModifier
+      modifier: runwayModifier,
+      metric: "runwayMonths"
     }),
     showReview
       ? renderTile({
@@ -56,12 +63,25 @@ export function renderCockpitStrip(
   ].join("");
 
   const rootClass = showReview ? "bw-cockpit" : "bw-cockpit bw-cockpit--4";
-  return `<section class="${rootClass}" role="group" aria-label="Cockpit summary">${tiles}</section>`;
+  return `
+    <section class="${rootClass}" role="group" aria-label="Cockpit summary">${tiles}</section>
+    ${renderLineagePanel(viewModel, formatters)}
+  `;
 }
 
-function renderTile({ label, value, meta, modifier }: CockpitTile): string {
+function renderTile({ label, value, meta, modifier, metric }: CockpitTile): string {
   const classes = ["bw-kpi", modifier ? `bw-kpi--${modifier}` : ""].filter(Boolean).join(" ");
   const metaClass = modifier === "anchor" || modifier === "tight" ? "bw-kpi__tone" : "bw-kpi__meta";
+
+  if (metric) {
+    return `
+      <button class="${classes}" type="button" data-bw-lineage-trigger="${escapeHtml(metric)}" aria-expanded="false">
+        <span class="bw-kpi__label">${escapeHtml(label)}</span>
+        <span class="bw-kpi__value">${escapeHtml(value)}</span>
+        ${meta ? `<span class="${metaClass}">${escapeHtml(meta)}</span>` : ""}
+      </button>
+    `;
+  }
 
   return `
     <div class="${classes}">
@@ -69,6 +89,35 @@ function renderTile({ label, value, meta, modifier }: CockpitTile): string {
       <span class="bw-kpi__value">${escapeHtml(value)}</span>
       ${meta ? `<span class="${metaClass}">${escapeHtml(meta)}</span>` : ""}
     </div>
+  `;
+}
+
+function renderLineagePanel(
+  viewModel: CockpitViewModel | AuditedCockpit,
+  formatters: CockpitFormatters
+): string {
+  if (!("lineage" in viewModel)) return "";
+
+  const templateMetrics: AuditMetric[] = ["revenue", "outflow", "netCash", "runwayMonths"];
+  const templates = templateMetrics
+    .map(
+      (metric) => `
+        <template data-bw-lineage-template="${escapeHtml(metric)}">
+          ${renderLineageDrawer(viewModel.lineage[metric], formatters)}
+        </template>
+      `
+    )
+    .join("");
+
+  return `
+    <aside class="bw-lineage-panel" data-bw-lineage-panel role="dialog" aria-modal="false" aria-label="KPI audit trail" hidden>
+      <div class="bw-lineage-panel__bar">
+        <span class="bw-lineage-panel__title">Audit trail</span>
+        <button class="bw-lineage-panel__close" type="button" data-bw-lineage-close aria-label="Close audit trail">×</button>
+      </div>
+      <div class="bw-lineage-panel__body" data-bw-lineage-active></div>
+    </aside>
+    <div class="bw-lineage-templates" hidden>${templates}</div>
   `;
 }
 
