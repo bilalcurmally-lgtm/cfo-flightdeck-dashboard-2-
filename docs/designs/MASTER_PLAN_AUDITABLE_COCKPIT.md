@@ -79,7 +79,9 @@ interface ExclusionRef {
 
 interface MetricLineage {
   metric: "revenue" | "outflow" | "netCash" | "averageMonthlyOutflow" | "runwayMonths";
-  value: number | null;
+  value: number | null;      // MUST mirror nullable cockpit semantics: when runwayMonths is
+                             // null, value is null — but `derived` still shows known inputs
+                             // (cash on hand, avg burn). Never blank/undefined structures.
   formulaText: string;       // "Runway = cash on hand / avg monthly outflow"
   plainEnglish: string;      // sentence INCLUDING assumptions + period + confidence
   direct: RowRef[];          // empty for purely-derived metrics
@@ -368,8 +370,13 @@ commit. Each phase ends with a `/checkpoint`.
 
 ## 7. Risks & open items
 
-- **Cash-on-hand source for runway is ambiguous** (running balance vs inferred vs user-entered).
-  A1 must make it an explicit, labeled `Assumption`; if no basis exists, runway shows "unknown."
+- **Cash-on-hand source for runway — RESOLVED (repo-grounded 2026-05-29).** It is user-entered:
+  `AppSettings.cashOnHand` (default 0), edited via the `#cash-on-hand` input
+  (`dashboard-sections.ts`), read by `main.ts:readCashOnHand()`, threaded through
+  `dashboard-view.ts` into `calculateCashHealth`. NOT inferred from running balance
+  (`TransactionRecord.runningBalance` exists but is unused for runway). A1 labels the runway
+  `Assumption` as "Cash on hand (user-entered)"; when it is 0, runway is already `null` →
+  surface "unknown — enter cash on hand."
 - **Spike detection** does not yet exist in `diagnostics` — C1 adds it; keep it conservative.
 - **IndexedDB quota / private-browsing** can fail; D1 must degrade to in-memory + warn, and the
   `.billu.json` export is the durable fallback.
