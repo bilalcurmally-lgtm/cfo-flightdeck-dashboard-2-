@@ -1395,6 +1395,38 @@ button.bw-kpi[aria-expanded="true"] {
   font-weight: 800;
 }
 
+/* A calc node has up to five children (op, label, value, optional row-count,
+   and a nested subtree). Pin the first three to their columns and force the
+   row-count and nested tree onto their own full-width rows so nothing overlaps
+   on narrow/mobile widths. */
+.bw-lineage__node {
+  align-items: baseline;
+  row-gap: 4px;
+}
+
+.bw-lineage__node-op {
+  grid-column: 1;
+}
+
+.bw-lineage__node-label {
+  grid-column: 2;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.bw-lineage__node-value {
+  grid-column: 3;
+  text-align: right;
+}
+
+.bw-lineage__node-rows {
+  grid-column: 2 / -1;
+}
+
+.bw-lineage__node > .bw-lineage__tree {
+  grid-column: 1 / -1;
+}
+
 .bw-lineage__tree .bw-lineage__tree {
   margin-left: 18px;
   padding-left: 10px;

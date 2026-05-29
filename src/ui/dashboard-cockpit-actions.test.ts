@@ -36,6 +36,46 @@ describe("bindDashboardCockpitActions", () => {
     expect(revenueTrigger.attributes["aria-expanded"]).toBe("false");
     expect(revenueTrigger.focusCount).toBe(1);
   });
+
+  it("traps Tab focus inside the open panel", () => {
+    const revenueTrigger = button();
+    const closeButton = button();
+    const panel = element();
+    const activeBody = element();
+
+    bindDashboardCockpitActions({
+      root: root({
+        triggers: [revenueTrigger],
+        templates: { revenue: element("<section>Revenue lineage</section>") },
+        panel,
+        activeBody,
+        closeButton
+      })
+    });
+
+    revenueTrigger.fire("click");
+    expect(closeButton.focusCount).toBe(1);
+
+    let prevented = 0;
+    const preventDefault = () => {
+      prevented += 1;
+    };
+
+    // Tab and Shift+Tab both keep focus on the only focusable (the close button).
+    panel.fire("keydown", { key: "Tab", shiftKey: false, preventDefault });
+    panel.fire("keydown", { key: "Tab", shiftKey: true, preventDefault });
+    expect(prevented).toBe(2);
+    expect(closeButton.focusCount).toBe(3);
+
+    // Non-Tab keys are ignored by the trap.
+    panel.fire("keydown", { key: "a", shiftKey: false, preventDefault });
+    expect(prevented).toBe(2);
+
+    // When closed, the trap is inert.
+    closeButton.fire("click");
+    panel.fire("keydown", { key: "Tab", shiftKey: false, preventDefault });
+    expect(prevented).toBe(2);
+  });
 });
 
 interface FakeRootParts {
@@ -65,7 +105,7 @@ function root(parts: FakeRootParts): DashboardCockpitActionRoot {
   } as unknown as DashboardCockpitActionRoot;
 }
 
-type Listener = () => void;
+type Listener = (payload?: unknown) => void;
 
 interface FakeElement {
   hidden: boolean;
@@ -76,7 +116,7 @@ interface FakeElement {
   addEventListener: (event: string, listener: Listener) => void;
   setAttribute: (name: string, value: string) => void;
   focus: () => void;
-  fire: (event: string) => void;
+  fire: (event: string, payload?: unknown) => void;
 }
 
 function element(innerHTML = ""): FakeElement {
@@ -94,7 +134,7 @@ function element(innerHTML = ""): FakeElement {
     focus: () => {
       fake.focusCount += 1;
     },
-    fire: (event) => listeners.get(event)?.()
+    fire: (event, payload) => listeners.get(event)?.(payload)
   };
   return fake;
 }
