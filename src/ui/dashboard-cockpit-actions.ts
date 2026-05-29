@@ -83,9 +83,10 @@ export function bindDashboardCockpitActions({
   });
 }
 
-const FOCUSABLE_SELECTOR = [
+export const FOCUSABLE_SELECTOR = [
   "a[href]",
   "button:not([disabled])",
+  "summary",
   "input:not([disabled])",
   "select:not([disabled])",
   "textarea:not([disabled])",

@@ -120,8 +120,14 @@ function renderCalcTree(
 }
 
 function renderCalcNode(node: CalcNode, formatters: LineageFormatters): string {
+  // A leaf node that owns rows (e.g. a monthly outflow bucket) becomes an
+  // expandable disclosure: the summary shows the count, expanding reveals the
+  // underlying rows that foot to the node value. Keyboard-native via <details>.
   const rowsNote = node.rows && node.rows.length > 0
-    ? `<span class="bw-lineage__node-rows">${escapeHtml(`${node.rows.length} row${node.rows.length === 1 ? "" : "s"}`)}</span>`
+    ? `<details class="bw-lineage__node-rows">
+        <summary class="bw-lineage__node-rows-summary">${escapeHtml(`${node.rows.length} row${node.rows.length === 1 ? "" : "s"}`)}</summary>
+        ${renderBucketRows(node.rows, formatters)}
+      </details>`
     : "";
   const childrenHtml = node.children && node.children.length > 0
     ? `<ul class="bw-lineage__tree">${node.children.map((child) => renderCalcNode(child, formatters)).join("")}</ul>`
@@ -135,6 +141,21 @@ function renderCalcNode(node: CalcNode, formatters: LineageFormatters): string {
       ${childrenHtml}
     </li>
   `;
+}
+
+function renderBucketRows(rows: RowRef[], formatters: LineageFormatters): string {
+  const items = rows
+    .map(
+      (row) => `
+        <li class="bw-lineage__bucket-row">
+          <span class="bw-lineage__bucket-date">${escapeHtml(row.dateISO)}</span>
+          <span class="bw-lineage__bucket-head">${escapeHtml(row.head)}</span>
+          <span class="bw-lineage__bucket-amount">${escapeHtml(formatters.formatMoney(row.amount))}</span>
+        </li>
+      `
+    )
+    .join("");
+  return `<ul class="bw-lineage__bucket-rows">${items}</ul>`;
 }
 
 function renderRowsTable(rows: RowRef[], formatters: LineageFormatters): string {

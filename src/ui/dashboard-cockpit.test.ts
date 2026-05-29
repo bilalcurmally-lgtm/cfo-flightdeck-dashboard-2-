@@ -3,30 +3,33 @@ import type { AuditedCockpit } from "../finance/audit";
 import { renderCockpitStrip } from "./dashboard-cockpit";
 
 describe("renderCockpitStrip", () => {
-  it("renders the five cockpit tiles when review work exists", () => {
+  it("renders the six cockpit tiles when review work exists", () => {
     const html = renderCockpitStrip(baseViewModel(), formatters);
 
-    expect(html.match(/class="bw-kpi(?:\s|")/g)?.length).toBe(5);
+    expect(html.match(/class="bw-kpi(?:\s|")/g)?.length).toBe(6);
     expect(html).toContain("Revenue");
     expect(html).toContain("Outflow");
     expect(html).toContain("Net cash");
+    expect(html).toContain("Avg burn");
     expect(html).toContain("Runway");
     expect(html).toContain("Needs review");
     expect(html).toContain("4 rejected · 2 dupes · 1 transfer");
+    // with the review tile present the strip needs the six-column class
+    expect(html).toContain("bw-cockpit bw-cockpit--6");
   });
 
-  it("renders auditable KPI triggers and hidden lineage panel templates", () => {
+  it("renders auditable KPI triggers and hidden lineage panel templates for every metric", () => {
     const html = renderCockpitStrip(baseViewModel(), formatters);
 
-    expect(html).toContain('data-bw-lineage-trigger="revenue"');
-    expect(html).toContain('data-bw-lineage-trigger="runwayMonths"');
-    expect(html).toContain('data-bw-lineage-template="revenue"');
-    expect(html).toContain('data-bw-lineage-template="runwayMonths"');
-    expect(html).toContain('data-bw-lineage-panel');
+    for (const metric of ["revenue", "outflow", "netCash", "averageMonthlyOutflow", "runwayMonths"]) {
+      expect(html).toContain(`data-bw-lineage-trigger="${metric}"`);
+      expect(html).toContain(`data-bw-lineage-template="${metric}"`);
+    }
+    expect(html).toContain("data-bw-lineage-panel");
     expect(html).toContain('aria-expanded="false"');
   });
 
-  it("omits the review tile and switches to the four-column class when count is zero", () => {
+  it("omits the review tile and uses the base five-column class when count is zero", () => {
     const html = renderCockpitStrip(
       {
         ...baseViewModel(),
@@ -35,9 +38,10 @@ describe("renderCockpitStrip", () => {
       formatters
     );
 
-    expect(html.match(/class="bw-kpi(?:\s|")/g)?.length).toBe(4);
+    expect(html.match(/class="bw-kpi(?:\s|")/g)?.length).toBe(5);
     expect(html).not.toContain("Needs review");
-    expect(html).toContain("bw-cockpit bw-cockpit--4");
+    expect(html).toContain('class="bw-cockpit"');
+    expect(html).not.toContain("bw-cockpit--6");
   });
 
   it("escapes dynamic formatter output and review meta", () => {

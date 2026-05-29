@@ -67,6 +67,24 @@ describe("renderLineageDrawer", () => {
     expect(html).toContain("−");
   });
 
+  it("expands each monthly bucket node to its contributing rows", () => {
+    const records = [
+      record("o1", "2026-03-03", "outflow", "Rent", 1000),
+      record("o2", "2026-03-20", "outflow", "Software", 200),
+      record("o3", "2026-04-03", "outflow", "Rent", 1000)
+    ];
+    const html = renderLineageDrawer(audited(records, 6000).lineage.averageMonthlyOutflow, formatters);
+
+    // each bucket is a native disclosure the reader can expand, not a dead count
+    expect(html).toContain("<details");
+    expect(html).toContain("<summary");
+    expect(html).toContain("2 rows");
+    // the underlying rows themselves are present inside the bucket
+    expect(html).toContain("Rent");
+    expect(html).toContain("Software");
+    expect(html).toContain("$1,000");
+  });
+
   it("renders explicit empty states for an empty import", () => {
     const result = audited([], 0);
     const revenueHtml = renderLineageDrawer(result.lineage.revenue, formatters);

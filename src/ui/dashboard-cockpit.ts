@@ -46,6 +46,12 @@ export function renderCockpitStrip(
       metric: "netCash"
     }),
     renderTile({
+      label: "Avg burn",
+      value: empty ? dash : formatters.formatMoney(viewModel.averageMonthlyOutflow),
+      meta: empty ? "no rows in current filter" : "per month",
+      metric: "averageMonthlyOutflow"
+    }),
+    renderTile({
       label: "Runway",
       value: empty ? dash : formatters.formatRunway(viewModel.runwayMonths),
       meta: empty ? "" : runwayMeta(viewModel, formatters),
@@ -62,7 +68,9 @@ export function renderCockpitStrip(
       : ""
   ].join("");
 
-  const rootClass = showReview ? "bw-cockpit" : "bw-cockpit bw-cockpit--4";
+  // Five metric tiles by default (Revenue, Outflow, Net cash, Avg burn, Runway);
+  // the optional review tile makes six and needs the wider grid track.
+  const rootClass = showReview ? "bw-cockpit bw-cockpit--6" : "bw-cockpit";
   return `
     <section class="${rootClass}" role="group" aria-label="Cockpit summary">${tiles}</section>
     ${renderLineagePanel(viewModel, formatters)}
@@ -98,7 +106,13 @@ function renderLineagePanel(
 ): string {
   if (!("lineage" in viewModel)) return "";
 
-  const templateMetrics: AuditMetric[] = ["revenue", "outflow", "netCash", "runwayMonths"];
+  const templateMetrics: AuditMetric[] = [
+    "revenue",
+    "outflow",
+    "netCash",
+    "averageMonthlyOutflow",
+    "runwayMonths"
+  ];
   const templates = templateMetrics
     .map(
       (metric) => `

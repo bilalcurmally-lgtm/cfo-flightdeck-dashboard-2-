@@ -1165,8 +1165,8 @@ th {
   background: var(--color-line);
 }
 
-.bw-cockpit--4 {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+.bw-cockpit--6 {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 
 .bw-kpi {
@@ -1423,6 +1423,59 @@ button.bw-kpi[aria-expanded="true"] {
   grid-column: 2 / -1;
 }
 
+.bw-lineage__node-rows-summary {
+  width: max-content;
+  color: var(--color-muted);
+  font-size: 0.74rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.bw-lineage__node-rows-summary::-webkit-details-marker {
+  display: none;
+}
+
+.bw-lineage__node-rows-summary::before {
+  content: "▸ ";
+  color: var(--color-primary);
+}
+
+.bw-lineage__node-rows[open] > .bw-lineage__node-rows-summary::before {
+  content: "▾ ";
+}
+
+.bw-lineage__bucket-rows {
+  display: grid;
+  gap: 4px;
+  margin: 6px 0 2px;
+  padding: 0;
+  list-style: none;
+}
+
+.bw-lineage__bucket-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: baseline;
+  color: var(--color-ink-soft);
+  font-size: 0.76rem;
+}
+
+.bw-lineage__bucket-date {
+  font-variant-numeric: tabular-nums;
+}
+
+.bw-lineage__bucket-head {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.bw-lineage__bucket-amount {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-ink);
+}
+
 .bw-lineage__node > .bw-lineage__tree {
   grid-column: 1 / -1;
 }
@@ -1494,7 +1547,6 @@ th.bw-lineage__cell {
   .import-panel,
   .bw-choice-grid,
   .bw-cockpit,
-  .bw-cockpit--4,
   .worksheet-option,
   .worksheet-summary,
   .mapping-editor,
