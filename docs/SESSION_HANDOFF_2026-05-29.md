@@ -200,3 +200,26 @@ Owner asked Codex to fix the jCodemunch setup first, run an index, then pick up 
 2. Tighten focus-trap behavior if review requires it; current implementation moves focus to close
    and supports Escape, but does not trap Tab inside the dialog yet.
 3. Begin B2 after review: extend/polish the remaining KPI drawers and runway tree presentation.
+
+---
+
+## Session addendum — 2026-05-29 (Opus, B1 polish: mobile layout + focus-trap)
+
+Owner flagged two items on Codex's wired drawer (`622f7ee`): a jumbled mobile calc-tree
+(screenshot) and the outstanding focus-trap. Both fixed in **`f01b8e0`** on `codex/a1-audit-model`.
+
+- **Mobile calc-tree overlap** (`src/styles.css`): `.bw-lineage__node` was a 3-col grid but
+  nodes have up to 5 children; the row-count span and nested `<ul>` auto-flowed into the grid
+  and collided with the value/label. Fixed by pinning op/label/value to cols 1–3 and forcing
+  `.bw-lineage__node-rows` + nested `.bw-lineage__tree` onto their own full-width rows
+  (baseline align, label `overflow-wrap: anywhere`).
+- **Focus-trap** (`src/ui/dashboard-cockpit-actions.ts`): Tab/Shift+Tab now cycle within the
+  open panel (queries focusables; today that's just the close button). Escape-close and
+  focus-restore were already present. Unit test added.
+
+Verification: `tsc` clean, **228 tests** pass, `vite build` passes.
+**Caveat:** not re-checked in a live mobile browser this session — Playwright isn't installed
+locally and the Playwright MCP wasn't loaded. The CSS fix is deterministic grid-column placement;
+a visual confirm in the open Chrome tab (Codex Chrome Extension per CLAUDE.md) is still worth doing.
+
+Next: visual confirm on mobile; then B2 (extend drawers to outflow/avg burn, polish runway tree).
