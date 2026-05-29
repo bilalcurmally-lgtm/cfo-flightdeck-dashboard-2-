@@ -40,6 +40,37 @@ describe("summarizeTransactions", () => {
     });
   });
 
+  it("emits direct lineage for revenue, outflow, and net cash in the same summary", () => {
+    const records = [
+      record("2026-03-01", "revenue", "Client Retainer", 4200),
+      record("2026-03-05", "outflow", "Software", 220),
+      record("2026-03-10", "outflow", "Software", 80),
+      record("2026-04-01", "revenue", "Consulting", 900)
+    ];
+
+    const summary = summarizeTransactions(records, [], 600);
+
+    expect(summary.lineage!.revenue).toMatchObject({
+      metric: "revenue",
+      value: 5100,
+      formulaText: "Revenue = sum of revenue rows"
+    });
+    expect(summary.lineage!.revenue.direct.map((row) => row.id)).toEqual([
+      "2026-03-01-Client Retainer",
+      "2026-04-01-Consulting"
+    ]);
+    expect(summary.lineage!.outflow.direct.map((row) => row.id)).toEqual([
+      "2026-03-05-Software",
+      "2026-03-10-Software"
+    ]);
+    expect(summary.lineage!.netCash).toMatchObject({
+      metric: "netCash",
+      value: 4800,
+      formulaText: "Net cash = revenue - outflow"
+    });
+    expect(summary.lineage!.netCash.direct.map((row) => row.id)).toEqual(records.map((row) => row.id));
+  });
+
   it("surfaces import quality warnings", () => {
     const rejectedRows: ImportIssue[] = [
       { rowNumber: 3, reason: "Invalid amount", row: { Amount: "nope" } }

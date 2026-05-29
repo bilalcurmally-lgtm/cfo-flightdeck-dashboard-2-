@@ -1,3 +1,4 @@
+import { placeholderCashHealthLineage, placeholderSummaryLineage } from "../finance/audit-fixtures";
 import { describe, expect, it } from "vitest";
 import type { FinanceSummary } from "../finance/summary";
 import type { CsvImportResult, TransactionRecord } from "../finance/types";
@@ -157,7 +158,9 @@ function summary(): FinanceSummary {
     accountBalances: [{ account: "Checking", balance: 100, source: "netActivity" }],
     diagnostics: { duplicateGroups: [], transferCandidates: [] },
     warnings: [],
+    lineage: placeholderSummaryLineage(),
     cashHealth: {
+      lineage: placeholderCashHealthLineage(),
       averageMonthlyOutflow: 0,
       runwayMonths: null,
       largestTransaction: null,

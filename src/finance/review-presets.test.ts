@@ -1,3 +1,4 @@
+import { placeholderCashHealthLineage, placeholderSummaryLineage } from "./audit-fixtures";
 import { describe, expect, it } from "vitest";
 import type { FinanceSummary } from "./summary";
 import type { TransactionRecord } from "./types";
@@ -87,7 +88,9 @@ function summary(
     accountBalances: [],
     diagnostics,
     warnings: [],
+    lineage: placeholderSummaryLineage(),
     cashHealth: {
+      lineage: placeholderCashHealthLineage(),
       averageMonthlyOutflow: 0,
       runwayMonths: null,
       revenueConcentration: 0,

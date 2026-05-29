@@ -1,3 +1,4 @@
+import { placeholderCashHealthLineage, placeholderSummaryLineage } from "../finance/audit-fixtures";
 import { describe, expect, it } from "vitest";
 import type { ForecastResult } from "../finance/forecast";
 import type { FinanceSummary } from "../finance/summary";
@@ -136,7 +137,9 @@ function summary(): FinanceSummary {
     topSubcategories: [{ head: "Client A", subcategory: "Retainer", flow: "revenue", amount: 1000, count: 1 }],
     accountBalances: [{ account: "Operating", balance: 750, source: "netActivity" }],
     warnings: [{ level: "warning", message: "100% of revenue comes from one head." }],
+    lineage: placeholderSummaryLineage(),
     cashHealth: {
+      lineage: placeholderCashHealthLineage(),
       averageMonthlyOutflow: 250,
       runwayMonths: 4,
       largestTransaction: record(),

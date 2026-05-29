@@ -1,3 +1,4 @@
+import { placeholderCashHealthLineage, placeholderSummaryLineage } from "./audit-fixtures";
 import { describe, expect, it } from "vitest";
 import type { FinanceSummary } from "./summary";
 import type { TransactionRecord } from "./types";
@@ -116,7 +117,9 @@ function summary(
       }))
     },
     warnings: [],
+    lineage: placeholderSummaryLineage(),
     cashHealth: {
+      lineage: placeholderCashHealthLineage(),
       averageMonthlyOutflow: overrides.averageMonthlyOutflow ?? 400,
       runwayMonths: Object.hasOwn(overrides, "runwayMonths") ? overrides.runwayMonths! : 6,
       largestTransaction: null,

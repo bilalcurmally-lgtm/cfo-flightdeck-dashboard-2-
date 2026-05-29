@@ -1,3 +1,4 @@
+import { placeholderCashHealthLineage, placeholderSummaryLineage } from "../finance/audit-fixtures";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_FILTERS } from "../finance/filters";
 import type { ForecastResult } from "../finance/forecast";
@@ -97,7 +98,9 @@ function summary(selectedRecord: TransactionRecord): FinanceSummary {
       transferCandidates: []
     },
     warnings: [],
+    lineage: placeholderSummaryLineage(),
     cashHealth: {
+      lineage: placeholderCashHealthLineage(),
       averageMonthlyOutflow: 300,
       runwayMonths: 2,
       largestTransaction: null,
