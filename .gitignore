@@ -3,3 +3,10 @@ dist/
 .vite/
 coverage/
 *.log
+
+# playwright
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+e2e/__artifacts__/
