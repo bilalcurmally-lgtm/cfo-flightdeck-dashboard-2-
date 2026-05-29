@@ -223,3 +223,25 @@ locally and the Playwright MCP wasn't loaded. The CSS fix is deterministic grid-
 a visual confirm in the open Chrome tab (Codex Chrome Extension per CLAUDE.md) is still worth doing.
 
 Next: visual confirm on mobile; then B2 (extend drawers to outflow/avg burn, polish runway tree).
+
+---
+
+## Session addendum — 2026-05-29 (Opus, Playwright + B1 mobile confirmed)
+
+Closed the open item from the previous addendum. Owner re-enabled jCodemunch and asked to
+fix Playwright; done.
+
+- **Playwright browser QA added** (`4207f26`): `@playwright/test` devDep (chromium already
+  cached), `playwright.config.ts` (desktop + Pixel-7 mobile projects, webServer auto-starts
+  `npm run dev`), specs in `e2e/` (kept out of vitest's `src/**` glob and the app `tsc` build).
+  Scripts: `npm run test:e2e`, `test:e2e:ui`. Artifacts/report gitignored.
+- **`e2e/lineage-drawer.spec.ts`**: drives the real flow (load sample -> **Apply Mapping** ->
+  open Runway drawer) and asserts every calc-node label/value box does not overlap — a
+  regression guard for the f01b8e0 mobile fix. Both viewports green.
+- **Mobile fix visually confirmed**: the runway audit drawer now renders cleanly on mobile
+  (op · label · right-aligned value, `6 rows` on its own line) — no jumble. B1 layout is done.
+
+How to browser-check going forward: `npm run test:e2e` (auto-starts dev server). Note the app
+flow gotcha: a sample doesn't reach the cockpit until **Apply Mapping** is clicked.
+
+Branch `codex/a1-audit-model` tip: `4207f26`. Still not pushed/merged. Next: B2.
