@@ -4,28 +4,38 @@
 
 **Goal:** Let the user recategorize transactions that distort operating KPIs (Type + Group) and re-derive the cockpit live, with non-operating money reported in its own tile — never silently zeroed.
 
-**Architecture:** A pure, reversible in-session override layer (`Map<id, {flow?, parent?}>`) rewrites records before KPI math. `summarizeTransactions` and `calculateCashHealth` are extended to compute KPIs on **operating rows only** (rows whose `parent` is not in `NON_OPERATING_GROUPS`), emitting a parallel `nonOperating` lineage in the same pass. A keyword+group detection queue (sibling of `review-queue.ts`) surfaces suggestions; a new drawer (reusing the C1 slide-in/focus-trap) drives recategorize/confirm/reset, re-rendering via the `reopenReviewItemId` pattern shipped in `cbd910c`.
+**Architecture:** A pure, reversible in-session override layer (`Map<id, {flow?, parent?}>`) rewrites records before KPI math. `summarizeTransactions` and `calculateCashHealth` partition records into **operating** vs **non-operating** (rows whose `parent` is in `NON_OPERATING_GROUPS`) and compute KPIs on operating rows only, emitting a parallel `nonOperating` `MetricLineage` in the same pass. A keyword+group detection queue (sibling of `review-queue.ts`) surfaces suggestions; a new drawer (reusing the C1 slide-in/focus-trap) drives recategorize/confirm/reset, re-rendering via the `reopenReviewItemId` pattern shipped in `cbd910c`.
 
 **Tech Stack:** TypeScript (strict), Vitest (unit + golden), Playwright (e2e). No new runtime deps.
 
 **Design source:** `docs/superpowers/specs/2026-05-31-c2-focused-category-review-design.md`. Read it before starting.
 
-**Grounding facts (verified against the tree at tip `51ddda0`):**
-- `CashFlow = "inflow" | "outflow"` (`src/finance/types.ts`). The spec's "Type = revenue/outflow" means `flow = inflow/outflow`. Use `inflow`/`outflow` everywhere.
-- `TransactionRecord` fields used here: `id, flow, parent, head, subcategory, counterparty, signedNet, grossAmount, date, description` (`src/finance/types.ts:3`).
-- `MetricLineage` already has an optional `excluded?: LineageEntry[]` field — no type change needed for operating `excluded[]`.
-- `summarizeTransactions(records)` and `calculateCashHealth(records)` both key **only** off `record.flow` today; `parent` never touches the math.
-- `buildDashboardView(input)` filters `activeRecords` via a `deriveExcludedTransactionIds` callback, then summarizes (`src/finance/dashboard-view.ts`).
-- `main.ts` holds `const reviewExcludedItemIds = new Set<string>()`, calls `buildDashboardView`, and re-renders through `renderImportResult(container, data, { reopenReviewItemId })`.
-- `deriveAuditedCockpit` is a thin reader producing `CockpitKpi[] + needsReviewCount`. **Do not add parallel KPI math there** (eng-review rule). All new totals come from `summary`/`cashHealth`.
+---
 
-**Conventions:** money is integer minor units. Lineage entries use `amount: record.signedNet`. Run `npx tsc --noEmit` before every commit; never commit with a type error.
+## Grounding facts — VERIFIED against the tree at tip `51ddda0`
+
+These were read directly from source (the spec contained two inaccuracies; this plan supersedes it where they conflict):
+
+- **`CashFlow = "revenue" | "outflow"`** (`src/finance/types.ts:1`). The inflow value is `"revenue"`, NOT `"inflow"`. Use `"revenue"` everywhere.
+- **`TransactionRecord`** real fields (`types.ts:21`): `id; date: Date; dateISO: string; periodDaily; periodWeekly; periodMonthly: string; sourceSheet?; head; parent; subcategory; description; counterparty; account; flow: CashFlow; amount: number; signedNet: number; runningBalance: number | null`. There is **no** `grossAmount`, `currency`, `raw`, or `sourceRow`. The positive magnitude field is **`amount`**; `signedNet` is `+amount` for revenue, `-amount` for outflow.
+- **`MetricLineage = { metric: string; total: number; formula: string; inputs: LineageInput[]; recordIds: string[]; note?: string }`** (`types.ts`). There is **no** `entries[]` and **no** `excluded[]` (the spec was wrong about this). Lineage objects are built by the private helper `metric(name, total, formula, records)` in `summary.ts`, which fills `inputs` via `buildInputs(records)` and `recordIds` via `records.map(r => r.id)`.
+- **`SummaryLineage`** has an index signature `[key: string]: MetricLineage` plus required `revenue|outflow|net`. Adding a `nonOperating` key needs **no type change**, but we add it explicitly for discoverability.
+- **`FinanceTotals = { revenue; outflow; net; transactionCount }`** — the field is `revenue`, not `inflow`.
+- **`summarizeTransactions(records)`** (`summary.ts`): `revenueRecords/outflowRecords = records.filter(flow===...)`, totals via `sumAmount` (sums `record.amount`), `lineage` via `buildLineage(...)` → `metric(...)`. Keys only off `record.flow`; `parent` never touches math today.
+- **`calculateCashHealth(records, options={})`** (`cash-health.ts`): same revenue/outflow filter; `monthsCovered = countDistinctMonths(records)`; `averageMonthlyBurn = outflowTotal / monthsCovered`; `runwayMonths = round2(netCash / averageMonthlyBurn)` or `null`. `lineage` keys are exactly `netCash | averageMonthlyBurn | runwayMonths`.
+- **`buildDashboardView(input)`** (`dashboard-view.ts`) returns `{ records, activeRecords, summary, cashHealth, reviewSummary, excludedTransactionIds? }`. It does **NOT** produce a `cockpit` field. It calls `buildReviewSummary(records)` **positionally** (not `{records}`), then filters `activeRecords` via the `deriveExcludedTransactionIds` callback.
+- **`buildReviewSummary(records: TransactionRecord[])`** is positional → `{ items, excludableTransactionIds, defaultExcludedTransactionIds }`.
+- **`deriveAuditedCockpit({summary, cashHealth, reviewSummary})`** (`cockpit-kpis.ts`) returns `{ kpis: CockpitKpi[]; needsReviewCount }`. `CockpitKpi = { id; label; value: number|null; lineageKey; cashHealthMetric? }`. It is a thin reader — **do not add KPI math here** (eng-review rule). Verify its call site (likely `main.ts`) during Task 6.
+- `main.ts` holds `const reviewExcludedItemIds = new Set<string>()`, calls `buildDashboardView`, re-renders through `renderImportResult(...)` with a `reopenReviewItemId` option (shipped `cbd910c`).
+
+**Conventions:** money is integer minor units. `npx tsc --noEmit` before every commit; never commit with a type error. Bash tool: write multiline commit bodies to a file and `git commit -F file` — never a PowerShell heredoc.
 
 ---
 
 ## File Structure
 
 **Create:**
+- `src/finance/operating-groups.ts` — shared `NON_OPERATING_GROUPS` + `isOperating`.
 - `src/finance/classification-overrides.ts` — override type + `applyClassificationOverrides`.
 - `src/finance/classification-overrides.test.ts`
 - `src/ui/category-review-queue.ts` — `buildCategoryReviewSummary` (detection).
@@ -34,14 +44,13 @@
 - `src/ui/category-review-drawer.test.ts`
 
 **Modify:**
-- `src/finance/types.ts` — add `nonOperating` to `SummaryLineage`; add `nonOperating` to `CashHealthResult.lineage` (+ a `nonOperatingTotal` field).
-- `src/finance/operating-groups.ts` — **create** the shared `NON_OPERATING_GROUPS` constant + `isOperating(record)` helper (its own file so summary, cash-health, and the queue share one source of truth).
-- `src/finance/summary.ts` — operating-only totals + `nonOperating` lineage + operating `excluded[]`.
-- `src/finance/cash-health.ts` — operating-only burn/runway + `nonOperating` lineage.
-- `src/finance/cockpit-kpis.ts` — `AuditedCockpit` gains `nonOperatingTotal` + `categoryReviewCount`.
-- `src/finance/dashboard-view.ts` — thread overrides + category-review summary through.
-- `src/main.ts` — overrides `Map`, bind drawer actions, re-render + reopen, export uses overridden records.
-- `e2e/lineage-drawer.spec.ts` — recategorize → live re-derive assertion.
+- `src/finance/types.ts` — `FinanceTotals.nonOperating`; `SummaryLineage.nonOperating`; `CashHealthResult.nonOperatingTotal` + `lineage.nonOperating`.
+- `src/finance/summary.ts` — operating partition + `nonOperating` lineage.
+- `src/finance/cash-health.ts` — operating-only burn/runway + `nonOperating` total/lineage.
+- `src/finance/cockpit-kpis.ts` — `AuditedCockpit.{nonOperatingTotal,categoryReviewCount}`.
+- `src/finance/dashboard-view.ts` — thread overrides + `categoryReview` through.
+- `src/main.ts` — overrides `Map`, drawer wiring, re-render + reopen, export uses overridden records.
+- `e2e/lineage-drawer.spec.ts` — recategorize → live re-derive.
 
 ---
 
@@ -49,14 +58,11 @@
 
 **Files:**
 - Create: `src/finance/operating-groups.ts`
-- Test: covered indirectly via Task 2/3 (no standalone test — it is a constant + one-line predicate)
 
 - [ ] **Step 1: Create the constant and helper**
 
 ```typescript
 // src/finance/operating-groups.ts
-import type { TransactionRecord } from "./types";
-
 /**
  * Canonical internal taxonomy. Rows in these groups are non-operating
  * (financing in / internal transfers) and are excluded from operating KPIs.
@@ -78,11 +84,8 @@ Expected: exit 0.
 
 ```bash
 git add src/finance/operating-groups.ts
-git commit -F .git/COMMIT_C2_T1.txt
+git commit -m "feat(finance): add operating/non-operating group taxonomy (C2)"
 ```
-Commit message: `feat(finance): add operating/non-operating group taxonomy`
-
-> Note (Windows/Bash tool): write multiline commit bodies to a file and use `-F`, never a PowerShell heredoc.
 
 ---
 
@@ -92,6 +95,8 @@ Commit message: `feat(finance): add operating/non-operating group taxonomy`
 - Create: `src/finance/classification-overrides.ts`
 - Test: `src/finance/classification-overrides.test.ts`
 
+> The shared test fixture below (`rec`) matches the **real** `TransactionRecord`. Reuse it (or copy it) in every later test in this plan.
+
 - [ ] **Step 1: Write the failing test**
 
 ```typescript
@@ -100,11 +105,25 @@ import { describe, it, expect } from "vitest";
 import { applyClassificationOverrides } from "./classification-overrides";
 import type { TransactionRecord } from "./types";
 
-function rec(over: Partial<TransactionRecord>): TransactionRecord {
+export function rec(over: Partial<TransactionRecord>): TransactionRecord {
   return {
-    id: "t1", sourceRow: 1, date: "2026-01-01", description: "d", counterparty: "c",
-    flow: "outflow", parent: "Operating Costs", head: "Misc", subcategory: "",
-    signedNet: -5000, grossAmount: 5000, currency: "PKR", raw: {}, ...over,
+    id: "t1",
+    date: new Date("2026-01-01T00:00:00Z"),
+    dateISO: "2026-01-01",
+    periodDaily: "2026-01-01",
+    periodWeekly: "2026-W01",
+    periodMonthly: "2026-01",
+    head: "Misc",
+    parent: "Operating Costs",
+    subcategory: "",
+    description: "d",
+    counterparty: "c",
+    account: "main",
+    flow: "outflow",
+    amount: 5000,
+    signedNet: -5000,
+    runningBalance: null,
+    ...over,
   };
 }
 
@@ -118,31 +137,28 @@ describe("applyClassificationOverrides", () => {
 
   it("overrides parent without touching flow/signedNet", () => {
     const records = [rec({ id: "a", parent: "Operating Costs" })];
-    const out = applyClassificationOverrides(
-      records,
-      new Map([["a", { parent: "Financing" }]]),
-    );
+    const out = applyClassificationOverrides(records, new Map([["a", { parent: "Financing" }]]));
     expect(out[0].parent).toBe("Financing");
     expect(out[0].flow).toBe("outflow");
     expect(out[0].signedNet).toBe(-5000);
   });
 
-  it("recomputes signedNet when flow flips outflow -> inflow", () => {
-    const records = [rec({ id: "a", flow: "outflow", signedNet: -5000, grossAmount: 5000 })];
-    const out = applyClassificationOverrides(records, new Map([["a", { flow: "inflow" }]]));
-    expect(out[0].flow).toBe("inflow");
+  it("recomputes signedNet when flow flips outflow -> revenue", () => {
+    const records = [rec({ id: "a", flow: "outflow", signedNet: -5000, amount: 5000 })];
+    const out = applyClassificationOverrides(records, new Map([["a", { flow: "revenue" }]]));
+    expect(out[0].flow).toBe("revenue");
     expect(out[0].signedNet).toBe(5000);
   });
 
-  it("recomputes signedNet when flow flips inflow -> outflow", () => {
-    const records = [rec({ id: "a", flow: "inflow", signedNet: 5000, grossAmount: 5000 })];
+  it("recomputes signedNet when flow flips revenue -> outflow", () => {
+    const records = [rec({ id: "a", flow: "revenue", signedNet: 5000, amount: 5000 })];
     const out = applyClassificationOverrides(records, new Map([["a", { flow: "outflow" }]]));
     expect(out[0].signedNet).toBe(-5000);
   });
 
   it("ignores overrides whose id is absent from the record set", () => {
     const records = [rec({ id: "a" })];
-    const out = applyClassificationOverrides(records, new Map([["ghost", { flow: "inflow" }]]));
+    const out = applyClassificationOverrides(records, new Map([["ghost", { flow: "revenue" }]]));
     expect(out[0]).toEqual(records[0]);
   });
 });
@@ -167,8 +183,8 @@ export interface ClassificationOverride {
 /**
  * Returns a NEW record array with flow/parent replaced per the overrides map.
  * Pure and reversible: dropping a map entry restores the original record.
- * When flow flips, signedNet is recomputed from grossAmount so account
- * balances stay correct (inflow = +gross, outflow = -gross).
+ * When flow flips, signedNet is recomputed from `amount` so balances stay correct
+ * (revenue = +amount, outflow = -amount).
  */
 export function applyClassificationOverrides(
   records: TransactionRecord[],
@@ -182,7 +198,7 @@ export function applyClassificationOverrides(
     if (override.parent !== undefined) next.parent = override.parent;
     if (override.flow !== undefined && override.flow !== record.flow) {
       next.flow = override.flow;
-      next.signedNet = override.flow === "inflow" ? record.grossAmount : -record.grossAmount;
+      next.signedNet = override.flow === "revenue" ? record.amount : -record.amount;
     }
     return next;
   });
@@ -198,88 +214,79 @@ Expected: PASS (5 tests).
 
 ```bash
 git add src/finance/classification-overrides.ts src/finance/classification-overrides.test.ts
-git commit -F .git/COMMIT_C2_T2.txt
+git commit -m "feat(finance): in-session classification override layer (C2)"
 ```
-Commit message: `feat(finance): in-session classification override layer (C2)`
 
 ---
 
 ## Task 3: Operating/non-operating split in `summarizeTransactions`
 
 **Files:**
-- Modify: `src/finance/types.ts` (extend `SummaryLineage`)
+- Modify: `src/finance/types.ts`
 - Modify: `src/finance/summary.ts`
-- Test: `src/finance/summary.test.ts` (add cases; create if absent)
+- Test: `src/finance/summary.test.ts` (add cases; create if absent — import `rec` from the overrides test or copy it)
 
-- [ ] **Step 1: Extend the lineage type**
+- [ ] **Step 1: Extend the types**
 
-In `src/finance/types.ts`, change `SummaryLineage`:
-
-```typescript
-export interface SummaryLineage {
-  inflow: MetricLineage;
-  outflow: MetricLineage;
-  net: MetricLineage;
-  /** Money in Internal/Financing groups, pulled out of operating KPIs. */
-  nonOperating: MetricLineage;
-}
-```
-
-Add a field to `FinanceTotals`:
+In `src/finance/types.ts`, add to `FinanceTotals`:
 
 ```typescript
 export interface FinanceTotals {
-  inflow: number;
+  revenue: number;
   outflow: number;
   net: number;
   transactionCount: number;
-  /** Signed sum of non-operating rows (informational; not part of net). */
+  /** Signed sum of non-operating (Internal/Financing) rows. Reported separately. */
   nonOperating: number;
+}
+```
+
+Add an explicit `nonOperating` key to `SummaryLineage` (the index signature already permits it; this documents it):
+
+```typescript
+export interface SummaryLineage {
+  revenue: MetricLineage;
+  outflow: MetricLineage;
+  net: MetricLineage;
+  nonOperating: MetricLineage;
+  [key: string]: MetricLineage;
 }
 ```
 
 - [ ] **Step 2: Write the failing test**
 
 ```typescript
-// src/finance/summary.test.ts  (add these; keep existing tests)
+// src/finance/summary.test.ts (add; keep existing tests)
 import { describe, it, expect } from "vitest";
 import { summarizeTransactions } from "./summary";
-import type { TransactionRecord } from "./types";
-
-function rec(over: Partial<TransactionRecord>): TransactionRecord {
-  return {
-    id: "x", sourceRow: 1, date: "2026-01-01", description: "d", counterparty: "c",
-    flow: "outflow", parent: "Operating Costs", head: "Misc", subcategory: "",
-    signedNet: -1000, grossAmount: 1000, currency: "PKR", raw: {}, ...over,
-  };
-}
+import { rec } from "./classification-overrides.test";
 
 describe("summarizeTransactions operating/non-operating split", () => {
-  it("excludes Internal/Financing rows from inflow/outflow totals", () => {
+  it("excludes Internal/Financing rows from revenue/outflow totals", () => {
     const records = [
-      rec({ id: "op", flow: "outflow", parent: "Operating Costs", signedNet: -1000, grossAmount: 1000 }),
-      rec({ id: "fin", flow: "inflow", parent: "Financing", signedNet: 5000, grossAmount: 5000 }),
+      rec({ id: "op", flow: "outflow", parent: "Operating Costs", amount: 1000, signedNet: -1000 }),
+      rec({ id: "fin", flow: "revenue", parent: "Financing", amount: 5000, signedNet: 5000 }),
     ];
     const s = summarizeTransactions(records);
-    expect(s.totals.inflow).toBe(0);
+    expect(s.totals.revenue).toBe(0);
     expect(s.totals.outflow).toBe(1000);
-    expect(s.totals.nonOperating).toBe(5000);
+    expect(s.totals.nonOperating).toBe(5000); // signed sum of non-operating rows
   });
 
-  it("lists pulled rows in lineage.nonOperating and in operating excluded[]", () => {
+  it("records pulled rows in lineage.nonOperating.recordIds", () => {
     const records = [
       rec({ id: "op", parent: "Operating Costs" }),
-      rec({ id: "intl", flow: "outflow", parent: "Internal", signedNet: -2000, grossAmount: 2000 }),
+      rec({ id: "intl", flow: "outflow", parent: "Internal", amount: 2000, signedNet: -2000 }),
     ];
     const s = summarizeTransactions(records);
-    expect(s.lineage.nonOperating.entries.map((e) => e.id)).toEqual(["intl"]);
-    expect(s.lineage.outflow.excluded?.map((e) => e.id)).toEqual(["intl"]);
+    expect(s.lineage.nonOperating.recordIds).toEqual(["intl"]);
+    expect(s.lineage.outflow.recordIds).not.toContain("intl");
   });
 
   it("matches group names case-insensitively", () => {
-    const records = [rec({ id: "fin", flow: "inflow", parent: "financing", signedNet: 100, grossAmount: 100 })];
+    const records = [rec({ id: "fin", flow: "revenue", parent: "financing", amount: 100, signedNet: 100 })];
     const s = summarizeTransactions(records);
-    expect(s.totals.inflow).toBe(0);
+    expect(s.totals.revenue).toBe(0);
     expect(s.totals.nonOperating).toBe(100);
   });
 });
@@ -288,123 +295,131 @@ describe("summarizeTransactions operating/non-operating split", () => {
 - [ ] **Step 3: Run test to verify it fails**
 
 Run: `npx vitest run src/finance/summary.test.ts`
-Expected: FAIL — `totals.nonOperating` undefined / `lineage.nonOperating` undefined.
+Expected: FAIL — `totals.nonOperating` / `lineage.nonOperating` undefined.
 
-- [ ] **Step 4: Implement the split in `summarizeTransactions`**
+- [ ] **Step 4: Implement the split in `summary.ts`**
 
-In `src/finance/summary.ts`, import the helper and partition inside the existing single loop. Add near the top of the function:
+Add the import at the top:
 
 ```typescript
 import { isOperating } from "./operating-groups";
 ```
 
-Add accumulators beside `totalsBucket`:
+At the start of `summarizeTransactions`, partition before filtering by flow:
 
 ```typescript
-  const nonOperatingBucket = makeBucket();
-  let nonOperatingSigned = 0;
-```
+export function summarizeTransactions(records: TransactionRecord[]): FinanceSummary {
+  const operatingRecords = records.filter(isOperating);
+  const nonOperatingRecords = records.filter((record) => !isOperating(record));
 
-Inside the `for (const record of records)` loop, **guard the operating accumulation**. Replace the opening of the loop body (the inflow/outflow bucket push) with:
+  const revenueRecords = operatingRecords.filter((record) => record.flow === REVENUE);
+  const outflowRecords = operatingRecords.filter((record) => record.flow === OUTFLOW);
 
-```typescript
-    const entry = {
-      id: record.id,
-      date: record.date,
-      description: record.description,
-      amount: record.signedNet,
-      flow: record.flow,
-    };
+  const revenueTotal = sumAmount(revenueRecords);
+  const outflowTotal = sumAmount(outflowRecords);
+  const net = revenueTotal - outflowTotal;
+  const nonOperatingSigned = nonOperatingRecords.reduce((t, r) => t + r.signedNet, 0);
 
-    if (!isOperating(record)) {
-      nonOperatingBucket.total += record.grossAmount;
-      nonOperatingBucket.count += 1;
-      nonOperatingBucket.entries.push(entry);
-      nonOperatingSigned += record.signedNet;
-      continue; // non-operating rows never feed operating totals/rollups/monthly
-    }
+  const lineage: SummaryLineage = buildLineage(
+    revenueRecords,
+    outflowRecords,
+    revenueTotal,
+    outflowTotal,
+    net,
+    nonOperatingRecords,
+    nonOperatingSigned,
+  );
 
-    const bucket = record.flow === "inflow" ? totalsBucket.inflow : totalsBucket.outflow;
-    bucket.total += record.grossAmount;
-    bucket.count += 1;
-    bucket.entries.push(entry);
-```
-
-Reuse `entry` for the existing `parent`/`head`/`monthly` pushes (replace their inline object literals with `entry`) so non-operating rows are also absent from those rollups.
-
-Then extend `totals` and `lineage` in the return path:
-
-```typescript
-  const totals: FinanceTotals = {
-    inflow: inflowTotal,
-    outflow: outflowTotal,
-    net: netTotal,
-    transactionCount: records.length,
-    nonOperating: nonOperatingSigned,
+  return {
+    totals: {
+      revenue: revenueTotal,
+      outflow: outflowTotal,
+      net,
+      transactionCount: records.length,
+      nonOperating: nonOperatingSigned,
+    },
+    byParent: rollupByParent(operatingRecords),
+    byHead: rollupByHead(operatingRecords),
+    timeline: buildTimeline(operatingRecords),
+    lineage,
+    records,
   };
+}
 ```
 
+> Rollups/timeline run on `operatingRecords` so non-operating money never appears in operating breakdowns. `records` in the return stays the full set (consumers expect every row).
+
+Extend `buildLineage` to accept and emit the non-operating metric:
+
 ```typescript
-  const lineage: SummaryLineage = {
-    inflow: {
-      metric: "inflow",
-      total: inflowTotal,
-      entries: totalsBucket.inflow.entries,
-      excluded: nonOperatingBucket.entries.filter((e) => e.flow === "inflow"),
-    },
-    outflow: {
-      metric: "outflow",
-      total: outflowTotal,
-      entries: totalsBucket.outflow.entries,
-      excluded: nonOperatingBucket.entries.filter((e) => e.flow === "outflow"),
-    },
-    net: {
-      metric: "net",
-      total: netTotal,
-      entries: [...totalsBucket.inflow.entries, ...totalsBucket.outflow.entries],
-    },
-    nonOperating: {
-      metric: "nonOperating",
-      total: nonOperatingSigned,
-      entries: nonOperatingBucket.entries,
-    },
+function buildLineage(
+  revenueRecords: TransactionRecord[],
+  outflowRecords: TransactionRecord[],
+  revenueTotal: number,
+  outflowTotal: number,
+  net: number,
+  nonOperatingRecords: TransactionRecord[],
+  nonOperatingSigned: number,
+): SummaryLineage {
+  return {
+    revenue: metric("revenue", revenueTotal, "sum(amount where flow=revenue, operating)", revenueRecords),
+    outflow: metric("outflow", outflowTotal, "sum(amount where flow=outflow, operating)", outflowRecords),
+    net: metric("net", net, "revenue - outflow (operating)", [...revenueRecords, ...outflowRecords]),
+    nonOperating: metric(
+      "nonOperating",
+      nonOperatingSigned,
+      "sum(signedNet where group in Internal/Financing)",
+      nonOperatingRecords,
+    ),
   };
+}
 ```
 
 - [ ] **Step 5: Run tests to verify they pass**
 
 Run: `npx vitest run src/finance/summary.test.ts`
-Expected: PASS (new + existing). If pre-existing golden tests assert `totals` shape with `toEqual`, update them to include `nonOperating: 0` for all-operating fixtures.
+Expected: PASS (new + existing). If existing golden tests assert `totals` with `toEqual`, add `nonOperating: 0` to those expectations.
 
-- [ ] **Step 6: Full type + suite check, then commit**
+- [ ] **Step 6: Full check, then commit**
 
 ```bash
 npx tsc --noEmit
 npx vitest run src/finance
 git add src/finance/types.ts src/finance/summary.ts src/finance/summary.test.ts
-git commit -F .git/COMMIT_C2_T3.txt
+git commit -m "feat(finance): operating vs non-operating split in summary (C2)"
 ```
-Commit message: `feat(finance): operating vs non-operating split in summary (C2)`
 
 ---
 
 ## Task 4: Operating-only burn/runway in `calculateCashHealth`
 
 **Files:**
-- Modify: `src/finance/types.ts` (extend `CashHealthResult`)
+- Modify: `src/finance/types.ts`
 - Modify: `src/finance/cash-health.ts`
 - Test: `src/finance/cash-health.test.ts` (add cases)
 
 - [ ] **Step 1: Extend `CashHealthResult`**
 
-In `src/finance/types.ts`, inside `CashHealthResult` add:
+In `types.ts`:
 
 ```typescript
+export interface CashHealthResult {
+  netCash: number;
+  averageMonthlyBurn: number;
+  runwayMonths: number | null;
+  monthsCovered: number;
+  revenueTotal: number;
+  outflowTotal: number;
   /** Signed sum of non-operating rows, reported separately. */
   nonOperatingTotal: number;
+  lineage: {
+    netCash: MetricLineage;
+    averageMonthlyBurn: MetricLineage;
+    runwayMonths: MetricLineage;
+    nonOperating: MetricLineage;
+  };
+}
 ```
-
-and inside its `lineage` object type add `nonOperating: MetricLineage`.
 
 - [ ] **Step 2: Write the failing test (exit-criterion math)**
 
@@ -412,29 +427,19 @@ and inside its `lineage` object type add `nonOperating: MetricLineage`.
 // src/finance/cash-health.test.ts (add)
 import { describe, it, expect } from "vitest";
 import { calculateCashHealth } from "./cash-health";
-import type { TransactionRecord } from "./types";
-
-function rec(over: Partial<TransactionRecord>): TransactionRecord {
-  return {
-    id: "x", sourceRow: 1, date: "2026-01-01", description: "d", counterparty: "c",
-    flow: "outflow", parent: "Operating Costs", head: "Misc", subcategory: "",
-    signedNet: -1000, grossAmount: 1000, currency: "PKR", raw: {}, ...over,
-  };
-}
+import { rec } from "./classification-overrides.test";
 
 describe("calculateCashHealth operating split", () => {
-  it("excludes non-operating outflow from burn, raising runway", () => {
-    // 1 month span; one operating burn + one owner-draw now classed Internal.
+  it("excludes a non-operating owner draw from burn, raising runway", () => {
     const base = [
-      rec({ id: "in", flow: "inflow", parent: "Income", signedNet: 30000, grossAmount: 30000, date: "2026-01-01" }),
-      rec({ id: "burn", flow: "outflow", parent: "Operating Costs", signedNet: -10000, grossAmount: 10000, date: "2026-01-31" }),
-      rec({ id: "draw", flow: "outflow", parent: "Internal", signedNet: -10000, grossAmount: 10000, date: "2026-01-15" }),
+      rec({ id: "in",   flow: "revenue", parent: "Income",          amount: 30000, signedNet: 30000,  periodMonthly: "2026-01" }),
+      rec({ id: "burn", flow: "outflow", parent: "Operating Costs", amount: 10000, signedNet: -10000, periodMonthly: "2026-01" }),
+      rec({ id: "draw", flow: "outflow", parent: "Internal",        amount: 10000, signedNet: -10000, periodMonthly: "2026-01" }),
     ];
     const h = calculateCashHealth(base);
-    // operating outflow = 10000 (draw excluded); operating inflow = 30000
-    expect(h.outflowTotal).toBe(10000);
-    expect(h.nonOperatingTotal).toBe(-10000);
-    expect(h.averageMonthlyBurn).toBeLessThan(20000); // would be ~20k if draw counted
+    expect(h.outflowTotal).toBe(10000);        // draw excluded from operating outflow
+    expect(h.nonOperatingTotal).toBe(-10000);  // signed
+    expect(h.averageMonthlyBurn).toBe(10000);  // 10000 / 1 month, not 20000
   });
 });
 ```
@@ -442,56 +447,87 @@ describe("calculateCashHealth operating split", () => {
 - [ ] **Step 3: Run test to verify it fails**
 
 Run: `npx vitest run src/finance/cash-health.test.ts`
-Expected: FAIL — `nonOperatingTotal` undefined and burn includes the draw.
+Expected: FAIL — `nonOperatingTotal` undefined; burn would be 20000.
 
 - [ ] **Step 4: Implement**
 
-In `src/finance/cash-health.ts`:
+Add the import and partition at the top of `calculateCashHealth`:
 
 ```typescript
 import { isOperating } from "./operating-groups";
+import { metric } from "./summary"; // export `metric` from summary.ts (see note below)
 ```
 
-In the empty-records early return, add `nonOperatingTotal: 0` and `nonOperating: { metric: "nonOperating", total: 0, entries: [] }` to `lineage`.
+> `metric()` is currently private to `summary.ts`. Export it (`export function metric(...)`) so cash-health can build a `nonOperating` lineage identically. One-line change in `summary.ts`; add it in this task's commit.
 
-In the accumulation loop, skip non-operating rows from inflow/outflow and collect them separately. Add before the loop:
+Rewrite the body to partition first:
 
 ```typescript
-  let nonOperatingTotal = 0;
-  const nonOperatingEntries: LineageEntry[] = [];
+export function calculateCashHealth(
+  records: TransactionRecord[],
+  options: CashHealthOptions = {},
+): CashHealthResult {
+  const operatingRecords = records.filter(isOperating);
+  const nonOperatingRecords = records.filter((record) => !isOperating(record));
+
+  const revenueRecords = operatingRecords.filter((record) => record.flow === "revenue");
+  const outflowRecords = operatingRecords.filter((record) => record.flow === "outflow");
+
+  const revenueTotal = sumAmount(revenueRecords);
+  const outflowTotal = sumAmount(outflowRecords);
+  const netCash = revenueTotal - outflowTotal;
+  const nonOperatingTotal = nonOperatingRecords.reduce((t, r) => t + r.signedNet, 0);
+
+  const monthsCovered = countDistinctMonths(operatingRecords);
+  const averageMonthlyBurn = monthsCovered > 0 ? outflowTotal / monthsCovered : 0;
+  const runwayMonths = averageMonthlyBurn > 0 ? round2(netCash / averageMonthlyBurn) : null;
+
+  return {
+    netCash,
+    averageMonthlyBurn: round2(averageMonthlyBurn),
+    runwayMonths,
+    monthsCovered,
+    revenueTotal,
+    outflowTotal,
+    nonOperatingTotal,
+    lineage: {
+      ...buildCashHealthLineage({
+        revenueTotal,
+        outflowTotal,
+        netCash,
+        monthsCovered,
+        averageMonthlyBurn,
+        runwayMonths,
+        revenueRecordIds: revenueRecords.map((r) => r.id),
+        outflowRecordIds: outflowRecords.map((r) => r.id),
+      }),
+      nonOperating: metric(
+        "nonOperating",
+        nonOperatingTotal,
+        "sum(signedNet where group in Internal/Financing)",
+        nonOperatingRecords,
+      ),
+    },
+  };
+}
 ```
 
-At the top of the loop body, before the `if (record.flow === "inflow")` branch:
+> If `cash-health.ts` has its own `sumAmount`/`round2`/`countDistinctMonths` private helpers, keep using them. If `sumAmount` lives only in `summary.ts`, import it. Verify during implementation; do not duplicate.
 
-```typescript
-    if (!isOperating(record)) {
-      nonOperatingTotal += record.signedNet;
-      nonOperatingEntries.push({
-        id: record.id, date: record.date, description: record.description,
-        amount: record.signedNet, flow: record.flow,
-      });
-      // still extend min/max date so the month span reflects all activity
-      if (record.date < minDate) minDate = record.date;
-      if (record.date > maxDate) maxDate = record.date;
-      continue;
-    }
-```
-
-Add `nonOperatingTotal` to the return object and `nonOperating: { metric: "nonOperating", total: nonOperatingTotal, entries: nonOperatingEntries }` to `lineage`.
+In the empty-records early return (if present), add `nonOperatingTotal: 0` and `nonOperating: metric("nonOperating", 0, "...", [])` to `lineage`.
 
 - [ ] **Step 5: Run tests to verify they pass**
 
 Run: `npx vitest run src/finance/cash-health.test.ts`
-Expected: PASS. Update any pre-existing `toEqual` golden to include `nonOperatingTotal: 0`.
+Expected: PASS. Update any pre-existing `toEqual` golden to add `nonOperatingTotal: 0` + `lineage.nonOperating`.
 
 - [ ] **Step 6: Commit**
 
 ```bash
 npx tsc --noEmit
-git add src/finance/types.ts src/finance/cash-health.ts src/finance/cash-health.test.ts
-git commit -F .git/COMMIT_C2_T4.txt
+git add src/finance/types.ts src/finance/cash-health.ts src/finance/summary.ts src/finance/cash-health.test.ts
+git commit -m "feat(finance): operating-only burn/runway + non-operating total (C2)"
 ```
-Commit message: `feat(finance): operating-only burn/runway + non-operating total (C2)`
 
 ---
 
@@ -507,15 +543,7 @@ Commit message: `feat(finance): operating-only burn/runway + non-operating total
 // src/ui/category-review-queue.test.ts
 import { describe, it, expect } from "vitest";
 import { buildCategoryReviewSummary } from "./category-review-queue";
-import type { TransactionRecord } from "../finance/types";
-
-function rec(over: Partial<TransactionRecord>): TransactionRecord {
-  return {
-    id: "x", sourceRow: 1, date: "2026-01-01", description: "d", counterparty: "c",
-    flow: "outflow", parent: "Operating Costs", head: "Misc", subcategory: "",
-    signedNet: -1000, grossAmount: 1000, currency: "PKR", raw: {}, ...over,
-  };
-}
+import { rec } from "../finance/classification-overrides.test";
 
 describe("buildCategoryReviewSummary", () => {
   it("flags a row by non-operating group", () => {
@@ -533,17 +561,14 @@ describe("buildCategoryReviewSummary", () => {
   });
 
   it("does not flag an ordinary operating cost", () => {
-    const r = rec({ id: "a", parent: "Operating Costs", head: "Rent", counterparty: "Landlord" });
+    const r = rec({ id: "a", parent: "Operating Costs", head: "Rent", counterparty: "Landlord", subcategory: "" });
     const s = buildCategoryReviewSummary({ records: [r], overrides: new Map() });
     expect(s.items).toEqual([]);
   });
 
   it("marks a flagged row as acted when an override exists", () => {
     const r = rec({ id: "a", parent: "Financing" });
-    const s = buildCategoryReviewSummary({
-      records: [r],
-      overrides: new Map([["a", { parent: "Income" }]]),
-    });
+    const s = buildCategoryReviewSummary({ records: [r], overrides: new Map([["a", { parent: "Income" }]]) });
     expect(s.items[0].acted).toBe(true);
   });
 });
@@ -634,9 +659,8 @@ Expected: PASS (4 tests).
 
 ```bash
 git add src/ui/category-review-queue.ts src/ui/category-review-queue.test.ts
-git commit -F .git/COMMIT_C2_T5.txt
+git commit -m "feat(ui): category-review detection queue (keyword OR group) (C2)"
 ```
-Commit message: `feat(ui): category-review detection queue (keyword OR group) (C2)`
 
 ---
 
@@ -646,7 +670,7 @@ Commit message: `feat(ui): category-review detection queue (keyword OR group) (C
 - Modify: `src/finance/cockpit-kpis.ts`
 - Test: `src/finance/cockpit-kpis.test.ts` (add cases)
 
-> `deriveAuditedCockpit` stays a thin reader. It only *reads* `summary.totals.nonOperating` and a passed-in category-review count; it computes no KPI math.
+> Thin reader. It only *reads* `summary.totals.nonOperating` and a passed-in count; no KPI math.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -655,14 +679,11 @@ Commit message: `feat(ui): category-review detection queue (keyword OR group) (C
 import { describe, it, expect } from "vitest";
 import { deriveAuditedCockpit } from "./cockpit-kpis";
 
-// Build minimal summary/cashHealth/reviewSummary stubs matching their interfaces,
-// or import existing helpers already used by this test file.
-
 describe("deriveAuditedCockpit non-operating + category review", () => {
   it("exposes nonOperatingTotal and categoryReviewCount", () => {
     const cockpit = deriveAuditedCockpit({
-      summary: { totals: { nonOperating: 5000 } } as any,
-      cashHealth: {} as any,
+      summary: { totals: { revenue: 0, outflow: 0, net: 0, transactionCount: 0, nonOperating: 5000 } } as any,
+      cashHealth: { runwayMonths: null, averageMonthlyBurn: 0 } as any,
       reviewSummary: { items: [] } as any,
       categoryReviewCount: 3,
     });
@@ -679,17 +700,17 @@ Expected: FAIL — `categoryReviewCount` not accepted / fields undefined.
 
 - [ ] **Step 3: Implement**
 
-In `src/finance/cockpit-kpis.ts`, extend the interfaces and reader:
+Extend the interfaces (`cockpit-kpis.ts`):
 
 ```typescript
-export interface AuditedCockpit {
+interface AuditedCockpit {
   kpis: CockpitKpi[];
   needsReviewCount: number;
   nonOperatingTotal: number;
   categoryReviewCount: number;
 }
 
-export interface DeriveAuditedCockpitInput {
+interface DeriveAuditedCockpitInput {
   summary: FinanceSummary;
   cashHealth: CashHealthResult;
   reviewSummary: ReviewSummary;
@@ -697,12 +718,12 @@ export interface DeriveAuditedCockpitInput {
 }
 ```
 
-In the return statement add:
+In the return statement of `deriveAuditedCockpit`, add the two fields (keep `kpis`/`needsReviewCount` unchanged):
 
 ```typescript
   return {
     kpis,
-    needsReviewCount: /* existing expression */,
+    needsReviewCount,
     nonOperatingTotal: summary.totals.nonOperating,
     categoryReviewCount: input.categoryReviewCount ?? 0,
   };
@@ -718,9 +739,8 @@ Expected: PASS.
 ```bash
 npx tsc --noEmit
 git add src/finance/cockpit-kpis.ts src/finance/cockpit-kpis.test.ts
-git commit -F .git/COMMIT_C2_T6.txt
+git commit -m "feat(finance): expose non-operating + category-review counts on cockpit (C2)"
 ```
-Commit message: `feat(finance): expose non-operating + category-review counts on cockpit (C2)`
 
 ---
 
@@ -730,39 +750,28 @@ Commit message: `feat(finance): expose non-operating + category-review counts on
 - Modify: `src/finance/dashboard-view.ts`
 - Test: `src/finance/dashboard-view.test.ts` (add cases)
 
+> `buildDashboardView` does NOT build a cockpit — leave that to its caller. This task adds `overrides` + a `categoryReview` field only.
+
 - [ ] **Step 1: Write the failing test (exit-criterion at the integration seam)**
 
 ```typescript
 // src/finance/dashboard-view.test.ts (add)
 import { describe, it, expect } from "vitest";
 import { buildDashboardView } from "./dashboard-view";
-import type { TransactionRecord } from "./types";
-
-function rec(over: Partial<TransactionRecord>): TransactionRecord {
-  return {
-    id: "x", sourceRow: 1, date: "2026-01-01", description: "d", counterparty: "c",
-    flow: "outflow", parent: "Operating Costs", head: "Misc", subcategory: "",
-    signedNet: -1000, grossAmount: 1000, currency: "PKR", raw: {}, ...over,
-  };
-}
+import { rec } from "./classification-overrides.test";
 
 describe("buildDashboardView classification overrides", () => {
   const records = [
-    rec({ id: "in", flow: "inflow", parent: "Income", signedNet: 30000, grossAmount: 30000, date: "2026-01-01" }),
-    rec({ id: "burn", flow: "outflow", parent: "Operating Costs", signedNet: -10000, grossAmount: 10000, date: "2026-01-31" }),
-    rec({ id: "draw", flow: "outflow", parent: "Operating Costs", head: "Owner Draw", signedNet: -10000, grossAmount: 10000, date: "2026-01-15" }),
+    rec({ id: "in",   flow: "revenue", parent: "Income",          amount: 30000, signedNet: 30000,  periodMonthly: "2026-01" }),
+    rec({ id: "burn", flow: "outflow", parent: "Operating Costs", amount: 10000, signedNet: -10000, periodMonthly: "2026-01" }),
+    rec({ id: "draw", flow: "outflow", parent: "Operating Costs", head: "Owner Draw", amount: 10000, signedNet: -10000, periodMonthly: "2026-01" }),
   ];
 
   it("recategorizing an owner draw to Internal lowers burn and raises runway", () => {
     const before = buildDashboardView({ records });
-    const after = buildDashboardView({
-      records,
-      overrides: new Map([["draw", { parent: "Internal" }]]),
-    });
+    const after = buildDashboardView({ records, overrides: new Map([["draw", { parent: "Internal" }]]) });
     expect(after.cashHealth.averageMonthlyBurn).toBeLessThan(before.cashHealth.averageMonthlyBurn);
-    const beforeRunway = before.cashHealth.runwayMonths ?? 0;
-    const afterRunway = after.cashHealth.runwayMonths ?? 0;
-    expect(afterRunway).toBeGreaterThan(beforeRunway);
+    expect((after.cashHealth.runwayMonths ?? 0)).toBeGreaterThan(before.cashHealth.runwayMonths ?? 0);
   });
 
   it("populates categoryReview items for flagged rows", () => {
@@ -779,14 +788,14 @@ Expected: FAIL — `overrides` not accepted / `categoryReview` undefined.
 
 - [ ] **Step 3: Implement**
 
-Edit `src/finance/dashboard-view.ts`:
+Add imports:
 
 ```typescript
 import { applyClassificationOverrides, type ClassificationOverride } from "./classification-overrides";
 import { buildCategoryReviewSummary, type CategoryReviewSummary } from "../ui/category-review-queue";
 ```
 
-Extend the input/output interfaces:
+Extend the interfaces:
 
 ```typescript
 export interface DashboardViewInput {
@@ -801,45 +810,37 @@ export interface DashboardViewData {
   summary: FinanceSummary;
   cashHealth: CashHealthResult;
   reviewSummary: ReviewSummary;
-  cockpit: AuditedCockpit;
   categoryReview: CategoryReviewSummary;
   excludedTransactionIds?: string[];
 }
 ```
 
-Rewrite the body so overrides apply **first** (so detection, exclusion derivation, and KPI math all see overridden values), then C1 exclusion filters:
+Rewrite the body so overrides apply **first** (so detection, exclusion, and KPI math all see overridden values), then C1 exclusion filters. Note `buildReviewSummary` is positional:
 
 ```typescript
 export function buildDashboardView(input: DashboardViewInput): DashboardViewData {
   const { records, deriveExcludedTransactionIds, overrides } = input;
 
-  // 1. Apply reclassification overrides (new array; signedNet recomputed on flow flip).
   const overridden = applyClassificationOverrides(records, overrides ?? new Map());
 
-  // 2. C1 review detection + exclusion (runs on overridden rows).
-  const reviewSummary = buildReviewSummary({ records: overridden });
-  const excludedTransactionIds = deriveExcludedTransactionIds
-    ? deriveExcludedTransactionIds(reviewSummary)
-    : [];
-  const excludedSet = new Set(excludedTransactionIds);
-  const activeRecords = overridden.filter((r) => !excludedSet.has(r.id));
+  const reviewSummary = buildReviewSummary(overridden);
 
-  // 3. KPI math on active (post-override, post-exclusion) rows.
+  const excludedSet = computeExcludedSet(overridden, deriveExcludedTransactionIds, reviewSummary);
+  const activeRecords =
+    excludedSet.size > 0
+      ? overridden.filter((record) => !excludedSet.has(record.id))
+      : overridden;
+
   const summary = summarizeTransactions(activeRecords);
   const cashHealth = calculateCashHealth(activeRecords);
 
-  // 4. C2 category-review detection (over overridden full set so acted rows stay listed).
   const categoryReview = buildCategoryReviewSummary({
     records: overridden,
     overrides: overrides ?? new Map(),
   });
 
-  const cockpit = deriveAuditedCockpit({
-    summary,
-    cashHealth,
-    reviewSummary,
-    categoryReviewCount: categoryReview.items.filter((i) => !i.acted).length,
-  });
+  const excludedTransactionIds =
+    excludedSet.size > 0 ? Array.from(excludedSet) : undefined;
 
   return {
     records: overridden,
@@ -847,14 +848,13 @@ export function buildDashboardView(input: DashboardViewInput): DashboardViewData
     summary,
     cashHealth,
     reviewSummary,
-    cockpit,
     categoryReview,
     excludedTransactionIds,
   };
 }
 ```
 
-> Decision: `data.records` is the overridden set so all downstream consumers (reviewer/JSON export, drawer rows) read post-override values — this satisfies the spec's "export must use the overridden record set."
+> Decision: `data.records` is the overridden set so all downstream consumers (reviewer/JSON export, drawer rows) read post-override values — this satisfies the spec's "export must use the overridden record set." `computeExcludedSet` is unchanged (now fed `overridden`).
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -867,9 +867,8 @@ Expected: PASS.
 npx tsc --noEmit
 npx vitest run src/finance
 git add src/finance/dashboard-view.ts src/finance/dashboard-view.test.ts
-git commit -F .git/COMMIT_C2_T7.txt
+git commit -m "feat(finance): thread classification overrides through buildDashboardView (C2)"
 ```
-Commit message: `feat(finance): thread classification overrides through buildDashboardView (C2)`
 
 ---
 
@@ -879,7 +878,7 @@ Commit message: `feat(finance): thread classification overrides through buildDas
 - Create: `src/ui/category-review-drawer.ts`
 - Test: `src/ui/category-review-drawer.test.ts`
 
-> Read `src/ui/dashboard-cockpit-actions.ts` first to reuse its slide-in panel + focus-trap helpers rather than re-implementing them. Read `DESIGN.md` for chip/surface/44px-target rules before writing markup.
+> Read `src/ui/dashboard-cockpit-actions.ts` first to reuse its slide-in panel + focus-trap helpers. Read `DESIGN.md` for chip/surface/44px-target rules before writing markup. The select option values use the canonical flow strings (`"revenue"` / `"outflow"`).
 
 - [ ] **Step 1: Write the failing test (jsdom)**
 
@@ -901,10 +900,8 @@ describe("renderCategoryReviewDrawer", () => {
   it("renders a Type and Group select per item with current values selected", () => {
     const el = document.createElement("div");
     renderCategoryReviewDrawer(el, { items: [item()], onRecategorize: vi.fn(), onConfirm: vi.fn(), onReset: vi.fn() });
-    const flow = el.querySelector<HTMLSelectElement>('[data-role="flow-select"]');
-    const group = el.querySelector<HTMLSelectElement>('[data-role="group-select"]');
-    expect(flow?.value).toBe("outflow");
-    expect(group?.value).toBe("Operating Costs");
+    expect(el.querySelector<HTMLSelectElement>('[data-role="flow-select"]')?.value).toBe("outflow");
+    expect(el.querySelector<HTMLSelectElement>('[data-role="group-select"]')?.value).toBe("Operating Costs");
   });
 
   it("calls onRecategorize when the group select changes", () => {
@@ -940,7 +937,10 @@ import type { CategoryReviewItem } from "./category-review-queue";
 
 /** Canonical group choices the user can assign into (writes the internal taxonomy). */
 const GROUP_OPTIONS = ["Income", "Operating Costs", "Delivery Costs", "Internal", "Financing"];
-const FLOW_OPTIONS: CashFlow[] = ["inflow", "outflow"];
+const FLOW_OPTIONS: { value: CashFlow; label: string }[] = [
+  { value: "revenue", label: "Revenue (in)" },
+  { value: "outflow", label: "Outflow (out)" },
+];
 
 export interface CategoryReviewDrawerProps {
   items: CategoryReviewItem[];
@@ -949,9 +949,11 @@ export interface CategoryReviewDrawerProps {
   onReset: (id: string) => void;
 }
 
-function option(value: string, current: string): string {
-  const sel = value === current ? " selected" : "";
-  return `<option value="${value}"${sel}>${value}</option>`;
+function flowOption(o: { value: CashFlow; label: string }, current: string): string {
+  return `<option value="${o.value}"${o.value === current ? " selected" : ""}>${o.label}</option>`;
+}
+function groupOption(value: string, current: string): string {
+  return `<option value="${value}"${value === current ? " selected" : ""}>${value}</option>`;
 }
 
 export function renderCategoryReviewDrawer(
@@ -966,12 +968,12 @@ export function renderCategoryReviewDrawer(
         <div class="category-review-item__label">${it.label}</div>
         <label>Type
           <select data-role="flow-select" aria-label="Type for ${it.label}">
-            ${FLOW_OPTIONS.map((f) => option(f, it.flow)).join("")}
+            ${FLOW_OPTIONS.map((o) => flowOption(o, it.flow)).join("")}
           </select>
         </label>
         <label>Group
           <select data-role="group-select" aria-label="Group for ${it.label}">
-            ${GROUP_OPTIONS.map((g) => option(g, it.parent)).join("")}
+            ${GROUP_OPTIONS.map((g) => groupOption(g, it.parent)).join("")}
           </select>
         </label>
         <button type="button" data-role="confirm">Looks right</button>
@@ -1003,9 +1005,8 @@ Expected: PASS (3 tests).
 ```bash
 npx tsc --noEmit
 git add src/ui/category-review-drawer.ts src/ui/category-review-drawer.test.ts
-git commit -F .git/COMMIT_C2_T8.txt
+git commit -m "feat(ui): category-review drawer with Type/Group selects (C2)"
 ```
-Commit message: `feat(ui): category-review drawer with Type/Group selects (C2)`
 
 ---
 
@@ -1013,35 +1014,52 @@ Commit message: `feat(ui): category-review drawer with Type/Group selects (C2)`
 
 **Files:**
 - Modify: `src/main.ts`
-- (No new unit test — covered by Task 10 e2e. Verify by `npm run build`/manual run.)
+- (No new unit test — covered by Task 10 e2e. Verify by build + manual run.)
 
-> Read the existing `renderImportResult`, `bindReviewActions`, `setupImport`, and the `reviewExcludedItemIds` Set in `main.ts` first, plus how `RenderImportResultOptions.reopenReviewItemId` is threaded (shipped in `cbd910c`). Mirror that pattern exactly.
+> Read these in `main.ts` first: the `reviewExcludedItemIds` Set + its re-render path, the `renderImportResult` signature and its `reopenReviewItemId` option (shipped `cbd910c`), and the `deriveAuditedCockpit` call site (this is where the cockpit is actually built). Mirror the existing review-drawer pattern exactly.
 
-- [ ] **Step 1: Add the overrides map beside the exclusion set**
+- [ ] **Step 1: Add the overrides map + confirmed set beside the exclusion set**
 
-In `setupImport` (where `const reviewExcludedItemIds = new Set<string>()` lives), add:
+Where `const reviewExcludedItemIds = new Set<string>()` is declared, add:
 
 ```typescript
+import { type ClassificationOverride } from "./finance/classification-overrides";
+
 const classificationOverrides = new Map<string, ClassificationOverride>();
+const confirmedCategoryIds = new Set<string>(); // "Looks right" dismissals (no override)
 ```
-and import `ClassificationOverride` from `./finance/classification-overrides`.
 
-- [ ] **Step 2: Pass overrides into `buildDashboardView`**
+- [ ] **Step 2: Pass overrides into `buildDashboardView` and compute the cockpit count**
 
-At the existing `buildDashboardView({ records, deriveExcludedTransactionIds })` call site add `overrides: classificationOverrides`.
-
-- [ ] **Step 3: Render the two new tiles + drawer in `renderImportResult`**
-
-Add a "trust/audit" cluster row beneath the 5 core KPIs (per spec layout note; confirm against `DESIGN.md`). Render:
-- A **Non-operating** tile showing `data.cockpit.nonOperatingTotal` (formatted), hidden when `0`; clicking opens a lineage drawer fed by `data.summary.lineage.nonOperating`.
-- A **"⌗ N categories to review"** tile showing `data.cockpit.categoryReviewCount`, hidden when `0`; clicking opens the category-review drawer.
-
-Render the drawer body via `renderCategoryReviewDrawer(drawerEl, { items: data.categoryReview.items, onRecategorize, onConfirm, onReset })`.
-
-- [ ] **Step 4: Wire the action handlers to mutate overrides + re-render with reopen**
+At the `buildDashboardView({...})` call, add `overrides: classificationOverrides`. At the `deriveAuditedCockpit({...})` call, add:
 
 ```typescript
-function rerender(reopenCategoryItemId?: string) {
+categoryReviewCount: data.categoryReview.items.filter(
+  (i) => !i.acted && !confirmedCategoryIds.has(i.id),
+).length,
+```
+
+- [ ] **Step 3: Render the two new tiles + drawer**
+
+In the render path, beneath the 5 core KPI tiles, add a "trust/audit" cluster row (confirm layout against `DESIGN.md`; spec note: plan a second row, not an 8-wide strip):
+- **Non-operating** tile: `data-tile="non-operating"`, value `cockpit.nonOperatingTotal` (formatted), hidden when `0`; click opens a lineage drawer fed by `data.summary.lineage.nonOperating` (reuse the existing lineage-drawer renderer used for other KPIs).
+- **"⌗ N categories to review"** tile: `data-tile="category-review"`, value `cockpit.categoryReviewCount`, hidden when `0`; click opens the category-review drawer.
+
+Render the category drawer body with:
+
+```typescript
+renderCategoryReviewDrawer(drawerBodyEl, {
+  items: data.categoryReview.items.filter((i) => !confirmedCategoryIds.has(i.id)),
+  onRecategorize,
+  onConfirm,
+  onReset,
+});
+```
+
+- [ ] **Step 4: Wire handlers to mutate state + re-render with reopen**
+
+```typescript
+function rerenderDashboard(reopenCategoryItemId?: string) {
   const data = buildDashboardView({
     records: importedRecords,
     deriveExcludedTransactionIds,
@@ -1052,15 +1070,20 @@ function rerender(reopenCategoryItemId?: string) {
 
 const onRecategorize = (id: string, patch: ClassificationOverride) => {
   classificationOverrides.set(id, { ...classificationOverrides.get(id), ...patch });
-  rerender(id);
+  confirmedCategoryIds.delete(id); // acting supersedes a prior "looks right"
+  rerenderDashboard(id);
 };
-const onConfirm = (id: string) => { /* dismiss only: mark confirmed, no math change */ rerender(id); };
-const onReset = (id: string) => { classificationOverrides.delete(id); rerender(id); };
+const onConfirm = (id: string) => { confirmedCategoryIds.add(id); rerenderDashboard(id); };
+const onReset = (id: string) => {
+  classificationOverrides.delete(id);
+  confirmedCategoryIds.delete(id);
+  rerenderDashboard(id);
+};
 ```
 
-Extend `RenderImportResultOptions` with `reopenCategoryItemId?: string` and, after rendering, reopen the category drawer + restore focus to that item — identical to the `reopenReviewItemId` handling already in place.
+Extend `RenderImportResultOptions` with `reopenCategoryItemId?: string`, and after rendering reopen the category drawer + restore focus to that item's row — identical to the existing `reopenReviewItemId` handling. Use the row selector `[data-id="${id}"] [data-role="group-select"]` for focus restore.
 
-> "Looks right" (confirm) needs a dismissed-set so a confirmed-but-unchanged row drops out of the count without an override. Add `const confirmedCategoryIds = new Set<string>()`; `onConfirm` adds to it; subtract confirmed ids from `categoryReviewCount` and filter them out of the drawer list. (Keep this in `main.ts`; it is session UI state, not KPI math.)
+> Naming: keep `importedRecords` / `container` / `deriveExcludedTransactionIds` consistent with whatever the existing `main.ts` review path already names them. Match, don't invent.
 
 - [ ] **Step 5: Verify build + type + manual run**
 
@@ -1068,15 +1091,14 @@ Extend `RenderImportResultOptions` with `reopenCategoryItemId?: string` and, aft
 npx tsc --noEmit
 npm run build
 ```
-Then run the app (`/run`), import the Agency sample, open "categories to review", change an Owner Draw row's Group to Internal, and confirm Runway rises + a Non-operating tile appears. Expected: live re-derive, drawer reopens with focus on the row.
+Then run the app (`/run`), import the Agency sample, open "categories to review", change an Owner Draw row's Group to Internal, and confirm Runway rises + the Non-operating tile appears, the drawer reopens with focus on the row.
 
 - [ ] **Step 6: Commit**
 
 ```bash
 git add src/main.ts
-git commit -F .git/COMMIT_C2_T9.txt
+git commit -m "feat(ui): wire non-operating + category-review tiles and drawer (C2)"
 ```
-Commit message: `feat(ui): wire non-operating + category-review tiles and drawer (C2)`
 
 ---
 
@@ -1085,7 +1107,7 @@ Commit message: `feat(ui): wire non-operating + category-review tiles and drawer
 **Files:**
 - Modify: `e2e/lineage-drawer.spec.ts`
 
-> Read the existing spec first; reuse its sample-load + drawer-open helpers and the selectors established in `7be3afe`.
+> Read the existing spec first; reuse its sample-load + drawer helpers and the selectors established in `7be3afe`. Align all `data-*` selectors with what Task 9 emitted.
 
 - [ ] **Step 1: Add the failing e2e test**
 
@@ -1100,7 +1122,6 @@ test("recategorizing a row to Internal re-derives runway live", async ({ page })
   const row = page.locator('.category-review-item').first();
   await row.locator('[data-role="group-select"]').selectOption("Internal");
 
-  // drawer reopens; KPI re-derives
   await expect(page.locator('[data-tile="non-operating"]')).toBeVisible();
   const runwayAfter = await page.locator('[data-kpi="runway"] .kpi-value').innerText();
   expect(runwayAfter).not.toBe(runwayBefore);
@@ -1108,16 +1129,14 @@ test("recategorizing a row to Internal re-derives runway live", async ({ page })
 });
 ```
 
-> Adjust `data-*` selectors to match whatever Task 9 emitted; keep them stable (add them if missing).
+> Adjust selectors (`[data-kpi="runway"] .kpi-value`, tile selectors) to match the real markup from Task 9; add stable hooks there if missing.
 
-- [ ] **Step 2: Run to verify it fails (selectors absent)**
+- [ ] **Step 2: Run to verify it fails (selectors absent until Task 9 lands)**
 
 Run: `npm run test:e2e`
-Expected: FAIL until Task 9 selectors exist.
+Expected: FAIL.
 
 - [ ] **Step 3: Reconcile selectors and make it pass**
-
-Ensure Task 9 markup uses `data-tile="category-review"`, `data-tile="non-operating"`, `data-kpi="runway"`, and the drawer item selectors from Task 8. Re-run.
 
 Run: `npm run test:e2e`
 Expected: PASS (desktop + mobile).
@@ -1125,19 +1144,18 @@ Expected: PASS (desktop + mobile).
 - [ ] **Step 4: Commit**
 
 ```bash
-git add e2e/lineage-drawer.spec.ts src/main.ts
-git commit -F .git/COMMIT_C2_T10.txt
+git add e2e/lineage-drawer.spec.ts
+git commit -m "test(e2e): recategorize → live runway re-derive (C2)"
 ```
-Commit message: `test(e2e): recategorize → live runway re-derive (C2)`
 
 ---
 
 ## Final verification
 
 - [ ] `npx tsc --noEmit` → exit 0
-- [ ] `npm test` → all pass (update any pre-existing golden fixtures touched by the new `nonOperating`/`nonOperatingTotal` fields)
+- [ ] `npm test` → all pass (update any pre-existing golden fixtures touched by the new `nonOperating` / `nonOperatingTotal` fields)
 - [ ] `npm run test:e2e` → pass desktop + mobile
-- [ ] Manual: Agency sample, recategorize an owner draw → burn drops, runway rises, Non-operating tile shows the moved money. (Exit criterion from the master plan.)
+- [ ] Manual: Agency sample, recategorize an owner draw → burn drops, runway rises, Non-operating tile shows the moved money (master-plan exit criterion)
 - [ ] Update `docs/SESSION_HANDOFF_2026-05-31.md`: git state, what changed, verification run, next priority (Phase D — durable persistence of this same override map). Per the Vault Rule.
 
 ---
@@ -1146,17 +1164,20 @@ Commit message: `test(e2e): recategorize → live runway re-derive (C2)`
 
 **Spec coverage:**
 - Decision 1 (full recategorization) → Tasks 2, 7, 8.
-- Decision 2 (editable Type + Group) → Task 8 selects; Task 2 override applies `flow`/`parent`.
+- Decision 2 (editable Type + Group; Type=`flow`, Group=`parent`) → Task 2 + Task 8 selects.
 - Decision 3 (operating/non-operating split is net-new KPI logic) → Tasks 1, 3, 4.
-- Decision 4 (detection = keyword + group union) → Task 5.
+- Decision 4 (detection = keyword OR group union) → Task 5.
 - Decision 5 (separate "Category review" tile + drawer) → Tasks 6, 8, 9.
-- Decision 6 (dedicated Non-operating tile + lineage) → Tasks 3/4 lineage, Task 9 tile.
+- Decision 6 (dedicated Non-operating tile + lineage) → Tasks 3/4 lineage, Task 9 tile + lineage drawer.
 - Decision 7 (in-session only) → Task 9 `Map`; persistence deferred to Phase D (final checklist).
-- Field mapping (Type→flow, Group→parent) → Tasks 1, 8.
-- Edge cases: absent-id override → Task 2 test; flow flip recompute → Task 2; overrides+exclusions compose → Task 7 (overrides apply before C1 filter); export uses overridden set → Task 7 (`data.records` = overridden); C1/C2 single net effect → Task 7 ordering.
-- Universality: manual path writes canonical groups (Task 8 `GROUP_OPTIONS`); detection is suggestion-only (Task 5, never mutates math) — matches spec's universality section.
-- Testing list → Tasks 2–10 mirror each bullet incl. exit-criterion test (Task 7) and e2e (Task 10).
+- Edge cases: absent-id override → Task 2; flow flip recompute (using `amount`) → Task 2; overrides+exclusions compose → Task 7 (overrides apply before C1 filter, single net effect); export uses overridden set → Task 7 (`data.records` = overridden).
+- Universality: manual path writes canonical groups (Task 8 `GROUP_OPTIONS`); detection is suggestion-only (Task 5, never mutates math).
+- Testing list → Tasks 2–10 incl. exit-criterion (Task 7) and e2e (Task 10).
 
-**Gap noted & handled:** the spec's "Looks right" confirm needs session state to drop a row from the count without an override — added explicitly in Task 9 Step 4.
+**Spec corrections folded in (spec was wrong; code is source of truth):**
+1. `MetricLineage` has **no** `entries`/`excluded` — it is `{metric,total,formula,inputs,recordIds}`. Non-operating reporting is a **separate `nonOperating` `MetricLineage`** built via the shared `metric()` helper (exported from `summary.ts` in Task 4), plus filtering operating rows out of operating totals. There is no per-metric `excluded[]` list.
+2. The revenue flow value is `"revenue"`, not `"inflow"`; the magnitude field is `amount`, not `grossAmount`.
 
-**Type consistency:** `ClassificationOverride {flow?,parent?}`, `applyClassificationOverrides`, `buildCategoryReviewSummary`/`CategoryReviewSummary.items`, `CategoryReviewItem.{flow,parent,reasons,acted}`, `summary.totals.nonOperating`, `lineage.nonOperating`, `cashHealth.nonOperatingTotal`, `cockpit.{nonOperatingTotal,categoryReviewCount}` are used identically across Tasks 1–10.
+**Gap noted & handled:** "Looks right" needs session state to drop a row from the count without an override → `confirmedCategoryIds` Set added in Task 9.
+
+**Type consistency:** `ClassificationOverride {flow?,parent?}`; `applyClassificationOverrides`; `buildCategoryReviewSummary`/`CategoryReviewSummary.items`; `CategoryReviewItem.{flow,parent,reasons,acted}`; `summary.totals.nonOperating`; `summary.lineage.nonOperating`; `cashHealth.nonOperatingTotal` + `cashHealth.lineage.nonOperating`; `cockpit.{nonOperatingTotal,categoryReviewCount}` — used identically across Tasks 1–10. `buildReviewSummary(records)` and `deriveAuditedCockpit({...})` call shapes match the real signatures.
