@@ -7,6 +7,7 @@ coverage/
 # agent / tooling scratch
 .agent-bridge/
 .playwright-mcp/
+.superpowers/
 
 # playwright
 test-results/
