@@ -60,7 +60,7 @@ describe("buildDashboardView", () => {
       selectedTransactionId: "transfer-in",
       cashOnHand: 3000,
       futureEventsText: "",
-      excludedTransactionIds: ["transfer-in", "transfer-out"]
+      deriveExcludedTransactionIds: () => ["transfer-in", "transfer-out"]
     });
 
     expect(view.baseFilteredRecords.map((item) => item.id)).toEqual([

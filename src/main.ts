@@ -3,7 +3,7 @@ import type {
   CsvImportResult,
   TransactionRecord
 } from "./finance/types";
-import { summarizeTransactions, type FinanceSummary } from "./finance/summary";
+import type { FinanceSummary } from "./finance/summary";
 import { buildDashboardView } from "./finance/dashboard-view";
 import { reviewPresetLabel } from "./finance/review-presets";
 import { parseExcelWorkbook, type ParsedExcelSheet } from "./import/excel";
@@ -204,22 +204,14 @@ function renderMappingReview(
   bindMappingReview();
 }
 
-function renderImportResult(result: CsvImportResult, sourceName: string): void {
+function renderImportResult(
+  result: CsvImportResult,
+  sourceName: string,
+  options: { reopenReviewItemId?: string } = {}
+): void {
   activeImport = { result, sourceName };
   draftImport = null;
   clearButton.disabled = false;
-  const fullReviewSummary = summarizeTransactions(
-    result.records,
-    result.rejectedRows,
-    readCashOnHand(),
-    viewState.trendGrain
-  );
-  const excludedTransactionIds = deriveExcludedTransactionIdsFromQueue({
-    summary: fullReviewSummary,
-    rejectedRows: result.rejectedRows,
-    excludedReviewItemIds: reviewExcludedItemIds,
-    formatMoney
-  });
   const view = buildDashboardView({
     result,
     filters: viewState.filters,
@@ -228,8 +220,15 @@ function renderImportResult(result: CsvImportResult, sourceName: string): void {
     selectedTransactionId: viewState.selectedTransactionId,
     cashOnHand: readCashOnHand(),
     futureEventsText: readFutureEventsText(),
-    excludedTransactionIds
+    deriveExcludedTransactionIds: (reviewSummary) =>
+      deriveExcludedTransactionIdsFromQueue({
+        summary: reviewSummary,
+        rejectedRows: result.rejectedRows,
+        excludedReviewItemIds: reviewExcludedItemIds,
+        formatMoney
+      })
   });
+  const excludedTransactionIds = view.excludedTransactionIds ?? [];
   if (view.selectedTransactionId !== viewState.selectedTransactionId) {
     viewState = selectTransaction(viewState, view.selectedTransactionId);
   }
@@ -251,10 +250,11 @@ function renderImportResult(result: CsvImportResult, sourceName: string): void {
   });
   bindDashboardFilters();
   bindDashboardCockpitActions({
+    reopenReviewItemId: options.reopenReviewItemId,
     onReviewDecision: (decision) => {
       if (decision.excluded) reviewExcludedItemIds.add(decision.itemId);
       else reviewExcludedItemIds.delete(decision.itemId);
-      renderImportResult(result, sourceName);
+      renderImportResult(result, sourceName, { reopenReviewItemId: decision.itemId });
     }
   });
   bindLiveInputs();

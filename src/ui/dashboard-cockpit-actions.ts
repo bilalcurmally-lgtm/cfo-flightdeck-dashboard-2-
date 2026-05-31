@@ -7,11 +7,13 @@ export interface DashboardCockpitActionRoot {
 export interface DashboardCockpitActionBindings {
   root?: DashboardCockpitActionRoot;
   onReviewDecision?: (decision: { itemId: string; excluded: boolean }) => void;
+  reopenReviewItemId?: string;
 }
 
 export function bindDashboardCockpitActions({
   root = document,
-  onReviewDecision
+  onReviewDecision,
+  reopenReviewItemId
 }: DashboardCockpitActionBindings = {}): void {
   const panel = root.querySelector<HTMLElement>("[data-bw-lineage-panel]");
   const panelTitle = root.querySelector<HTMLElement>("[data-bw-lineage-panel-title]");
@@ -40,12 +42,20 @@ export function bindDashboardCockpitActions({
     activeTrigger = trigger;
     activeBody.innerHTML = template.innerHTML;
     panel.hidden = false;
-    panelTitle && (panelTitle.textContent = title);
+    if (panelTitle) panelTitle.textContent = title;
+    panel.setAttribute("aria-label", title);
+    closeButton.setAttribute("aria-label", `Close ${title.toLowerCase()}`);
     for (const candidate of triggers) candidate.setAttribute("aria-expanded", "false");
     for (const candidate of reviewTriggers) candidate.setAttribute("aria-expanded", "false");
     trigger.setAttribute("aria-expanded", "true");
     closeButton.focus();
     bindReviewToggles(activeBody, onReviewDecision);
+  };
+
+  const openReview = (trigger: HTMLButtonElement) => {
+    const template = root.querySelector<HTMLTemplateElement>("[data-bw-review-template]");
+    if (!template) return;
+    openTemplate(trigger, template, "Review queue");
   };
 
   for (const trigger of triggers) {
@@ -63,11 +73,17 @@ export function bindDashboardCockpitActions({
   }
 
   for (const trigger of reviewTriggers) {
-    trigger.addEventListener("click", () => {
-      const template = root.querySelector<HTMLTemplateElement>("[data-bw-review-template]");
-      if (!template) return;
-      openTemplate(trigger, template, "Review queue");
-    });
+    trigger.addEventListener("click", () => openReview(trigger));
+  }
+
+  // After a toggle re-renders the dashboard, reopen the review drawer so the
+  // user keeps their place, and restore focus to the item they just changed.
+  if (reopenReviewItemId && reviewTriggers[0]) {
+    openReview(reviewTriggers[0]);
+    const restored = activeBody.querySelector<HTMLButtonElement>(
+      `[data-bw-review-toggle="${reopenReviewItemId}"]`
+    );
+    (restored ?? closeButton).focus();
   }
 
   closeButton.addEventListener("click", close);

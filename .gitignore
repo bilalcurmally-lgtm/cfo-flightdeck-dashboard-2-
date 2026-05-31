@@ -4,6 +4,10 @@ dist/
 coverage/
 *.log
 
+# agent / tooling scratch
+.agent-bridge/
+.playwright-mcp/
+
 # playwright
 test-results/
 playwright-report/

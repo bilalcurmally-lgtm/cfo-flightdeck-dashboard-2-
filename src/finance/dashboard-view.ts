@@ -13,13 +13,16 @@ export interface DashboardViewInput {
   selectedTransactionId: string;
   cashOnHand: number;
   futureEventsText: string;
-  excludedTransactionIds?: readonly string[];
+  deriveExcludedTransactionIds?: (reviewSummary: FinanceSummary) => readonly string[];
 }
 
 export interface DashboardViewData {
   baseFilteredRecords: TransactionRecord[];
   baseSummary: FinanceSummary;
   reviewSummary: FinanceSummary;
+  // Always populated by buildDashboardView; optional so hand-built test literals
+  // (and other synthetic DashboardViewData values) don't have to restate it.
+  excludedTransactionIds?: readonly string[];
   filteredRecords: TransactionRecord[];
   summary: FinanceSummary;
   selectedTransactionId: string;
@@ -29,7 +32,6 @@ export interface DashboardViewData {
 }
 
 export function buildDashboardView(input: DashboardViewInput): DashboardViewData {
-  const excludedIds = new Set(input.excludedTransactionIds ?? []);
   const reviewFilteredRecords = filterTransactions(input.result.records, input.filters);
   const reviewSummary = summarizeTransactions(
     reviewFilteredRecords,
@@ -37,6 +39,7 @@ export function buildDashboardView(input: DashboardViewInput): DashboardViewData
     input.cashOnHand,
     input.trendGrain
   );
+  const excludedIds = new Set(input.deriveExcludedTransactionIds?.(reviewSummary) ?? []);
   const baseFilteredRecords = reviewFilteredRecords.filter((record) => !excludedIds.has(record.id));
   const baseSummary = summarizeTransactions(
     baseFilteredRecords,
@@ -68,6 +71,7 @@ export function buildDashboardView(input: DashboardViewInput): DashboardViewData
     baseFilteredRecords,
     baseSummary,
     reviewSummary,
+    excludedTransactionIds: [...excludedIds],
     filteredRecords,
     summary,
     selectedTransactionId,
