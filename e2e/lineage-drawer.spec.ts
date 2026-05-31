@@ -59,3 +59,41 @@ test("runway lineage calc tree never overlaps label and value", async ({ page },
     path: `e2e/__artifacts__/runway-${testInfo.project.name}.png`
   });
 });
+
+async function openReviewDrawer(page: Page): Promise<Locator> {
+  await page.goto("/");
+  // Agency sample carries a transfer pair, so the review queue has a
+  // toggleable item (rejected-row items have no rowIds and render no toggle).
+  await page.locator('[data-bw-sample-path="/sample-agency.csv"]').click();
+  await page.getByRole("button", { name: "Apply Mapping" }).click();
+
+  const reviewTrigger = page.locator("[data-bw-review-trigger]");
+  await expect(reviewTrigger).toBeVisible();
+  await reviewTrigger.click();
+
+  const panel = page.locator("[data-bw-lineage-panel]");
+  await expect(panel).toBeVisible();
+  return panel;
+}
+
+test("toggling a review item reopens the drawer with focus on that item", async ({ page }) => {
+  const panel = await openReviewDrawer(page);
+  const body = page.locator("[data-bw-lineage-active]");
+
+  const firstToggle = body.locator("[data-bw-review-toggle]").first();
+  await expect(firstToggle).toBeVisible();
+  const itemId = await firstToggle.getAttribute("data-bw-review-toggle");
+  const before = await firstToggle.getAttribute("aria-pressed");
+  expect(itemId, "expected a toggleable review item").toBeTruthy();
+
+  await firstToggle.click();
+
+  // The toggle re-renders the dashboard; the drawer must reopen so the user
+  // keeps their place, with focus restored to the item they just changed.
+  await expect(panel).toBeVisible();
+  const reopened = body.locator(`[data-bw-review-toggle="${itemId}"]`);
+  await expect(reopened).toBeVisible();
+  await expect(reopened).toBeFocused();
+  // ...and its state actually flipped (exclude <-> include).
+  await expect(reopened).not.toHaveAttribute("aria-pressed", before ?? "");
+});
