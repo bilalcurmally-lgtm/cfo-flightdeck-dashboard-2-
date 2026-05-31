@@ -120,6 +120,24 @@ All KPIs currently key off `record.flow` (`summary.ts`, `cash-health.ts`,
 - **Exit-criterion test:** recategorize an owner draw → avg burn drops and runway rises.
 - e2e: extend `e2e/lineage-drawer.spec.ts` to drive a recategorize and assert live re-derive.
 
+## Universality (why hardcoded vocab is acceptable here)
+
+C2 must work for any user's sheet, not just the sample data. It does, because of a clean
+separation of concerns:
+
+- **Detection only surfaces suggestions — it never changes KPIs.** The keyword list and
+  non-operating group set decide *what to show for review*. If a sheet uses unfamiliar
+  vocabulary, C2 simply suggests fewer rows; it never silently mis-states a number. Math
+  changes only when the user confirms a recategorization. (Conservative, non-blocking.)
+- **The operating/non-operating split is a canonical internal taxonomy**, not the source
+  spreadsheet's wording. The recategorize control *writes into* `Internal` / `Financing`.
+  So any row from any sheet — even one with a different group vocabulary, a different
+  language, or no group column at all — can be assigned into these buckets manually and
+  will leave operating KPIs. The manual path is fully source-agnostic.
+- The only English/data-specific piece is the **suggestion heuristic** (keyword list +
+  default non-operating group names). Making that configurable, multi-language, or
+  rule-learned is deferred to **Phase D3 (saved rules + auto-apply)** to keep C2 bounded.
+
 ## Out of scope (recorded)
 
 - Durable persistence of overrides (Phase D).
