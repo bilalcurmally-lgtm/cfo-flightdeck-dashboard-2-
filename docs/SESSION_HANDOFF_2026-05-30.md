@@ -29,14 +29,16 @@ Files: `src/finance/dashboard-view.ts`, `src/finance/dashboard-view.test.ts`,
 ## Verification run (2026-05-31)
 - `npx tsc --noEmit` → exit 0, clean
 - `npm test` (vitest) → 241 passed / 56 files, 0 failures
-- e2e (`npm run test:e2e`) NOT run this session — worth a pass given the focus
-  restore / drawer-reopen behavior touches DOM interaction.
+- `npm run test:e2e` (playwright) → 4 passed (desktop + mobile)
+- Added e2e coverage (`7be3afe`) for the drawer-reopen + focus-restore behavior
+  this session introduced — it was previously unexercised by the e2e suite.
+  The test loads the Agency sample (transfer pair => toggleable review item),
+  toggles it, and asserts the drawer reopens with focus on the toggled item and
+  aria-pressed flipped.
 
 ## Next-session priorities
-1. Run the Playwright e2e suite to confirm the drawer-reopen + focus-restore
-   behavior holds in a real browser (unit tests cover logic, not focus/DOM).
-2. Resume the Phase C review-drawer track per project roadmap (C1 shipped at
+1. Resume the Phase C review-drawer track per project roadmap (C1 shipped at
    `976ae20`; this session's work refines its rederive/focus behavior).
-3. Consider whether `DashboardViewData.excludedTransactionIds` should be
+2. Consider whether `DashboardViewData.excludedTransactionIds` should be
    non-optional now that `buildDashboardView` always populates it (it was left
    optional only to spare hand-built test literals).
