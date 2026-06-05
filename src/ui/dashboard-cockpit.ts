@@ -1,12 +1,21 @@
 import type { AuditMetric, AuditedCockpit } from "../finance/audit";
 import type { CockpitViewModel, ReviewBreakdown } from "../finance/cockpit-kpis";
+import type { NonOperatingSummary } from "../finance/non-operating";
 import { escapeHtml } from "./html";
 import { renderLineageDrawer } from "./lineage-drawer";
 import { renderReviewDrawer, type ReviewDrawerItem } from "./review-drawer";
+import { renderCategoryReviewDrawer } from "./category-review-drawer";
+import type { CategoryReviewItem } from "./category-review-queue";
 
 export interface CockpitFormatters {
   formatMoney: (value: number) => string;
   formatRunway: (months: number | null) => string;
+}
+
+/** Trust-cluster data threaded from the view model (non-operating split + category-review suggestions). */
+export interface CockpitExtras {
+  nonOperating?: NonOperatingSummary;
+  categoryItems?: readonly CategoryReviewItem[];
 }
 
 interface CockpitTile {
@@ -15,19 +24,26 @@ interface CockpitTile {
   meta?: string;
   modifier?: "primary" | "anchor" | "tight" | "review";
   metric?: AuditMetric;
+  kpi?: string;
   review?: boolean;
 }
 
 export function renderCockpitStrip(
   viewModel: CockpitViewModel | AuditedCockpit,
   formatters: CockpitFormatters,
-  reviewItems: readonly ReviewDrawerItem[] = []
+  reviewItems: readonly ReviewDrawerItem[] = [],
+  extras: CockpitExtras = {}
 ): string {
   const empty = !viewModel.hasRows;
   const reviewTotal = reviewItems.length > 0 ? reviewItems.length : viewModel.review.total;
   const showReview = reviewTotal > 0;
   const dash = "—";
   const runwayModifier = viewModel.runwayTone === "tight" ? "tight" : "anchor";
+
+  const nonOperating = extras.nonOperating;
+  const showNonOperating = !!nonOperating && (nonOperating.total !== 0 || nonOperating.rows.length > 0);
+  const categoryItems = extras.categoryItems ?? [];
+  const showCategoryReview = categoryItems.length > 0;
 
   const tiles = [
     renderTile({
@@ -60,7 +76,8 @@ export function renderCockpitStrip(
       value: empty ? dash : formatters.formatRunway(viewModel.runwayMonths),
       meta: empty ? "" : runwayMeta(viewModel, formatters),
       modifier: runwayModifier,
-      metric: "runwayMonths"
+      metric: "runwayMonths",
+      kpi: "runway"
     }),
     showReview
       ? renderTile({
@@ -70,19 +87,53 @@ export function renderCockpitStrip(
           modifier: "review",
           review: true
         })
-      : ""
+      : "",
+    showNonOperating ? renderNonOperatingTile(nonOperating!, formatters) : "",
+    showCategoryReview ? renderCategoryReviewTile(categoryItems) : ""
   ].join("");
 
   // Five metric tiles by default (Revenue, Outflow, Net cash, Avg burn, Runway);
-  // the optional review tile makes six and needs the wider grid track.
-  const rootClass = showReview ? "bw-cockpit bw-cockpit--6" : "bw-cockpit";
+  // the optional review / non-operating / category-review tiles widen the grid.
+  const tileCount =
+    5 + (showReview ? 1 : 0) + (showNonOperating ? 1 : 0) + (showCategoryReview ? 1 : 0);
+  const rootClass = tileCount > 5 ? `bw-cockpit bw-cockpit--${tileCount}` : "bw-cockpit";
   return `
     <section class="${rootClass}" role="group" aria-label="Cockpit summary">${tiles}</section>
-    ${renderLineagePanel(viewModel, formatters, reviewItems)}
+    ${renderLineagePanel(viewModel, formatters, reviewItems, nonOperating, categoryItems)}
   `;
 }
 
-function renderTile({ label, value, meta, modifier, metric, review }: CockpitTile): string {
+function renderNonOperatingTile(
+  nonOperating: NonOperatingSummary,
+  formatters: CockpitFormatters
+): string {
+  return `
+    <button class="bw-kpi bw-kpi--nonop" type="button" data-tile="non-operating" data-bw-nonop-trigger aria-expanded="false">
+      <span class="bw-kpi__label">Non-operating</span>
+      <span class="bw-kpi__value">${escapeHtml(signedMoney(nonOperating.total, formatters.formatMoney))}</span>
+      <span class="bw-kpi__meta">${escapeHtml(nonOperatingMeta(nonOperating, formatters))}</span>
+    </button>
+  `;
+}
+
+function renderCategoryReviewTile(items: readonly CategoryReviewItem[]): string {
+  return `
+    <button class="bw-kpi bw-kpi--review" type="button" data-tile="category-review" data-bw-category-trigger aria-expanded="false">
+      <span class="bw-kpi__label">Category review</span>
+      <span class="bw-kpi__value">${escapeHtml(String(items.length))}</span>
+      <span class="bw-kpi__meta">suggested recategorization${items.length === 1 ? "" : "s"}</span>
+    </button>
+  `;
+}
+
+function nonOperatingMeta(nonOperating: NonOperatingSummary, formatters: CockpitFormatters): string {
+  const parts: string[] = [];
+  if (nonOperating.revenueIn) parts.push(`${formatters.formatMoney(nonOperating.revenueIn)} in`);
+  if (nonOperating.outflowOut) parts.push(`${formatters.formatMoney(nonOperating.outflowOut)} out`);
+  return parts.length > 0 ? `${parts.join(" · ")} · kept in export` : "kept in export";
+}
+
+function renderTile({ label, value, meta, modifier, metric, kpi, review }: CockpitTile): string {
   const classes = ["bw-kpi", modifier ? `bw-kpi--${modifier}` : ""].filter(Boolean).join(" ");
   const metaClass = modifier === "anchor" || modifier === "tight" ? "bw-kpi__tone" : "bw-kpi__meta";
 
@@ -97,8 +148,9 @@ function renderTile({ label, value, meta, modifier, metric, review }: CockpitTil
   }
 
   if (metric) {
+    const kpiAttr = kpi ? ` data-kpi="${escapeHtml(kpi)}"` : "";
     return `
-      <button class="${classes}" type="button" data-bw-lineage-trigger="${escapeHtml(metric)}" aria-expanded="false">
+      <button class="${classes}" type="button" data-bw-lineage-trigger="${escapeHtml(metric)}"${kpiAttr} aria-expanded="false">
         <span class="bw-kpi__label">${escapeHtml(label)}</span>
         <span class="bw-kpi__value">${escapeHtml(value)}</span>
         ${meta ? `<span class="${metaClass}">${escapeHtml(meta)}</span>` : ""}
@@ -118,7 +170,9 @@ function renderTile({ label, value, meta, modifier, metric, review }: CockpitTil
 function renderLineagePanel(
   viewModel: CockpitViewModel | AuditedCockpit,
   formatters: CockpitFormatters,
-  reviewItems: readonly ReviewDrawerItem[]
+  reviewItems: readonly ReviewDrawerItem[],
+  nonOperating: NonOperatingSummary | undefined,
+  categoryItems: readonly CategoryReviewItem[]
 ): string {
   if (!("lineage" in viewModel)) return "";
 
@@ -145,6 +199,18 @@ function renderLineagePanel(
       })}
     </template>
   `;
+  const nonOperatingTemplate = nonOperating
+    ? `
+    <template data-bw-nonop-template>
+      ${renderNonOperatingDrawer(nonOperating, formatters)}
+    </template>
+  `
+    : "";
+  const categoryTemplate = `
+    <template data-bw-category-template>
+      ${renderCategoryReviewDrawer(categoryItems)}
+    </template>
+  `;
 
   return `
     <aside class="bw-lineage-panel" data-bw-lineage-panel role="dialog" aria-modal="false" aria-label="KPI audit trail" hidden>
@@ -154,7 +220,35 @@ function renderLineagePanel(
       </div>
       <div class="bw-lineage-panel__body" data-bw-lineage-active></div>
     </aside>
-    <div class="bw-lineage-templates" hidden>${templates}${reviewTemplate}</div>
+    <div class="bw-lineage-templates" hidden>${templates}${reviewTemplate}${nonOperatingTemplate}${categoryTemplate}</div>
+  `;
+}
+
+function renderNonOperatingDrawer(
+  nonOperating: NonOperatingSummary,
+  formatters: CockpitFormatters
+): string {
+  const rows = nonOperating.rows
+    .map(
+      (row) => `
+      <li class="bw-nonop__row">
+        <span class="bw-nonop__row-head">${escapeHtml(row.head || "Uncategorized")}</span>
+        <span class="bw-nonop__row-date">${escapeHtml(row.dateISO)}</span>
+        <span class="bw-nonop__row-flow">${escapeHtml(row.flow === "revenue" ? "in" : "out")}</span>
+        <span class="bw-nonop__row-amount">${escapeHtml(formatters.formatMoney(row.amount))}</span>
+      </li>`
+    )
+    .join("");
+  return `
+    <section class="bw-nonop" role="region" aria-label="Non-operating money">
+      <p class="bw-nonop__intro">Internal transfers and financing moved out of operating KPIs. These rows stay in your export.</p>
+      <ul class="bw-nonop__totals">
+        <li><span>In</span><strong>${escapeHtml(formatters.formatMoney(nonOperating.revenueIn))}</strong></li>
+        <li><span>Out</span><strong>${escapeHtml(formatters.formatMoney(nonOperating.outflowOut))}</strong></li>
+        <li><span>Net</span><strong>${escapeHtml(signedMoney(nonOperating.total, formatters.formatMoney))}</strong></li>
+      </ul>
+      <ul class="bw-nonop__rows">${rows}</ul>
+    </section>
   `;
 }
 

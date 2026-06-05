@@ -1169,6 +1169,83 @@ th {
   grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 
+.bw-cockpit--7 {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.bw-cockpit--8 {
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+}
+
+.bw-kpi--nonop .bw-kpi__value {
+  color: var(--color-accent);
+}
+
+.bw-nonop {
+  display: grid;
+  gap: 12px;
+}
+
+.bw-nonop__intro {
+  margin: 0;
+  color: var(--color-ink-soft);
+  font-size: 0.85rem;
+}
+
+.bw-nonop__totals {
+  display: flex;
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bw-nonop__totals li {
+  display: grid;
+  gap: 2px;
+}
+
+.bw-nonop__totals span {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.bw-nonop__totals strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.bw-nonop__rows {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background: var(--color-line);
+  border: 1px solid var(--color-line);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.bw-nonop__row {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 10px;
+  background: var(--color-panel);
+  font-size: 0.82rem;
+}
+
+.bw-nonop__row-date,
+.bw-nonop__row-flow {
+  color: var(--color-muted);
+}
+
+.bw-nonop__row-amount {
+  font-variant-numeric: tabular-nums;
+}
+
 .bw-kpi {
   display: grid;
   min-width: 0;

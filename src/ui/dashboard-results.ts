@@ -51,7 +51,10 @@ export function renderDashboardResults(input: DashboardResultsRenderInput): stri
     ${renderCockpitStrip(cockpit, {
       formatMoney: input.formatMoney,
       formatRunway: input.formatRunway
-    }, reviewItems)}
+    }, reviewItems, {
+      nonOperating: input.view.nonOperating,
+      categoryItems: input.view.categoryReview.items
+    })}
     ${renderDashboardFilterPanel({
       records: input.result.records,
       filteredRecordCount: input.view.filteredRecords.length,
