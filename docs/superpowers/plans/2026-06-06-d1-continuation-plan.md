@@ -1,6 +1,6 @@
 # D1 Continuation Plan — persistence + wiring (next session)
 
-> Context: D1 foundation is committed on `codex/a1-audit-model` (tip `c46fba2`):
+> Context: D1 foundation is committed on `codex/a1-audit-model`:
 > `txnSignature` + `signLedger` + in-memory `workspaceStore` facade, all pure,
 > reviewed + KEEP'd by Claude and Codex. This plan continues D1 toward the real
 > "exclude/recategorize → reload → it persists" exit criterion (master plan §3.3).

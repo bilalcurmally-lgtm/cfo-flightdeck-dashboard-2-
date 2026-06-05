@@ -9,7 +9,7 @@ pushed to origin, no PR yet.
 
 ## Git state
 - Branch: `codex/a1-audit-model`
-- Close-out docs commit: **`0c5896f`**
+- Close-out docs are committed and pushed on this branch.
 - Working tree clean except untracked `mcps/` (pre-existing, unrelated).
 - Pushed to origin / no PR.
 
