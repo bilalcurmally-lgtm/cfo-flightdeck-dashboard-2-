@@ -76,6 +76,27 @@ async function openReviewDrawer(page: Page): Promise<Locator> {
   return panel;
 }
 
+async function loadAgencySample(page: Page): Promise<void> {
+  await page.goto("/");
+  await page.locator('[data-bw-sample-path="/sample-agency.csv"]').click();
+  await page.getByRole("button", { name: "Apply Mapping" }).click();
+  // Runway is cashOnHand / averageMonthlyOutflow, so cash must be set for a
+  // non-null runway that can move when an outflow leaves operating KPIs.
+  await page.locator("#cash-on-hand").fill("50000");
+  await expect(page.locator('[data-kpi="runway"]')).toBeVisible();
+}
+
+test("recategorizing a row to Internal re-derives runway live", async ({ page }) => {
+  await loadAgencySample(page);
+  const before = await page.locator('[data-kpi="runway"] .bw-kpi__value').innerText();
+  await page.locator('[data-tile="category-review"]').click();
+  const row = page.locator(".category-review-item").first();
+  await row.locator('[data-role="group-select"]').selectOption("Internal");
+  await expect(page.locator('[data-tile="non-operating"]')).toBeVisible();
+  expect(await page.locator('[data-kpi="runway"] .bw-kpi__value').innerText()).not.toBe(before);
+  await expect(row.locator('[data-role="group-select"]')).toBeFocused();
+});
+
 test("toggling a review item reopens the drawer with focus on that item", async ({ page }) => {
   const panel = await openReviewDrawer(page);
   const body = page.locator("[data-bw-lineage-active]");
