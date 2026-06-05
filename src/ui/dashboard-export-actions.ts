@@ -35,6 +35,9 @@ export interface DashboardExportActionBindings {
   visibleRecords: TransactionRecord[];
   getActiveImport: () => ActiveExportImport | null;
   getReviewerExportResult?: () => CsvImportResult | null;
+  // Full-ledger export records with in-session Type/Group overrides applied (no
+  // row removal). Falls back to the untouched import when not provided.
+  getFullExportRecords?: () => TransactionRecord[];
   getCashOnHand: () => number;
   getFutureEventsText: () => string;
   getTrendGrain: () => PeriodGrain;
@@ -52,6 +55,7 @@ export function bindDashboardExportActions({
   visibleRecords,
   getActiveImport,
   getReviewerExportResult,
+  getFullExportRecords,
   getCashOnHand,
   getFutureEventsText,
   getTrendGrain,
@@ -83,7 +87,8 @@ export function bindDashboardExportActions({
     const activeImport = getActiveImport();
     if (!activeImport) return;
 
-    const csv = buildTransactionsCsvExport(activeImport.sourceName, activeImport.result.records, now());
+    const records = getFullExportRecords?.() ?? activeImport.result.records;
+    const csv = buildTransactionsCsvExport(activeImport.sourceName, records, now());
     downloads.text(csv.filename, csv.contents, csv.mediaType);
   });
 
@@ -91,9 +96,10 @@ export function bindDashboardExportActions({
     const activeImport = getActiveImport();
     if (!activeImport) return;
 
+    const records = getFullExportRecords?.() ?? activeImport.result.records;
     const workbook = buildTransactionsWorkbookExport(
       activeImport.sourceName,
-      activeImport.result.records,
+      records,
       now()
     );
     downloads.blob(workbook.filename, workbook.blob);

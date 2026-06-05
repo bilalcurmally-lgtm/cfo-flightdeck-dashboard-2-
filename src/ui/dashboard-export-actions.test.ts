@@ -71,6 +71,42 @@ describe("bindDashboardExportActions", () => {
     expect(printCount).toBe(1);
   });
 
+  it("uses overridden records for the full transaction CSV/XLSX export when provided", () => {
+    const csvButton = button();
+    const captured: string[] = [];
+    const overridden: TransactionRecord = { ...record(), parent: "Internal", flow: "outflow", signedNet: -100 };
+
+    bindDashboardExportActions({
+      root: root({ "#export-transactions": csvButton }),
+      status: { textContent: "" },
+      visibleSummary: summary(),
+      visibleRecords: [record()],
+      getActiveImport: () => ({ result: importResult(), sourceName: "sample.csv" }),
+      getFullExportRecords: () => [overridden],
+      getCashOnHand: () => 0,
+      getFutureEventsText: () => "",
+      getTrendGrain: () => "monthly",
+      getReviewPreset: () => "all",
+      getCurrency: () => "USD",
+      downloads: {
+        blob: () => undefined,
+        json: () => undefined,
+        text: (_filename, contents) => {
+          captured.push(contents);
+        }
+      },
+      now: () => new Date("2026-05-04T12:00:00.000Z")
+    });
+
+    csvButton.fire("click");
+
+    // The full-ledger CSV must reflect the in-session Group override (Income -> Internal),
+    // not the untouched active-import classification.
+    expect(captured).toHaveLength(1);
+    expect(captured[0]).toContain("Internal");
+    expect(captured[0]).not.toContain("Income");
+  });
+
   it("uses reviewed records for reviewer JSON when review exclusions are active", () => {
     const reviewerButton = button();
     let reviewerPayload: unknown;

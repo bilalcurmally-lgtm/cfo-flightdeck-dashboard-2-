@@ -246,9 +246,10 @@ function renderImportResult(
       })
   });
   const excludedTransactionIds = view.excludedTransactionIds ?? [];
-  // Rows confirmed "Looks right" leave the queue/tile without an override.
+  // Rows confirmed "Looks right" leave the queue/tile — UNLESS they still carry an
+  // active override, so the user can always reach Reset (P2: confirm-then-stuck).
   const visibleCategoryItems = view.categoryReview.items.filter(
-    (item) => !confirmedCategoryIds.has(item.id)
+    (item) => !confirmedCategoryIds.has(item.id) || classificationOverrides.has(item.id)
   );
   const displayView = {
     ...view,
@@ -299,11 +300,14 @@ function renderImportResult(
   });
   bindLiveInputs();
   // Export reflects in-session Type/Group edits (overridden records); non-operating
-  // rows stay because they are not in excludedTransactionIds.
+  // rows stay because they are not in excludedTransactionIds. The full-ledger
+  // export gets every row with overrides applied (no removal); the reviewer report
+  // gets overrides + review-exclusions removed.
   bindExportButton(
     view.summary,
     view.filteredRecords,
-    reviewedImportResult(result, classificationOverrides, excludedTransactionIds)
+    reviewedImportResult(result, classificationOverrides, excludedTransactionIds),
+    applyClassificationOverrides(result.records, classificationOverrides)
   );
   bindTransactionPreview();
 }
@@ -361,7 +365,8 @@ function bindLiveInputs(): void {
 function bindExportButton(
   visibleSummary: FinanceSummary,
   visibleRecords: TransactionRecord[],
-  reviewerResult: CsvImportResult
+  reviewerResult: CsvImportResult,
+  fullExportRecords: TransactionRecord[]
 ): void {
   bindDashboardExportActions({
     status,
@@ -369,6 +374,7 @@ function bindExportButton(
     visibleRecords,
     getActiveImport: () => activeImport,
     getReviewerExportResult: () => reviewerResult,
+    getFullExportRecords: () => fullExportRecords,
     getCashOnHand: readCashOnHand,
     getFutureEventsText: readFutureEventsText,
     getTrendGrain: () => viewState.trendGrain,
