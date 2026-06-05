@@ -5,6 +5,10 @@ import type {
 } from "./finance/types";
 import type { FinanceSummary } from "./finance/summary";
 import { buildDashboardView } from "./finance/dashboard-view";
+import {
+  applyClassificationOverrides,
+  type ClassificationOverride
+} from "./finance/classification-overrides";
 import { reviewPresetLabel } from "./finance/review-presets";
 import { parseExcelWorkbook, type ParsedExcelSheet } from "./import/excel";
 import { classifyImportFile } from "./import/files";
@@ -57,6 +61,12 @@ let settings: AppSettings = loadSettings();
 let viewState = createDashboardViewState();
 let referenceOpen = false;
 const reviewExcludedItemIds = new Set<string>();
+// In-session Type/Group recategorizations (C2). Pure & reversible: dropping an
+// entry restores the original classification.
+const classificationOverrides = new Map<string, ClassificationOverride>();
+// Rows the user marked "Looks right" without changing them — cleared from the
+// category-review queue without an override.
+const confirmedCategoryIds = new Set<string>();
 
 document.querySelector<HTMLDivElement>("#app")!.innerHTML = renderAppShell(SAMPLE_DATASETS);
 
@@ -97,6 +107,8 @@ clearButton.addEventListener("click", () => {
   draftImport = null;
   resetDashboardViewState();
   reviewExcludedItemIds.clear();
+  classificationOverrides.clear();
+  confirmedCategoryIds.clear();
   fileInput.value = "";
   paintPreImport();
   status.textContent = "Import cleared. Waiting for a CSV or Excel file.";
@@ -168,6 +180,8 @@ function renderWorksheetPicker(sourceName: string, sheets: ParsedExcelSheet[]): 
   draftImport = null;
   resetDashboardViewState();
   reviewExcludedItemIds.clear();
+  classificationOverrides.clear();
+  confirmedCategoryIds.clear();
   clearButton.disabled = false;
 
   if (sheets.length === 1) {
@@ -194,6 +208,8 @@ function renderMappingReview(
   draftImport = { result, sourceName, source };
   resetDashboardViewState();
   reviewExcludedItemIds.clear();
+  classificationOverrides.clear();
+  confirmedCategoryIds.clear();
   clearButton.disabled = false;
 
   status.textContent = `${sourceName}: review detected columns before calculations render.`;
@@ -207,7 +223,7 @@ function renderMappingReview(
 function renderImportResult(
   result: CsvImportResult,
   sourceName: string,
-  options: { reopenReviewItemId?: string } = {}
+  options: { reopenReviewItemId?: string; reopenCategoryItemId?: string } = {}
 ): void {
   activeImport = { result, sourceName };
   draftImport = null;
@@ -220,6 +236,7 @@ function renderImportResult(
     selectedTransactionId: viewState.selectedTransactionId,
     cashOnHand: readCashOnHand(),
     futureEventsText: readFutureEventsText(),
+    overrides: classificationOverrides,
     deriveExcludedTransactionIds: (reviewSummary) =>
       deriveExcludedTransactionIdsFromQueue({
         summary: reviewSummary,
@@ -229,6 +246,14 @@ function renderImportResult(
       })
   });
   const excludedTransactionIds = view.excludedTransactionIds ?? [];
+  // Rows confirmed "Looks right" leave the queue/tile without an override.
+  const visibleCategoryItems = view.categoryReview.items.filter(
+    (item) => !confirmedCategoryIds.has(item.id)
+  );
+  const displayView = {
+    ...view,
+    categoryReview: { items: visibleCategoryItems }
+  };
   if (view.selectedTransactionId !== viewState.selectedTransactionId) {
     viewState = selectTransaction(viewState, view.selectedTransactionId);
   }
@@ -236,7 +261,7 @@ function renderImportResult(
   results.innerHTML = renderDashboardResults({
     result,
     sourceName,
-    view,
+    view: displayView,
     activeFilters: viewState.filters,
     activeTrendGrain: viewState.trendGrain,
     activeReviewPreset: viewState.reviewPreset,
@@ -251,14 +276,35 @@ function renderImportResult(
   bindDashboardFilters();
   bindDashboardCockpitActions({
     reopenReviewItemId: options.reopenReviewItemId,
+    reopenCategoryItemId: options.reopenCategoryItemId,
     onReviewDecision: (decision) => {
       if (decision.excluded) reviewExcludedItemIds.add(decision.itemId);
       else reviewExcludedItemIds.delete(decision.itemId);
       renderImportResult(result, sourceName, { reopenReviewItemId: decision.itemId });
+    },
+    onRecategorize: (id, patch) => {
+      classificationOverrides.set(id, { ...classificationOverrides.get(id), ...patch });
+      confirmedCategoryIds.delete(id);
+      renderImportResult(result, sourceName, { reopenCategoryItemId: id });
+    },
+    onConfirmCategory: (id) => {
+      confirmedCategoryIds.add(id);
+      renderImportResult(result, sourceName, { reopenCategoryItemId: id });
+    },
+    onResetCategory: (id) => {
+      classificationOverrides.delete(id);
+      confirmedCategoryIds.delete(id);
+      renderImportResult(result, sourceName, { reopenCategoryItemId: id });
     }
   });
   bindLiveInputs();
-  bindExportButton(view.summary, view.filteredRecords, reviewedImportResult(result, excludedTransactionIds));
+  // Export reflects in-session Type/Group edits (overridden records); non-operating
+  // rows stay because they are not in excludedTransactionIds.
+  bindExportButton(
+    view.summary,
+    view.filteredRecords,
+    reviewedImportResult(result, classificationOverrides, excludedTransactionIds)
+  );
   bindTransactionPreview();
 }
 
@@ -333,14 +379,15 @@ function bindExportButton(
 
 function reviewedImportResult(
   result: CsvImportResult,
+  overrides: Map<string, ClassificationOverride>,
   excludedTransactionIds: readonly string[]
 ): CsvImportResult {
-  if (excludedTransactionIds.length === 0) return result;
+  if (overrides.size === 0 && excludedTransactionIds.length === 0) return result;
   const excluded = new Set(excludedTransactionIds);
-  return {
-    ...result,
-    records: result.records.filter((record) => !excluded.has(record.id))
-  };
+  const records = applyClassificationOverrides(result.records, overrides).filter(
+    (record) => !excluded.has(record.id)
+  );
+  return { ...result, records };
 }
 
 function formatMoney(value: number): string {

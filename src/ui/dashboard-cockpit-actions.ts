@@ -1,3 +1,6 @@
+import type { CashFlow } from "../finance/types";
+import type { ClassificationOverride } from "../finance/classification-overrides";
+
 export interface DashboardCockpitActionRoot {
   querySelector<T extends Element = Element>(selector: string): T | null;
   querySelectorAll<T extends Element = Element>(selector: string): NodeListOf<T> | T[];
@@ -8,12 +11,20 @@ export interface DashboardCockpitActionBindings {
   root?: DashboardCockpitActionRoot;
   onReviewDecision?: (decision: { itemId: string; excluded: boolean }) => void;
   reopenReviewItemId?: string;
+  onRecategorize?: (id: string, patch: ClassificationOverride) => void;
+  onConfirmCategory?: (id: string) => void;
+  onResetCategory?: (id: string) => void;
+  reopenCategoryItemId?: string;
 }
 
 export function bindDashboardCockpitActions({
   root = document,
   onReviewDecision,
-  reopenReviewItemId
+  reopenReviewItemId,
+  onRecategorize,
+  onConfirmCategory,
+  onResetCategory,
+  reopenCategoryItemId
 }: DashboardCockpitActionBindings = {}): void {
   const panel = root.querySelector<HTMLElement>("[data-bw-lineage-panel]");
   const panelTitle = root.querySelector<HTMLElement>("[data-bw-lineage-panel-title]");
@@ -25,15 +36,26 @@ export function bindDashboardCockpitActions({
   const reviewTriggers = Array.from(
     root.querySelectorAll<HTMLButtonElement>("[data-bw-review-trigger]")
   );
+  const nonOperatingTriggers = Array.from(
+    root.querySelectorAll<HTMLButtonElement>("[data-bw-nonop-trigger]")
+  );
+  const categoryTriggers = Array.from(
+    root.querySelectorAll<HTMLButtonElement>("[data-bw-category-trigger]")
+  );
+  const allTriggers = [
+    ...triggers,
+    ...reviewTriggers,
+    ...nonOperatingTriggers,
+    ...categoryTriggers
+  ];
   let activeTrigger: HTMLButtonElement | null = null;
 
-  if (!panel || !activeBody || !closeButton || (triggers.length === 0 && reviewTriggers.length === 0)) return;
+  if (!panel || !activeBody || !closeButton || allTriggers.length === 0) return;
 
   const close = () => {
     panel.hidden = true;
     activeBody.innerHTML = "";
-    for (const trigger of triggers) trigger.setAttribute("aria-expanded", "false");
-    for (const trigger of reviewTriggers) trigger.setAttribute("aria-expanded", "false");
+    for (const trigger of allTriggers) trigger.setAttribute("aria-expanded", "false");
     activeTrigger?.focus();
     activeTrigger = null;
   };
@@ -45,17 +67,29 @@ export function bindDashboardCockpitActions({
     if (panelTitle) panelTitle.textContent = title;
     panel.setAttribute("aria-label", title);
     closeButton.setAttribute("aria-label", `Close ${title.toLowerCase()}`);
-    for (const candidate of triggers) candidate.setAttribute("aria-expanded", "false");
-    for (const candidate of reviewTriggers) candidate.setAttribute("aria-expanded", "false");
+    for (const candidate of allTriggers) candidate.setAttribute("aria-expanded", "false");
     trigger.setAttribute("aria-expanded", "true");
     closeButton.focus();
     bindReviewToggles(activeBody, onReviewDecision);
+    bindCategoryControls(activeBody, { onRecategorize, onConfirmCategory, onResetCategory });
   };
 
   const openReview = (trigger: HTMLButtonElement) => {
     const template = root.querySelector<HTMLTemplateElement>("[data-bw-review-template]");
     if (!template) return;
     openTemplate(trigger, template, "Review queue");
+  };
+
+  const openNonOperating = (trigger: HTMLButtonElement) => {
+    const template = root.querySelector<HTMLTemplateElement>("[data-bw-nonop-template]");
+    if (!template) return;
+    openTemplate(trigger, template, "Non-operating money");
+  };
+
+  const openCategory = (trigger: HTMLButtonElement) => {
+    const template = root.querySelector<HTMLTemplateElement>("[data-bw-category-template]");
+    if (!template) return;
+    openTemplate(trigger, template, "Category review");
   };
 
   for (const trigger of triggers) {
@@ -76,12 +110,30 @@ export function bindDashboardCockpitActions({
     trigger.addEventListener("click", () => openReview(trigger));
   }
 
+  for (const trigger of nonOperatingTriggers) {
+    trigger.addEventListener("click", () => openNonOperating(trigger));
+  }
+
+  for (const trigger of categoryTriggers) {
+    trigger.addEventListener("click", () => openCategory(trigger));
+  }
+
   // After a toggle re-renders the dashboard, reopen the review drawer so the
   // user keeps their place, and restore focus to the item they just changed.
   if (reopenReviewItemId && reviewTriggers[0]) {
     openReview(reviewTriggers[0]);
     const restored = activeBody.querySelector<HTMLButtonElement>(
       `[data-bw-review-toggle="${reopenReviewItemId}"]`
+    );
+    (restored ?? closeButton).focus();
+  }
+
+  // Same place-keeping for a recategorization: reopen the category drawer and
+  // restore focus to the Group select of the row the user just changed.
+  if (reopenCategoryItemId && categoryTriggers[0]) {
+    openCategory(categoryTriggers[0]);
+    const restored = activeBody.querySelector<HTMLElement>(
+      `[data-category-id="${reopenCategoryItemId}"][data-role="group-select"]`
     );
     (restored ?? closeButton).focus();
   }
@@ -138,6 +190,57 @@ function bindReviewToggles(
         itemId,
         excluded: toggle.getAttribute("aria-pressed") !== "true"
       });
+    });
+  }
+}
+
+function bindCategoryControls(
+  activeBody: HTMLElement,
+  handlers: Pick<
+    DashboardCockpitActionBindings,
+    "onRecategorize" | "onConfirmCategory" | "onResetCategory"
+  >
+): void {
+  const { onRecategorize, onConfirmCategory, onResetCategory } = handlers;
+  if (!onRecategorize && !onConfirmCategory && !onResetCategory) return;
+
+  const flowSelects = Array.from(
+    activeBody.querySelectorAll<HTMLSelectElement>('[data-role="flow-select"]')
+  );
+  for (const select of flowSelects) {
+    select.addEventListener("change", () => {
+      const id = select.dataset.categoryId;
+      if (id) onRecategorize?.(id, { flow: select.value as CashFlow });
+    });
+  }
+
+  const groupSelects = Array.from(
+    activeBody.querySelectorAll<HTMLSelectElement>('[data-role="group-select"]')
+  );
+  for (const select of groupSelects) {
+    select.addEventListener("change", () => {
+      const id = select.dataset.categoryId;
+      if (id) onRecategorize?.(id, { parent: select.value });
+    });
+  }
+
+  const confirmButtons = Array.from(
+    activeBody.querySelectorAll<HTMLButtonElement>('[data-role="confirm"]')
+  );
+  for (const button of confirmButtons) {
+    button.addEventListener("click", () => {
+      const id = button.dataset.categoryId;
+      if (id) onConfirmCategory?.(id);
+    });
+  }
+
+  const resetButtons = Array.from(
+    activeBody.querySelectorAll<HTMLButtonElement>('[data-role="reset"]')
+  );
+  for (const button of resetButtons) {
+    button.addEventListener("click", () => {
+      const id = button.dataset.categoryId;
+      if (id) onResetCategory?.(id);
     });
   }
 }
