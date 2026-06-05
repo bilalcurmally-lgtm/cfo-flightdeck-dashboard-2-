@@ -104,7 +104,9 @@ function dashboardView(selectedRecord: TransactionRecord): DashboardViewData {
     selectedTransactionId: selectedRecord.id,
     selectedRecord,
     futureEventsText: "2026-04-15, -1200, quarterly tax",
-    forecast: forecast()
+    forecast: forecast(),
+    nonOperating: { total: 0, revenueIn: 0, outflowOut: 0, rows: [] },
+    categoryReview: { items: [] }
   };
 }
 

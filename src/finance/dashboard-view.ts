@@ -4,6 +4,16 @@ import { applyReviewPreset, type ReviewPreset } from "./review-presets";
 import type { ExclusionRef, MetricLineage } from "./audit";
 import { summarizeTransactions, type FinanceSummary } from "./summary";
 import type { CsvImportResult, PeriodGrain, TransactionRecord } from "./types";
+import {
+  applyClassificationOverrides,
+  type ClassificationOverride
+} from "./classification-overrides";
+import { isOperating } from "./operating-groups";
+import { summarizeNonOperating, type NonOperatingSummary } from "./non-operating";
+import {
+  buildCategoryReviewSummary,
+  type CategoryReviewSummary
+} from "../ui/category-review-queue";
 
 export interface DashboardViewInput {
   result: CsvImportResult;
@@ -14,6 +24,7 @@ export interface DashboardViewInput {
   cashOnHand: number;
   futureEventsText: string;
   deriveExcludedTransactionIds?: (reviewSummary: FinanceSummary) => readonly string[];
+  overrides?: Map<string, ClassificationOverride>;
 }
 
 export interface DashboardViewData {
@@ -29,18 +40,31 @@ export interface DashboardViewData {
   selectedRecord: TransactionRecord | null;
   futureEventsText: string;
   forecast: ForecastResult;
+  nonOperating: NonOperatingSummary;
+  categoryReview: CategoryReviewSummary;
 }
 
 export function buildDashboardView(input: DashboardViewInput): DashboardViewData {
-  const reviewFilteredRecords = filterTransactions(input.result.records, input.filters);
+  const overrides = input.overrides ?? new Map<string, ClassificationOverride>();
+  const overridden = applyClassificationOverrides(input.result.records, overrides);
+  const reviewFilteredRecords = filterTransactions(overridden, input.filters);
+
   const reviewSummary = summarizeTransactions(
     reviewFilteredRecords,
     input.result.rejectedRows,
     input.cashOnHand,
     input.trendGrain
   );
-  const excludedIds = new Set(input.deriveExcludedTransactionIds?.(reviewSummary) ?? []);
-  const baseFilteredRecords = reviewFilteredRecords.filter((record) => !excludedIds.has(record.id));
+
+  const reviewExcludedIds = new Set(input.deriveExcludedTransactionIds?.(reviewSummary) ?? []);
+  const nonOperatingIds = new Set(
+    reviewFilteredRecords.filter((record) => !isOperating(record)).map((record) => record.id)
+  );
+  const operatingExcludedIds = new Set([...reviewExcludedIds, ...nonOperatingIds]);
+
+  const baseFilteredRecords = reviewFilteredRecords.filter(
+    (record) => !operatingExcludedIds.has(record.id)
+  );
   const baseSummary = summarizeTransactions(
     baseFilteredRecords,
     input.result.rejectedRows,
@@ -48,12 +72,26 @@ export function buildDashboardView(input: DashboardViewInput): DashboardViewData
     input.trendGrain
   );
   const filteredRecords = applyReviewPreset(baseFilteredRecords, baseSummary, input.reviewPreset);
-  const summary = withReviewExclusions(summarizeTransactions(
-    filteredRecords,
-    input.result.rejectedRows,
-    input.cashOnHand,
-    input.trendGrain
-  ), reviewFilteredRecords.filter((record) => excludedIds.has(record.id)));
+
+  const excludedRecords = reviewFilteredRecords.filter((record) =>
+    operatingExcludedIds.has(record.id)
+  );
+  const summary = withReviewExclusions(
+    summarizeTransactions(
+      filteredRecords,
+      input.result.rejectedRows,
+      input.cashOnHand,
+      input.trendGrain
+    ),
+    excludedRecords,
+    (record) => nonOperatingIds.has(record.id)
+  );
+
+  const nonOperating = summarizeNonOperating(
+    reviewFilteredRecords.filter((record) => nonOperatingIds.has(record.id))
+  );
+  const categoryReview = buildCategoryReviewSummary({ records: overridden, overrides });
+
   const selectedTransactionId = filteredRecords.some(
     (record) => record.id === input.selectedTransactionId
   )
@@ -71,29 +109,37 @@ export function buildDashboardView(input: DashboardViewInput): DashboardViewData
     baseFilteredRecords,
     baseSummary,
     reviewSummary,
-    excludedTransactionIds: [...excludedIds],
+    // Export removal = review exclusions only; non-operating rows stay in the export.
+    excludedTransactionIds: [...reviewExcludedIds],
     filteredRecords,
     summary,
     selectedTransactionId,
     selectedRecord,
     futureEventsText: input.futureEventsText,
-    forecast
+    forecast,
+    nonOperating,
+    categoryReview
   };
 }
 
 function withReviewExclusions(
   summary: FinanceSummary,
-  excludedRecords: readonly TransactionRecord[]
+  excludedRecords: readonly TransactionRecord[],
+  isNonOperating: (record: TransactionRecord) => boolean
 ): FinanceSummary {
   if (excludedRecords.length === 0) return summary;
 
+  const reasonFor = (record: TransactionRecord) =>
+    isNonOperating(record) ? "non-operating (Internal/Financing)" : "excluded in review drawer";
+  const toExcl = (record: TransactionRecord) => toReviewExclusion(record, reasonFor(record));
+
   const revenueExclusions = excludedRecords
     .filter((record) => record.flow === "revenue")
-    .map(toReviewExclusion);
+    .map(toExcl);
   const outflowExclusions = excludedRecords
     .filter((record) => record.flow === "outflow")
-    .map(toReviewExclusion);
-  const allExclusions = excludedRecords.map(toReviewExclusion);
+    .map(toExcl);
+  const allExclusions = excludedRecords.map(toExcl);
 
   return {
     ...summary,
@@ -124,10 +170,10 @@ function appendExclusions(
     : { ...lineage, excluded: [...lineage.excluded, ...exclusions] };
 }
 
-function toReviewExclusion(record: TransactionRecord): ExclusionRef {
+function toReviewExclusion(record: TransactionRecord, reason: string): ExclusionRef {
   return {
     id: record.id,
-    reason: "excluded in review drawer",
+    reason,
     confidence: "medium"
   };
 }

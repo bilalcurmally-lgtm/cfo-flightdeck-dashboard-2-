@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_FILTERS } from "./filters";
 import { buildDashboardView } from "./dashboard-view";
+import { rec } from "./classification-overrides.test";
 import type { CsvImportResult, TransactionRecord } from "./types";
 
 describe("buildDashboardView", () => {
@@ -86,6 +87,23 @@ describe("buildDashboardView", () => {
     expect(view.summary.cashHealth.lineage.runwayMonths.excluded).toEqual([
       { id: "transfer-out", reason: "excluded in review drawer", confidence: "medium" }
     ]);
+  });
+
+  it("recategorizing an owner draw to Internal lowers avg monthly outflow and raises runway", () => {
+    const records = [
+      rec({ id: "in",   flow: "revenue", parent: "Income",          amount: 30000, signedNet: 30000,  periodMonthly: "2026-01" }),
+      rec({ id: "burn", flow: "outflow", parent: "Operating Costs", amount: 10000, signedNet: -10000, periodMonthly: "2026-01" }),
+      rec({ id: "draw", flow: "outflow", parent: "Operating Costs", head: "Owner Draw", amount: 10000, signedNet: -10000, periodMonthly: "2026-01" }),
+    ];
+    const base = { filters: DEFAULT_FILTERS, trendGrain: "monthly" as const, reviewPreset: "all" as const,
+                   selectedTransactionId: "", cashOnHand: 50000, futureEventsText: "" };
+    const before = buildDashboardView({ result: importResult(records), ...base });
+    const after  = buildDashboardView({ result: importResult(records), ...base, overrides: new Map([["draw", { parent: "Internal" }]]) });
+    expect(after.summary.cashHealth.averageMonthlyOutflow).toBeLessThan(before.summary.cashHealth.averageMonthlyOutflow);
+    expect((after.summary.cashHealth.runwayMonths ?? 0)).toBeGreaterThan(before.summary.cashHealth.runwayMonths ?? 0);
+    expect(after.nonOperating.total).toBe(-10000);
+    expect(after.excludedTransactionIds ?? []).not.toContain("draw"); // still exported
+    expect(after.categoryReview.items.map((i) => i.id)).toContain("draw");
   });
 });
 
