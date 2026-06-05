@@ -1,5 +1,12 @@
 # C2 — Focused Category Review (Design)
 
+> **Status — superseded for implementation mechanics.** This document is a design-direction record only. The executable plan is
+> `docs/superpowers/plans/2026-05-31-c2-focused-category-review.md`.
+> Do **not** implement the mechanics below verbatim: the current source has a closed `AuditMetric` union, no `nonOperating`
+> `MetricLineage`, no `renderDashboardCockpit` function, no reusable `trapFocus` helper, and no `.kpi-value` selector.
+> Non-operating rows should flow through `dashboard-view.ts`'s existing exclusion-lineage pattern for operating KPIs while
+> remaining in export; category drawer rendering should follow C1's escaped string-template pattern.
+
 **Date:** 2026-05-31
 **Phase:** C2 (Trust pass, non-blocking) — master plan `docs/designs/MASTER_PLAN_AUDITABLE_COCKPIT.md`
 **Branch base:** `codex/a1-audit-model` (C1 shipped; tip `bc69d5f`)

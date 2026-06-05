@@ -12,7 +12,21 @@
 
 ---
 
-## Grounding — VERIFIED by reading every touched file at tip `51ddda0`
+## Claude handoff — read this before coding
+
+Codex audited the C2 docs against actual source at `ba15a99` and corrected the executable plan. Treat this file as the source of truth. Treat `docs/superpowers/specs/2026-05-31-c2-focused-category-review-design.md` as concept/background only; it now has a superseded warning because its mechanics still mention stale APIs.
+
+Important corrected edges:
+- UI entry is `renderCockpitStrip(...)`, not `renderDashboardCockpit(...)`.
+- Results prop type is `DashboardResultsRenderInput`, not `DashboardResultsViewModel`.
+- There is no `CockpitViewModelInput` type and no reusable `trapFocus` helper.
+- Category drawer should return escaped HTML strings for templates, like C1's `renderReviewDrawer(...)`; bind events in `dashboard-cockpit-actions.ts`.
+- Current value class is `.bw-kpi__value`; do not write e2e against a nonexistent `.kpi-value` class.
+- Reviewer JSON must receive overridden records, not just original records filtered by `excludedTransactionIds`.
+
+---
+
+## Grounding — VERIFIED by Codex audit at tip `ba15a99`
 
 > Two earlier plan commits (`6e28025`, `a14a2d0`) were written from assumptions and are WRONG. This version is read from source. Do not trust the earlier diffs.
 
@@ -47,10 +61,12 @@
 - `bindExportButton(view.summary, view.filteredRecords, reviewedImportResult(result, excludedTransactionIds))` — export removal uses `excludedTransactionIds` ONLY. **Non-operating rows must NOT enter `excludedTransactionIds`** so they stay in the export.
 
 **UI render (READ before Tasks 7–8):**
-- `renderDashboardCockpit(viewModel, formatters)` + `renderLineagePanel(...)` in `src/ui/dashboard-cockpit.ts` build KPI tiles and the lineage `<aside data-bw-lineage-panel>` with per-metric `<template data-bw-lineage-template="...">` (AuditMetric only).
-- `bindDashboardCockpitActions(options)` (`src/ui/dashboard-cockpit-actions.ts`) wires openers `[data-bw-lineage-open]`, close `[data-bw-lineage-close]`, panel `[data-bw-lineage-panel]`, `trapFocus`, and reopen-by-id. The category drawer should reuse this same panel/focus-trap convention (new `data-*` hooks) rather than a bespoke trap.
-- `renderDashboardResults(viewModel)` (`src/ui/dashboard-results.ts`) composes the page; `DashboardResultsViewModel` is the prop bag passed from `main.ts`.
-- `review-drawer.ts` `renderReviewDrawer(...)` is the markup pattern to imitate for the category drawer.
+- `renderCockpitStrip(viewModel, formatters, reviewItems)` in `src/ui/dashboard-cockpit.ts` builds KPI tiles and the shared lineage `<aside data-bw-lineage-panel>`.
+- `renderLineagePanel(...)` is private in `dashboard-cockpit.ts`; extend it in-place to add category/non-operating templates or adjacent template markup. Do not call it from outside the file.
+- Current KPI openers are `[data-bw-lineage-trigger]`; the review opener is `[data-bw-review-trigger]`; close is `[data-bw-lineage-close]`; the panel is `[data-bw-lineage-panel]`; the active body is `[data-bw-lineage-active]`.
+- `bindDashboardCockpitActions(options)` (`src/ui/dashboard-cockpit-actions.ts`) owns the open/close/reopen logic and contains an inline Tab focus trap. There is **no** reusable `trapFocus` function today.
+- `renderDashboardResults(input: DashboardResultsRenderInput)` (`src/ui/dashboard-results.ts`) composes the page; `DashboardResultsRenderInput` is the prop bag passed from `main.ts`.
+- `review-drawer.ts` `renderReviewDrawer(...)` returns an escaped HTML string for insertion into a `<template>`. Imitate that string-rendering pattern for the category drawer; bind its events in `dashboard-cockpit-actions.ts`, not inside the render function.
 
 **Conventions:** integer minor units. `npx tsc --noEmit` before every commit; never commit a type error. Bash tool: multiline commit bodies via `git commit -F file`, never PowerShell heredoc.
 
@@ -329,7 +345,7 @@ function withReviewExclusions(
 
 **Modify `src/finance/dashboard-view.ts`** + test. This is the core integration. Non-op rows leave OPERATING KPIs but do NOT enter `excludedTransactionIds` (export).
 
-- [ ] **Step 1: Failing test** `src/finance/dashboard-view.test.ts` (add). Build a `CsvImportResult` literal via a helper `result(records)` (mirror existing tests in this file — they already construct `CsvImportResult`; copy that helper). `rec` from the overrides test.
+- [ ] **Step 1: Failing test** `src/finance/dashboard-view.test.ts` (add). Reuse the existing local `importResult(records)` helper and import `DEFAULT_FILTERS` from `./filters`. `rec` comes from the overrides test.
 ```typescript
 it("recategorizing an owner draw to Internal lowers avg monthly outflow and raises runway", () => {
   const records = [
@@ -337,10 +353,10 @@ it("recategorizing an owner draw to Internal lowers avg monthly outflow and rais
     rec({ id: "burn", flow: "outflow", parent: "Operating Costs", amount: 10000, signedNet: -10000, periodMonthly: "2026-01" }),
     rec({ id: "draw", flow: "outflow", parent: "Operating Costs", head: "Owner Draw", amount: 10000, signedNet: -10000, periodMonthly: "2026-01" }),
   ];
-  const base = { filters: defaultFilters, trendGrain: "monthly" as const, reviewPreset: "all" as const,
+  const base = { filters: DEFAULT_FILTERS, trendGrain: "monthly" as const, reviewPreset: "all" as const,
                  selectedTransactionId: "", cashOnHand: 50000, futureEventsText: "" };
-  const before = buildDashboardView({ result: result(records), ...base });
-  const after  = buildDashboardView({ result: result(records), ...base, overrides: new Map([["draw", { parent: "Internal" }]]) });
+  const before = buildDashboardView({ result: importResult(records), ...base });
+  const after  = buildDashboardView({ result: importResult(records), ...base, overrides: new Map([["draw", { parent: "Internal" }]]) });
   expect(after.summary.cashHealth.averageMonthlyOutflow).toBeLessThan(before.summary.cashHealth.averageMonthlyOutflow);
   expect((after.summary.cashHealth.runwayMonths ?? 0)).toBeGreaterThan(before.summary.cashHealth.runwayMonths ?? 0);
   expect(after.nonOperating.total).toBe(-10000);
@@ -348,7 +364,7 @@ it("recategorizing an owner draw to Internal lowers avg monthly outflow and rais
   expect(after.categoryReview.items.map((i) => i.id)).toContain("draw");
 });
 ```
-> Confirm the real `DashboardFilters` "all" default + `ReviewPreset` value names while writing (`defaultFilters`, preset `"all"` may differ — read `filters.ts`/`review-presets.ts`).
+> Verified names: `DEFAULT_FILTERS` from `filters.ts`; review preset `"all"` is valid in `review-presets.ts`.
 - [ ] **Step 2:** run → FAIL (`overrides`/`nonOperating`/`categoryReview` absent).
 - [ ] **Step 3: Implement.** Add imports: `applyClassificationOverrides`, `ClassificationOverride`; `isOperating`; `summarizeNonOperating`, `NonOperatingSummary`; `buildCategoryReviewSummary`, `CategoryReviewSummary`. Extend the interfaces:
 ```typescript
@@ -417,11 +433,11 @@ export function buildDashboardView(input: DashboardViewInput): DashboardViewData
 
 ## Task 7 — Category-review drawer markup
 
-**Create `src/ui/category-review-drawer.ts` + test.** Read `review-drawer.ts` and `DESIGN.md` first (coral chips, flat audit surfaces, 44px targets). Option values use canonical flow strings (`"revenue"`/`"outflow"`).
+**Create `src/ui/category-review-drawer.ts` + test.** Read `review-drawer.ts` and `DESIGN.md` first (coral chips, flat audit surfaces, 44px targets). Option values use canonical flow strings (`"revenue"`/`"outflow"`). This module must be a pure escaped string renderer, matching `renderReviewDrawer(...)`; DOM event binding belongs in `dashboard-cockpit-actions.ts`.
 
 - [ ] **Step 1: Failing test** `src/ui/category-review-drawer.test.ts`
 ```typescript
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { renderCategoryReviewDrawer } from "./category-review-drawer";
 import type { CategoryReviewItem } from "./category-review-queue";
 
@@ -432,20 +448,18 @@ function item(o: Partial<CategoryReviewItem> = {}): CategoryReviewItem {
 describe("renderCategoryReviewDrawer", () => {
   it("renders Type+Group selects with current values", () => {
     const el = document.createElement("div");
-    renderCategoryReviewDrawer(el, { items: [item()], onRecategorize: vi.fn(), onConfirm: vi.fn(), onReset: vi.fn() });
+    el.innerHTML = renderCategoryReviewDrawer([item()]);
     expect(el.querySelector<HTMLSelectElement>('[data-role="flow-select"]')?.value).toBe("outflow");
     expect(el.querySelector<HTMLSelectElement>('[data-role="group-select"]')?.value).toBe("Operating Costs");
   });
-  it("calls onRecategorize on group change", () => {
-    const el = document.createElement("div"); const onRecategorize = vi.fn();
-    renderCategoryReviewDrawer(el, { items: [item()], onRecategorize, onConfirm: vi.fn(), onReset: vi.fn() });
-    const g = el.querySelector<HTMLSelectElement>('[data-role="group-select"]')!;
-    g.value = "Internal"; g.dispatchEvent(new Event("change", { bubbles: true }));
-    expect(onRecategorize).toHaveBeenCalledWith("a", { parent: "Internal" });
+  it("escapes labels and keeps item ids on interactive controls", () => {
+    const html = renderCategoryReviewDrawer([item({ id: "x", label: "<b>bad</b>" })]);
+    expect(html).toContain("&lt;b&gt;bad&lt;/b&gt;");
+    expect(html).toContain('data-category-id="x"');
   });
   it("shows Reset only for acted rows", () => {
     const el = document.createElement("div");
-    renderCategoryReviewDrawer(el, { items: [item({ acted: true })], onRecategorize: vi.fn(), onConfirm: vi.fn(), onReset: vi.fn() });
+    el.innerHTML = renderCategoryReviewDrawer([item({ acted: true })]);
     expect(el.querySelector('[data-role="reset"]')).not.toBeNull();
   });
 });
@@ -455,48 +469,43 @@ describe("renderCategoryReviewDrawer", () => {
 ```typescript
 // src/ui/category-review-drawer.ts
 import type { CashFlow } from "../finance/types";
-import type { ClassificationOverride } from "../finance/classification-overrides";
 import type { CategoryReviewItem } from "./category-review-queue";
+import { escapeHtml } from "./html";
 
 const GROUP_OPTIONS = ["Income", "Operating Costs", "Delivery Costs", "Internal", "Financing"];
 const FLOW_OPTIONS: { value: CashFlow; label: string }[] = [
   { value: "revenue", label: "Revenue (in)" }, { value: "outflow", label: "Outflow (out)" },
 ];
 
-export interface CategoryReviewDrawerProps {
-  items: CategoryReviewItem[];
-  onRecategorize: (id: string, o: ClassificationOverride) => void;
-  onConfirm: (id: string) => void;
-  onReset: (id: string) => void;
-}
 const sel = (v: string, cur: string) => v === cur ? " selected" : "";
 
-export function renderCategoryReviewDrawer(container: HTMLElement, p: CategoryReviewDrawerProps): void {
-  container.innerHTML = p.items.map((it) => `
-    <li class="category-review-item" data-id="${it.id}" data-acted="${it.acted}">
-      <div class="category-review-item__label">${it.label}</div>
-      <label>Type <select data-role="flow-select" aria-label="Type for ${it.label}">
-        ${FLOW_OPTIONS.map((o) => `<option value="${o.value}"${sel(o.value, it.flow)}>${o.label}</option>`).join("")}
+export function renderCategoryReviewDrawer(items: readonly CategoryReviewItem[]): string {
+  if (items.length === 0) {
+    return `<section class="bw-review" role="region" aria-label="Category review"><p class="bw-review__empty">No categories need review.</p></section>`;
+  }
+  return `<section class="bw-review bw-category-review" role="region" aria-label="Category review">
+    <header class="bw-review__head">
+      <span class="bw-review__eyebrow">Category review</span>
+      <p class="bw-review__intro">Review suggested for rows that can distort operating KPIs. Changing Type or Group re-derives the cockpit immediately.</p>
+    </header>
+    <ul class="bw-review__list">
+      ${items.map((it) => `
+    <li class="category-review-item" data-category-id="${escapeHtml(it.id)}" data-acted="${it.acted}">
+      <div class="category-review-item__label">${escapeHtml(it.label)}</div>
+      <label>Type <select data-role="flow-select" data-category-id="${escapeHtml(it.id)}" aria-label="Type for ${escapeHtml(it.label)}">
+        ${FLOW_OPTIONS.map((o) => `<option value="${o.value}"${sel(o.value, it.flow)}>${escapeHtml(o.label)}</option>`).join("")}
       </select></label>
-      <label>Group <select data-role="group-select" aria-label="Group for ${it.label}">
-        ${GROUP_OPTIONS.map((g) => `<option value="${g}"${sel(g, it.parent)}>${g}</option>`).join("")}
+      <label>Group <select data-role="group-select" data-category-id="${escapeHtml(it.id)}" aria-label="Group for ${escapeHtml(it.label)}">
+        ${GROUP_OPTIONS.map((g) => `<option value="${escapeHtml(g)}"${sel(g, it.parent)}>${escapeHtml(g)}</option>`).join("")}
       </select></label>
-      <button type="button" data-role="confirm">Looks right</button>
-      ${it.acted ? '<button type="button" data-role="reset">Reset</button>' : ""}
-    </li>`).join("");
-
-  container.querySelectorAll<HTMLLIElement>(".category-review-item").forEach((li) => {
-    const id = li.dataset.id!;
-    li.querySelector('[data-role="flow-select"]')!.addEventListener("change", (e) =>
-      p.onRecategorize(id, { flow: (e.target as HTMLSelectElement).value as CashFlow }));
-    li.querySelector('[data-role="group-select"]')!.addEventListener("change", (e) =>
-      p.onRecategorize(id, { parent: (e.target as HTMLSelectElement).value }));
-    li.querySelector('[data-role="confirm"]')!.addEventListener("click", () => p.onConfirm(id));
-    li.querySelector('[data-role="reset"]')?.addEventListener("click", () => p.onReset(id));
-  });
+      <button type="button" data-role="confirm" data-category-id="${escapeHtml(it.id)}">Looks right</button>
+      ${it.acted ? `<button type="button" data-role="reset" data-category-id="${escapeHtml(it.id)}">Reset</button>` : ""}
+    </li>`).join("")}
+    </ul>
+  </section>`;
 }
 ```
-- [ ] **Step 4:** run → PASS (3).
+- [ ] **Step 4:** run → PASS (3). Event tests for select/confirm/reset belong in `dashboard-cockpit-actions.test.ts` when Task 9 wires callbacks.
 - [ ] **Step 5:** commit `feat(ui): category-review drawer with Type/Group selects (C2)`.
 
 ---
@@ -507,9 +516,9 @@ export function renderCategoryReviewDrawer(container: HTMLElement, p: CategoryRe
 - **Non-operating** tile `data-tile="non-operating"`: value `nonOperating.total` (formatted); hidden when `total === 0` and `rows.length === 0`. Clicking opens a lightweight non-operating drawer listing `nonOperating.rows` (revenueIn / outflowOut split). It does NOT use the `AuditMetric` lineage panel (closed union) — render its own `[data-bw-nonop-panel]` aside mirroring the lineage-panel structure.
 - **Category-review** tile `data-tile="category-review"`: value = count of items not acted/confirmed; hidden when 0. Clicking opens the category drawer container `[data-bw-category-panel]` whose body is filled by `renderCategoryReviewDrawer`.
 
-These two tiles + drawers need data threaded from `main.ts` → `renderDashboardResults` → `renderDashboardCockpit`. Extend `DashboardResultsViewModel` and `CockpitViewModelInput`/formatters minimally to carry `nonOperating` and `categoryReview` (and the category items HTML or a render hook).
+These two tiles + drawers need data threaded from `main.ts` → `renderDashboardResults` → `renderCockpitStrip`. Extend `DashboardResultsRenderInput` and the `renderCockpitStrip` argument shape minimally to carry `nonOperating`, category-review items, and the category/non-operating template HTML. There is no `DashboardResultsViewModel` or `CockpitViewModelInput` type in the current source.
 
-- [ ] **Step 1:** Add the tiles + drawers to the cockpit markup (no behavior yet); add `data-kpi="runway"` `.kpi-value` hook if not already present (needed by e2e).
+- [ ] **Step 1:** Add the tiles + drawers to the cockpit markup (no behavior yet). If the e2e needs a stable runway value selector, add `data-kpi="runway"` to the existing runway button and select `.bw-kpi__value`; do not assume a `.kpi-value` class exists.
 - [ ] **Step 2:** `npx tsc --noEmit`; run `npm test` (snapshot/markup tests in `dashboard-cockpit.test.ts` may need updating).
 - [ ] **Step 3:** commit `feat(ui): non-operating + category-review tiles (C2)`.
 
@@ -538,9 +547,10 @@ const onConfirmCategory = (id: string) => { confirmedCategoryIds.add(id); render
 const onResetCategory = (id: string) => { classificationOverrides.delete(id); confirmedCategoryIds.delete(id); renderImportResult(result, sourceName, { reopenCategoryItemId: id }); };
 ```
 Filter the drawer items + tile count by `!confirmedCategoryIds.has(id)`.
-- [ ] **Step 4:** In `bindDashboardCockpitActions`, add category-drawer open/close + `reopenCategoryItemId` focus-restore to `[data-id="${id}"] [data-role="group-select"]`, reusing `trapFocus` exactly as the lineage panel does. Add the same for the non-operating panel (open/close only).
-- [ ] **Step 5:** `npx tsc --noEmit`; `npm run build`; then `/run` the app, load the Agency sample, change an Owner-Draw row's Group to Internal → Non-operating tile appears, runway rises, drawer reopens with focus on the row.
-- [ ] **Step 6:** commit `feat(ui): wire classification overrides + category drawer (C2)`.
+- [ ] **Step 4:** In `bindDashboardCockpitActions`, add category/non-operating openers and template loading alongside the existing lineage/review openers. Reuse the existing `[data-bw-lineage-panel]`, `[data-bw-lineage-active]`, close button, Escape handling, and inline Tab focus-trap block; there is no standalone `trapFocus` helper. Restore `reopenCategoryItemId` focus to `[data-category-id="${id}"][data-role="group-select"]`.
+- [ ] **Step 5:** Apply overrides to reviewer export data too. `reviewedImportResult(result, excludedTransactionIds)` currently only removes C1-excluded ids from original records; C2 must pass the overridden records into this export path so Type/Group edits appear in Reviewer JSON while non-operating rows remain exported.
+- [ ] **Step 6:** `npx tsc --noEmit`; `npm run build`; then run the app, load the Agency sample, change an Owner-Draw row's Group to Internal → Non-operating tile appears, runway rises, drawer reopens with focus on the row, and Reviewer JSON reflects the overridden Type/Group.
+- [ ] **Step 7:** commit `feat(ui): wire classification overrides + category drawer (C2)`.
 
 ---
 
@@ -552,12 +562,12 @@ Filter the drawer items + tile count by `!confirmedCategoryIds.has(id)`.
 ```typescript
 test("recategorizing a row to Internal re-derives runway live", async ({ page }) => {
   await loadAgencySample(page);
-  const before = await page.locator('[data-kpi="runway"] .kpi-value').innerText();
+  const before = await page.locator('[data-kpi="runway"] .bw-kpi__value').innerText();
   await page.locator('[data-tile="category-review"]').click();
   const row = page.locator('.category-review-item').first();
   await row.locator('[data-role="group-select"]').selectOption("Internal");
   await expect(page.locator('[data-tile="non-operating"]')).toBeVisible();
-  expect(await page.locator('[data-kpi="runway"] .kpi-value').innerText()).not.toBe(before);
+  expect(await page.locator('[data-kpi="runway"] .bw-kpi__value').innerText()).not.toBe(before);
   await expect(row.locator('[data-role="group-select"]')).toBeFocused();
 });
 ```
@@ -578,8 +588,8 @@ test("recategorizing a row to Internal re-derives runway live", async ({ page })
 
 ## Self-Review
 **Coverage:** override layer (T2); detection/suggestions (T3); operating exclusion of non-op via existing machinery (T5–T6); non-operating reporting (T4, T6, T8); drawer + recategorize/confirm/reset (T7, T9); live re-derive + reopen/focus (T9, T10). Exit criterion test at the seam (T6) and e2e (T10).
-**Key corrections vs spec/earlier drafts:** `revenue` not `inflow`; `amount` not `grossAmount`; flat `FinanceSummary` with nested `cashHealth`; runway = `cashOnHand/averageMonthlyOutflow` (recategorize moves runway only via `averageMonthlyOutflow`); `MetricLineage.excluded` exists and `AuditMetric` is closed (non-op tile uses its own type, not a new AuditMetric); non-op rows excluded from operating KPIs but KEPT in `excludedTransactionIds`-driven export.
+**Key corrections vs spec/earlier drafts:** `revenue` not `inflow`; `amount` not `grossAmount`; flat `FinanceSummary` with nested `cashHealth`; runway = `cashOnHand/averageMonthlyOutflow` (recategorize moves runway only via `averageMonthlyOutflow`); `MetricLineage.excluded` exists and `AuditMetric` is closed (non-op tile uses its own type, not a new AuditMetric); non-op rows excluded from operating KPIs but kept OUT of `excludedTransactionIds` so they remain in export; reviewer export must still use overridden records.
 **Decision applied:** "reuse exclusion path" — non-op flows through `withReviewExclusions` (reason-tagged in T5), no parallel KPI math.
 **Gap handled:** "Looks right" without override → `confirmedCategoryIds` (T9).
-**Type consistency:** `ClassificationOverride{flow?,parent?}`, `applyClassificationOverrides`, `buildCategoryReviewSummary`/`CategoryReviewItem{flow,parent,reasons,acted}`, `summarizeNonOperating`→`NonOperatingSummary{total,revenueIn,outflowOut,rows}`, `DashboardViewData.{nonOperating,categoryReview}`, `buildDashboardView({result,...,overrides})`, `renderImportResult(result,sourceName,{reopenReviewItemId,reopenCategoryItemId})` — consistent T1–T10.
-**Still-to-verify during impl (flagged inline, not guessed):** exact `DashboardFilters` default + `ReviewPreset` value names (T6 test); existing `CsvImportResult` test helper to copy (T6); exact cockpit/results markup + viewmodel field names (T8); `dashboard-cockpit.test.ts` snapshot updates (T8).
+**Type consistency:** `ClassificationOverride{flow?,parent?}`, `applyClassificationOverrides`, `buildCategoryReviewSummary`/`CategoryReviewItem{flow,parent,reasons,acted}`, `summarizeNonOperating`→`NonOperatingSummary{total,revenueIn,outflowOut,rows}`, `DashboardViewData.{nonOperating,categoryReview}`, `buildDashboardView({result,...,overrides})`, `renderImportResult(result,sourceName,{reopenReviewItemId,reopenCategoryItemId})`, `renderDashboardResults(input: DashboardResultsRenderInput)`, `renderCockpitStrip(...)` — consistent T1–T10.
+**Still-to-verify during impl (flagged inline, not guessed):** exact cockpit/results markup extension shape (T8); `dashboard-cockpit.test.ts` snapshot/markup updates (T8); category/non-operating opener names chosen in `dashboard-cockpit-actions.ts` (T9).
