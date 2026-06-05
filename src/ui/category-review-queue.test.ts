@@ -20,4 +20,16 @@ describe("buildCategoryReviewSummary", () => {
     const s = buildCategoryReviewSummary({ records: [rec({ id: "a", parent: "Financing" })], overrides: new Map([["a", { parent: "Income" }]]) });
     expect(s.items[0].acted).toBe(true);
   });
+  it("keeps an override-carrying row even after it loses its only review reason (Reset stays reachable)", () => {
+    // Row was flagged only by its non-operating group, then the override moved it to an
+    // operating group with no keyword — current state has no review reason, but the
+    // active override must keep it in the queue so Reset is reachable.
+    const s = buildCategoryReviewSummary({
+      records: [rec({ id: "a", parent: "Operating Costs", head: "Rent", subcategory: "", counterparty: "Landlord" })],
+      overrides: new Map([["a", { parent: "Operating Costs" }]]),
+    });
+    expect(s.items.map((i) => i.id)).toEqual(["a"]);
+    expect(s.items[0].acted).toBe(true);
+    expect(s.items[0].reasons).toEqual([]);
+  });
 });
