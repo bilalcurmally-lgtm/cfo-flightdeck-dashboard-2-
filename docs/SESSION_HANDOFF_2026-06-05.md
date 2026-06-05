@@ -4,14 +4,14 @@
 Big multi-agent session. Shipped **C2 (Focused Category Review)** end-to-end with
 all review findings fixed, then stood up the **D1 persistence foundation** (3 pure
 slices) via a new agent (grok-cli) on trial, with Claude + Codex reviewing every
-slice. Everything is green and committed on `codex/a1-audit-model`; nothing pushed,
-no PR yet.
+slice. Everything is green and committed on `codex/a1-audit-model`; branch is
+pushed to origin, no PR yet.
 
 ## Git state
 - Branch: `codex/a1-audit-model`
-- Tip: **`c46fba2`**
-- Working tree clean except untracked `.claude/`, `mcps/` (pre-existing, unrelated).
-- Not pushed / no PR.
+- Close-out docs commit: **`0c5896f`**
+- Working tree clean except untracked `mcps/` (pre-existing, unrelated).
+- Pushed to origin / no PR.
 
 ## Verification (at tip)
 - `npx tsc --noEmit` → 0
