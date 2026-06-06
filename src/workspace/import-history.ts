@@ -66,3 +66,48 @@ export function diffKpiSnapshots(
     return { key, previous: prev, current: curr, delta, direction };
   });
 }
+
+export interface ReviewSignatureDelta {
+  added: number;
+  resolved: number;
+}
+
+export function diffReviewSignatures(
+  previous: readonly string[],
+  current: readonly string[],
+): ReviewSignatureDelta {
+  const prev = new Set(previous);
+  const curr = new Set(current);
+  let added = 0;
+  let resolved = 0;
+  for (const sig of curr) if (!prev.has(sig)) added++;
+  for (const sig of prev) if (!curr.has(sig)) resolved++;
+  return { added, resolved };
+}
+
+export interface ImportComparison {
+  baseline: ImportSnapshot;
+  addedTransactions: number;
+  removedTransactions: number;
+  kpiDeltas: KpiDelta[];
+  review: ReviewSignatureDelta;
+}
+
+export function compareToBaseline(
+  baseline: ImportSnapshot,
+  current: ImportSnapshot,
+): ImportComparison {
+  const prevSet = new Set(baseline.signatureSet);
+  const currSet = new Set(current.signatureSet);
+  let addedTransactions = 0;
+  let removedTransactions = 0;
+  for (const sig of currSet) if (!prevSet.has(sig)) addedTransactions++;
+  for (const sig of prevSet) if (!currSet.has(sig)) removedTransactions++;
+  return {
+    baseline,
+    addedTransactions,
+    removedTransactions,
+    kpiDeltas: diffKpiSnapshots(baseline.kpiSnapshot, current.kpiSnapshot),
+    review: diffReviewSignatures(baseline.reviewItemSignatures, current.reviewItemSignatures),
+  };
+}

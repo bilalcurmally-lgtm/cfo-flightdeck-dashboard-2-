@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
+  compareToBaseline,
   diffKpiSnapshots,
+  diffReviewSignatures,
   findComparableBaseline,
   recordImport,
   type ImportSnapshot,
@@ -99,5 +101,36 @@ describe("diffKpiSnapshots", () => {
   it("includes keys present in either snapshot", () => {
     const deltas = diffKpiSnapshots({ a: 1 }, { b: 2 });
     expect(deltas.map((d) => d.key).sort()).toEqual(["a", "b"]);
+  });
+});
+
+describe("diffReviewSignatures", () => {
+  it("counts added and resolved review items", () => {
+    expect(diffReviewSignatures(["x", "y"], ["y", "z"])).toEqual({ added: 1, resolved: 1 });
+  });
+  it("is all-added when previous is empty", () => {
+    expect(diffReviewSignatures([], ["a", "b"])).toEqual({ added: 2, resolved: 0 });
+  });
+});
+
+describe("compareToBaseline", () => {
+  it("bundles txn, kpi, and review deltas against a baseline", () => {
+    const baseline = snap({
+      signatureSet: ["a", "b"],
+      kpiSnapshot: { runwayMonths: 7 },
+      reviewItemSignatures: ["r1"],
+    });
+    const current = snap({
+      signatureSet: ["a", "b", "c"],
+      kpiSnapshot: { runwayMonths: 6 },
+      reviewItemSignatures: ["r1", "r2"],
+      sourceName: "new.csv",
+    });
+    const cmp = compareToBaseline(baseline, current);
+    expect(cmp.addedTransactions).toBe(1);
+    expect(cmp.removedTransactions).toBe(0);
+    expect(cmp.review).toEqual({ added: 1, resolved: 0 });
+    expect(cmp.kpiDeltas.find((d) => d.key === "runwayMonths")?.direction).toBe("down");
+    expect(cmp.baseline).toBe(baseline);
   });
 });
