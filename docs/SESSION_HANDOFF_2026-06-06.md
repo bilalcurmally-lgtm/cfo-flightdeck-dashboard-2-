@@ -90,3 +90,31 @@ Loop held even with the room offline: Claude/Codex spec a small slice → Grok i
 from a doc brief (`docs/superpowers/plans/2026-06-06-grok-task-d1-slice4.md`,
 `...-slice6.md`) → Claude reviews (re-runs tsc/vitest/e2e) → Claude commits crediting Grok.
 Grok now 5/5 clean slices, scope-disciplined (stayed out of main.ts on slice 6 as briefed).
+
+---
+
+## D2 Slice 2 — pure import-history logic (Grok, 2026-06-06 evening)
+
+### Git state (S2)
+- Branch: `codex/a1-audit-model`, **tip `0c1f66e`** (pushed).
+- S2 commits (oldest→newest):
+  - `727b33f` feat(workspace): recordImport with dedup + retention cap
+  - `40159bf` feat(workspace): findComparableBaseline by signature overlap
+  - `3013628` feat(workspace): diffKpiSnapshots per-key deltas
+  - `0c1f66e` feat(workspace): review-signature delta + compareToBaseline bundle
+
+### Verification (S2 tip)
+- `npx tsc --noEmit` → 0
+- `npx vitest run src/workspace/` → **8 files, 74 tests** passed
+
+### What shipped
+- `src/workspace/import-history.ts`: `recordImport`, `findComparableBaseline`,
+  `diffKpiSnapshots`, `diffReviewSignatures`, `compareToBaseline` (+ types).
+- `src/workspace/import-history.test.ts`: 15 unit tests.
+- One FP tweak: `diffKpiSnapshots` runway test uses `toBeCloseTo(-1.3)` (JS float
+  `5.9 - 7.2` ≠ `-1.3` with strict equality).
+
+### Next-session priorities (D2)
+1. **S3 (integration, Claude-opus):** `WorkspaceStore.addImport` + `main.ts` capture wiring.
+2. **S4 (Grok brief):** welcome-back strip renderer.
+3. Golden txn signatures in `txn-signature.test.ts` still byte-identical — confirm on review.
