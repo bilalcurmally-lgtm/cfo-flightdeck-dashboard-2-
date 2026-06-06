@@ -1841,6 +1841,45 @@ th.bw-lineage__cell {
   }
 }
 
+.bw-welcome {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.6rem 0.9rem;
+  border-radius: 0.6rem;
+  margin-bottom: 1rem;
+  border: 1px solid transparent;
+}
+
+.bw-welcome__text {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.bw-welcome__dismiss {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.bw-welcome--positive {
+  background: #eef3ea;
+  border-color: #cfe0c3;
+}
+
+.bw-welcome--attention {
+  background: #fbeee9;
+  border-color: #f0cdbf;
+}
+
+.bw-welcome--neutral {
+  background: #f1f1ee;
+  border-color: #dcdcd6;
+}
+
 @media print {
   :root {
     background: #ffffff;
