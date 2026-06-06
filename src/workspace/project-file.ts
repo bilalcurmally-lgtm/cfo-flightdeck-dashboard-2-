@@ -16,6 +16,7 @@ export type ParseProjectFileResult =
   | { ok: true; snapshot: WorkspaceSnapshot }
   | { ok: false; error: string };
 
+// Shallow-copies each override/decision value; assumes flat ClassificationOverride / ExclusionDecision shapes — revisit if nested fields are added.
 function cloneSnapshot(snapshot: WorkspaceSnapshot): WorkspaceSnapshot {
   return {
     version: snapshot.version,

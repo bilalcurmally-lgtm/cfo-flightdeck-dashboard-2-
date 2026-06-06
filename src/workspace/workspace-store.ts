@@ -23,6 +23,7 @@ export interface WorkspaceStore {
   load(snapshot: WorkspaceSnapshot): void;
 }
 
+// Shallow-copies each override/decision value; assumes flat ClassificationOverride / ExclusionDecision shapes — revisit if nested fields are added.
 function cloneSnapshot(snapshot: WorkspaceSnapshot): WorkspaceSnapshot {
   return {
     version: snapshot.version,
