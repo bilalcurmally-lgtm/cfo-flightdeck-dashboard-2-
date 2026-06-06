@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { txnSignature } from "./txn-signature";
+import {
+  IMMUTABLE_TXN_IDENTITY_FIELD_KEYS,
+  immutableIdentityPayload,
+  immutableTxnKey,
+  txnSignature,
+} from "./txn-signature";
 import { signLedger } from "./sign-ledger";
 import type { TransactionRecord } from "../finance/types";
 
@@ -65,6 +70,29 @@ describe("txnSignature", () => {
 
   it("returns a txn_ prefixed deterministic id", () => {
     expect(txnSignature(baseRecord(), 0)).toMatch(/^txn_[0-9a-f]{16}$/);
+  });
+});
+
+describe("immutable identity field list", () => {
+  it("derives immutableTxnKey and canonical payload from one shared field list", () => {
+    const record = baseRecord({ sourceSheet: "Transactions", amount: 42 });
+
+    expect([...IMMUTABLE_TXN_IDENTITY_FIELD_KEYS]).toEqual([
+      "dateISO",
+      "amount",
+      "description",
+      "account",
+      "sourceSheet",
+    ]);
+    expect(immutableIdentityPayload(record)).toEqual({
+      dateISO: "2026-01-15",
+      amount: 42,
+      description: "Cafe receipt",
+      account: "Chase Checking",
+      sourceSheet: "Transactions",
+    });
+    expect(JSON.parse(immutableTxnKey(record))).toEqual(immutableIdentityPayload(record));
+    expect(txnSignature(record, 0)).not.toBe(txnSignature(record, 1));
   });
 });
 

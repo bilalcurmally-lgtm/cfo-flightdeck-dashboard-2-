@@ -5,24 +5,36 @@ export type TxnSignatureInput = Pick<
   "dateISO" | "amount" | "description" | "account" | "sourceSheet"
 >;
 
+export const IMMUTABLE_TXN_IDENTITY_FIELD_KEYS = [
+  "dateISO",
+  "amount",
+  "description",
+  "account",
+  "sourceSheet",
+] as const satisfies readonly (keyof TxnSignatureInput)[];
+
+type ImmutableIdentityField = (typeof IMMUTABLE_TXN_IDENTITY_FIELD_KEYS)[number];
+
+export function immutableIdentityPayload(
+  record: TxnSignatureInput,
+): Record<ImmutableIdentityField, string | number> {
+  const payload = {} as Record<ImmutableIdentityField, string | number>;
+
+  for (const field of IMMUTABLE_TXN_IDENTITY_FIELD_KEYS) {
+    payload[field] = field === "sourceSheet" ? record.sourceSheet ?? "" : record[field];
+  }
+
+  return payload;
+}
+
 /** Immutable import identity without occurrenceIndex — used by signLedger for dedup keys. */
 export function immutableTxnKey(record: TxnSignatureInput): string {
-  return JSON.stringify({
-    dateISO: record.dateISO,
-    amount: record.amount,
-    description: record.description,
-    account: record.account,
-    sourceSheet: record.sourceSheet ?? "",
-  });
+  return JSON.stringify(immutableIdentityPayload(record));
 }
 
 function canonicalPayload(record: TxnSignatureInput, occurrenceIndex: number): string {
   return JSON.stringify({
-    dateISO: record.dateISO,
-    amount: record.amount,
-    description: record.description,
-    account: record.account,
-    sourceSheet: record.sourceSheet ?? "",
+    ...immutableIdentityPayload(record),
     occurrenceIndex,
   });
 }
