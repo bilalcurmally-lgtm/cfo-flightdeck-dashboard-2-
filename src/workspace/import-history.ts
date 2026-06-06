@@ -30,3 +30,14 @@ export function recordImport(
   const next = [...history, snapshot];
   return next.length > cap ? next.slice(next.length - cap) : next;
 }
+
+export function findComparableBaseline(
+  history: readonly ImportSnapshot[],
+  currentSignatureSet: readonly string[],
+): ImportSnapshot | undefined {
+  const current = new Set(currentSignatureSet);
+  for (let i = history.length - 1; i >= 0; i--) {
+    if (history[i].signatureSet.some((sig) => current.has(sig))) return history[i];
+  }
+  return undefined;
+}

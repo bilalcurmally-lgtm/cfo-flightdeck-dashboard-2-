@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { recordImport, type ImportSnapshot } from "./import-history";
+import { findComparableBaseline, recordImport, type ImportSnapshot } from "./import-history";
 
 function snap(over: Partial<ImportSnapshot> & { signatureSet: string[] }): ImportSnapshot {
   return {
@@ -44,5 +44,26 @@ describe("recordImport", () => {
     expect(history).toHaveLength(24);
     expect(history[0].signatureSet).toEqual(["sig-6"]);
     expect(history[23].signatureSet).toEqual(["sig-29"]);
+  });
+});
+
+describe("findComparableBaseline", () => {
+  it("returns undefined when history is empty", () => {
+    expect(findComparableBaseline([], ["a"])).toBeUndefined();
+  });
+
+  it("returns undefined when no snapshot shares a signature", () => {
+    const history = [snap({ signatureSet: ["a", "b"] })];
+    expect(findComparableBaseline(history, ["x", "y"])).toBeUndefined();
+  });
+
+  it("returns the most recent snapshot sharing >=1 signature", () => {
+    const history = [
+      snap({ signatureSet: ["a"], sourceName: "old.csv" }),
+      snap({ signatureSet: ["a", "b"], sourceName: "mid.csv" }),
+      snap({ signatureSet: ["z"], sourceName: "unrelated.csv" }),
+    ];
+    const baseline = findComparableBaseline(history, ["a", "c"]);
+    expect(baseline?.sourceName).toBe("mid.csv");
   });
 });
