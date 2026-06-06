@@ -21,6 +21,7 @@ const sampleSnapshot: WorkspaceSnapshot = {
   decisions: {
     [SIG_B]: { excluded: true },
   },
+  imports: [],
 };
 
 describe("project-file", () => {
@@ -127,6 +128,7 @@ describe("project-file", () => {
         version: WORKSPACE_SNAPSHOT_VERSION,
         categoryOverrides: { [SIG_A]: { parent: "Financing" } },
         decisions: { [SIG_B]: { excluded: true } },
+        imports: [],
       },
     });
     if (result.ok) {
@@ -177,5 +179,55 @@ describe("project-file", () => {
       ok: false,
       error: `snapshot.decisions["${SIG_B}"].excluded must be a boolean`,
     });
+  });
+});
+
+describe("project-file v1->v2 migration", () => {
+  it("migrates a v1 snapshot file to v2 with empty imports", () => {
+    const v1 = JSON.stringify({
+      kind: BILLU_FILE_KIND,
+      snapshot: { version: 1, categoryOverrides: { sig: { parent: "Food" } }, decisions: {} },
+    });
+    const result = parseProjectFile(v1);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.snapshot.version).toBe(2);
+      expect(result.snapshot.imports).toEqual([]);
+      expect(result.snapshot.categoryOverrides.sig).toEqual({ parent: "Food" });
+    }
+  });
+
+  it("rejects a newer (unknown) version loudly", () => {
+    const v3 = JSON.stringify({
+      kind: BILLU_FILE_KIND,
+      snapshot: { version: 3, categoryOverrides: {}, decisions: {}, imports: [] },
+    });
+    expect(parseProjectFile(v3).ok).toBe(false);
+  });
+
+  it("rejects a malformed imports array", () => {
+    const bad = JSON.stringify({
+      kind: BILLU_FILE_KIND,
+      snapshot: { version: 2, categoryOverrides: {}, decisions: {}, imports: "nope" },
+    });
+    expect(parseProjectFile(bad).ok).toBe(false);
+  });
+
+  it("round-trips a v2 file with an import", () => {
+    const v2 = JSON.stringify({
+      kind: BILLU_FILE_KIND,
+      snapshot: {
+        version: 2,
+        categoryOverrides: {},
+        decisions: {},
+        imports: [{
+          importedAt: "2026-01-01T00:00:00.000Z", sourceName: "x.csv",
+          signatureSet: ["txn_a"], kpiSnapshot: { runwayMonths: 5 }, reviewItemSignatures: [],
+        }],
+      },
+    });
+    const result = parseProjectFile(v2);
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.snapshot.imports).toHaveLength(1);
   });
 });

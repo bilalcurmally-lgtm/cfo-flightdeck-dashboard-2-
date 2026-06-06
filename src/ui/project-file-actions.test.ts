@@ -5,6 +5,7 @@ import {
   type ProjectFileActionRoot
 } from "./project-file-actions";
 import {
+  WORKSPACE_SNAPSHOT_VERSION,
   createInMemoryWorkspaceStore,
   type WorkspaceSnapshot,
   type WorkspaceStore
@@ -119,9 +120,10 @@ describe("bindProjectFileActions", () => {
     const status = { textContent: "" };
 
     const fileText = serializeProjectFile({
-      version: 1,
+      version: WORKSPACE_SNAPSHOT_VERSION,
       categoryOverrides: { [SIG]: { parent: "Internal" } },
-      decisions: {}
+      decisions: {},
+      imports: [],
     });
 
     bindProjectFileActions({

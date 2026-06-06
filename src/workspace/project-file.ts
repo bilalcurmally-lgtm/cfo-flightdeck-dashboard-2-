@@ -3,7 +3,10 @@ import {
   type ExclusionDecision,
   type WorkspaceSnapshot,
 } from "./workspace-store";
+import type { ImportSnapshot } from "./import-history";
 import type { ClassificationOverride } from "../finance/classification-overrides";
+
+const SUPPORTED_VERSIONS = [1, 2];
 
 export const BILLU_FILE_KIND = "billu-workspace";
 
@@ -19,7 +22,7 @@ export type ParseProjectFileResult =
 // Shallow-copies each override/decision value; assumes flat ClassificationOverride / ExclusionDecision shapes — revisit if nested fields are added.
 function cloneSnapshot(snapshot: WorkspaceSnapshot): WorkspaceSnapshot {
   return {
-    version: snapshot.version,
+    version: WORKSPACE_SNAPSHOT_VERSION,
     categoryOverrides: Object.fromEntries(
       Object.entries(snapshot.categoryOverrides).map(([signature, override]) => [
         signature,
@@ -32,6 +35,12 @@ function cloneSnapshot(snapshot: WorkspaceSnapshot): WorkspaceSnapshot {
         { ...decision },
       ]),
     ),
+    imports: (snapshot.imports ?? []).map((imp) => ({
+      ...imp,
+      signatureSet: [...imp.signatureSet],
+      kpiSnapshot: { ...imp.kpiSnapshot },
+      reviewItemSignatures: [...imp.reviewItemSignatures],
+    })),
   };
 }
 
@@ -59,23 +68,28 @@ function isExclusionDecision(value: unknown): value is ExclusionDecision {
   return isPlainObject(value) && typeof value.excluded === "boolean";
 }
 
+function isImportSnapshot(value: unknown): value is ImportSnapshot {
+  if (!isPlainObject(value)) return false;
+  return (
+    typeof value.importedAt === "string" &&
+    typeof value.sourceName === "string" &&
+    Array.isArray(value.signatureSet) &&
+    value.signatureSet.every((s) => typeof s === "string") &&
+    isPlainObject(value.kpiSnapshot) &&
+    Array.isArray(value.reviewItemSignatures) &&
+    value.reviewItemSignatures.every((s) => typeof s === "string")
+  );
+}
+
 function parseSnapshot(value: unknown): WorkspaceSnapshot | string {
-  if (!isPlainObject(value)) {
-    return "snapshot must be an object";
-  }
-
-  if (typeof value.version !== "number") {
-    return "snapshot.version must be a number";
-  }
-
-  if (value.version !== WORKSPACE_SNAPSHOT_VERSION) {
+  if (!isPlainObject(value)) return "snapshot must be an object";
+  if (typeof value.version !== "number") return "snapshot.version must be a number";
+  if (!SUPPORTED_VERSIONS.includes(value.version)) {
     return `unsupported snapshot version: ${value.version}`;
   }
-
   if (!("categoryOverrides" in value) || !isPlainObject(value.categoryOverrides)) {
     return "snapshot.categoryOverrides must be an object";
   }
-
   if (!("decisions" in value) || !isPlainObject(value.decisions)) {
     return "snapshot.decisions must be an object";
   }
@@ -96,11 +110,15 @@ function parseSnapshot(value: unknown): WorkspaceSnapshot | string {
     decisions[signature] = decision;
   }
 
-  return {
-    version: value.version,
-    categoryOverrides,
-    decisions,
-  };
+  let imports: ImportSnapshot[] = [];
+  if ("imports" in value && value.imports !== undefined) {
+    if (!Array.isArray(value.imports) || !value.imports.every(isImportSnapshot)) {
+      return "snapshot.imports must be an array of import records";
+    }
+    imports = value.imports as ImportSnapshot[];
+  }
+
+  return { version: WORKSPACE_SNAPSHOT_VERSION, categoryOverrides, decisions, imports };
 }
 
 export function serializeProjectFile(snapshot: WorkspaceSnapshot): string {
