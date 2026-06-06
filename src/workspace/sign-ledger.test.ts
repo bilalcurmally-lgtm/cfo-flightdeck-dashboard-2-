@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { signLedger } from "./sign-ledger";
+import { txnSignature } from "./txn-signature";
 import type { TransactionRecord } from "../finance/types";
 
 function rec(over: Partial<TransactionRecord> = {}): TransactionRecord {
@@ -56,6 +57,21 @@ describe("signLedger", () => {
     const baseSigs = signLedger(base).map((row) => row.signature);
     const recategorizedSigs = signLedger(recategorized).map((row) => row.signature);
     expect(recategorizedSigs).toEqual(baseSigs);
+  });
+
+  it("assigns occurrence-indexed signatures 0, 1, and 2 to three identical rows in order", () => {
+    const records = [rec({ id: "a" }), rec({ id: "b" }), rec({ id: "c" })];
+    const signed = signLedger(records);
+    const template = rec();
+
+    expect(signed).toHaveLength(3);
+    expect(signed.map((row) => row.id)).toEqual(["a", "b", "c"]);
+
+    const signatures = signed.map((row) => row.signature);
+    expect(new Set(signatures).size).toBe(3);
+    expect(signatures[0]).toBe(txnSignature(template, 0));
+    expect(signatures[1]).toBe(txnSignature(template, 1));
+    expect(signatures[2]).toBe(txnSignature(template, 2));
   });
 
   it("preserves order and length and distinct rows get distinct signatures", () => {

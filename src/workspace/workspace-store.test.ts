@@ -69,6 +69,32 @@ describe("createInMemoryWorkspaceStore", () => {
     expect(store.getDecision(SIG_B)).toEqual({ excluded: false });
   });
 
+  it("isolates nested mutations on getCategoryOverride results from stored state", () => {
+    const store = createInMemoryWorkspaceStore();
+    store.setCategoryOverride(SIG_A, { parent: "Food", flow: "outflow" });
+
+    const override = store.getCategoryOverride(SIG_A);
+    expect(override).toBeDefined();
+    override!.parent = "Mutated parent";
+    override!.flow = "revenue";
+
+    expect(store.getCategoryOverride(SIG_A)).toEqual({ parent: "Food", flow: "outflow" });
+  });
+
+  it("isolates nested mutations on snapshot fields from stored state", () => {
+    const store = createInMemoryWorkspaceStore();
+    store.setCategoryOverride(SIG_A, { parent: "Food", flow: "outflow" });
+    store.setDecision(SIG_B, { excluded: true });
+
+    const snap = store.snapshot();
+    snap.categoryOverrides[SIG_A]!.parent = "Mutated parent";
+    snap.categoryOverrides[SIG_A]!.flow = "revenue";
+    snap.decisions[SIG_B]!.excluded = false;
+
+    expect(store.getCategoryOverride(SIG_A)).toEqual({ parent: "Food", flow: "outflow" });
+    expect(store.getDecision(SIG_B)).toEqual({ excluded: true });
+  });
+
   it("seeds from initial snapshot", () => {
     const initial: WorkspaceSnapshot = {
       version: WORKSPACE_SNAPSHOT_VERSION,
