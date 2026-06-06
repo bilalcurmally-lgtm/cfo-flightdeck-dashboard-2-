@@ -28,3 +28,23 @@ export function diffSignedLedgers(
 
   return { added, removed, retained };
 }
+
+export interface LedgerDiffSummary {
+  addedCount: number;
+  removedCount: number;
+  retainedCount: number;
+  changed: boolean;
+}
+
+export function summarizeLedgerDiff(diff: LedgerDiff): LedgerDiffSummary {
+  const addedCount = diff.added.length;
+  const removedCount = diff.removed.length;
+  const retainedCount = diff.retained.length;
+
+  return {
+    addedCount,
+    removedCount,
+    retainedCount,
+    changed: addedCount > 0 || removedCount > 0,
+  };
+}

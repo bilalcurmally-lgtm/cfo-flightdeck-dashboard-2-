@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { TransactionRecord } from "../finance/types";
 import { signLedger } from "./sign-ledger";
-import { diffSignedLedgers } from "./ledger-diff";
+import { diffSignedLedgers, summarizeLedgerDiff } from "./ledger-diff";
 
 function rec(over: Partial<TransactionRecord> = {}): TransactionRecord {
   return {
@@ -107,5 +107,42 @@ describe("diffSignedLedgers", () => {
 
     expect(previous).toEqual(previousBefore);
     expect(current).toEqual(currentBefore);
+  });
+});
+
+describe("summarizeLedgerDiff", () => {
+  it("reports counts that match a known diff", () => {
+    const previous = signLedger([
+      rec({ id: "a", amount: 1 }),
+      rec({ id: "b", amount: 2 }),
+    ]);
+    const current = signLedger([
+      rec({ id: "x", amount: 1 }),
+      rec({ id: "y", amount: 3 }),
+      rec({ id: "z", amount: 4 }),
+    ]);
+    const diff = diffSignedLedgers(previous, current);
+
+    expect(summarizeLedgerDiff(diff)).toEqual({
+      addedCount: 2,
+      removedCount: 1,
+      retainedCount: 1,
+      changed: true,
+    });
+  });
+
+  it("reports changed as false only when both added and removed are empty", () => {
+    const records = [rec({ id: "a" }), rec({ id: "b", amount: 12 })];
+    const retainedOnly = diffSignedLedgers(signLedger(records), signLedger(records));
+
+    expect(summarizeLedgerDiff(retainedOnly)).toEqual({
+      addedCount: 0,
+      removedCount: 0,
+      retainedCount: 2,
+      changed: false,
+    });
+
+    const emptyDiff = diffSignedLedgers([], []);
+    expect(summarizeLedgerDiff(emptyDiff).changed).toBe(false);
   });
 });
