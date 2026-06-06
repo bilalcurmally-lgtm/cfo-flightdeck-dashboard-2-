@@ -10,18 +10,19 @@ briefed via doc files instead of room tasks; Claude reviewed + committed each
 slice (re-running tsc/vitest/e2e independently).
 
 ## Git state
-- Branch: `codex/a1-audit-model`, **tip `067412d`**.
+- Branch: `codex/a1-audit-model`, **tip `d2239fa`**.
 - New commits this session (oldest→newest):
   - `bb66e12` feat(workspace): IndexedDB-backed WorkspaceStore (D1 slice 4) — Grok
   - `60a22de` feat(workspace): .billu.json project file serialize/parse (slice 6) — Grok
   - `067412d` feat(workspace): persist C2 overrides + C1 decisions across reload (slice 5) — Claude
+  - `d2239fa` feat(workspace): wire .billu.json export/import buttons (slice 6 follow-up) — Claude
 - NOT pushed since `bb66e12`. No PR yet.
 - Untracked `mcps/` (pre-existing, unrelated) left alone.
 
-## Verification (at tip `067412d`)
+## Verification (at tip `d2239fa`)
 - `npx tsc --noEmit` → 0
-- `npx vitest run` → **304 passed** (66 files)
-- `npx playwright test` → **8 passed** (desktop + mobile, parallel, clean process state)
+- `npx vitest run` → **309 passed** (67 files)
+- `npx playwright test --workers=1` → **10 passed** (desktop + mobile)
 - `npm run build` → green
 - NOTE: the e2e suite is resource-sensitive. Orphaned `npm run dev` / Chromium
   processes from repeated runs will exhaust resources and crash parallel workers
@@ -41,8 +42,17 @@ no/blocked IDB or write failure, never throws. Tests use an injected fake IDBFac
 `src/workspace/project-file.ts`. `serializeProjectFile` (pretty 2-space) +
 `parseProjectFile` → `{ok,snapshot}|{ok,error}`, never throws; validates `kind`,
 `WORKSPACE_SNAPSHOT_VERSION`, object shapes, `decisions[*].excluded` boolean; deep-copies
-on success. **Pure module only — NOT yet wired to any UI button** (deliberately deferred
-to avoid colliding with concurrent main.ts work; see Next #1).
+on success. **Now wired to UI** — see slice 6 follow-up below.
+
+### D1 slice 6 follow-up — Save/Open project buttons (Claude, `d2239fa`)
+`src/ui/project-file-actions.ts` (`bindProjectFileActions`, unit-tested with injected
+deps; uses a `getStore()` getter so it tracks the in-memory→durable store swap). Header
+buttons `#save-project` / `#open-project` + hidden `#project-file` input in `app-shell.ts`.
+Save → `serializeProjectFile(store.snapshot())` → `.billu.json` download. Open → read →
+`parseProjectFile` → on ok `store.load()` + re-activate the import so restored state
+re-applies; on error a LOUD status message with the workspace left intact. Buttons enabled
+only while a dashboard import is shown (mirrors Clear). e2e `project-file.spec.ts`:
+recategorize → Save → reset → Open restores the override from the file.
 
 ### D1 slice 5 — persistence wiring + exit criterion (Claude, `067412d`)
 - `src/workspace/persistence-bridge.ts` (pure, unit-tested): `buildSignatureIndex`
@@ -67,14 +77,13 @@ is why exclusions survive reload even though the synthetic item id changes. C1 r
 exclusions for `rejected:rows` (no rowIds) persist under a stable kind-only key.
 
 ## Next-session priorities
-1. **Wire `.billu.json` export/import buttons into `main.ts`** (slice 6 follow-up, mine).
-   Module is done + tested; needs: an Export button → `serializeProjectFile(workspaceStore
-   .snapshot())` → download Blob; an Import button → file read → `parseProjectFile` →
-   on `ok` `workspaceStore.load(snapshot)` + re-render, on error show a LOUD status message
-   and preserve current state. Add an e2e (export → clear → import → state returns).
-2. **Decide PR** for `codex/a1-audit-model` (C1 + C2 + D1 slices 4–6) vs keep stacking.
-   Branch not pushed since `bb66e12` — push before PR.
-3. Master-plan D2 (import history / "what changed") and D3 (saved rules) follow.
+**D1 is COMPLETE** (slices 1–6 + UI wiring). Remaining:
+1. **Decide PR** for `codex/a1-audit-model` (C1 + C2 + D1 slices 1–6) vs keep stacking.
+   Branch not pushed since `bb66e12` — `git push` before opening a PR.
+2. Master-plan D2 (import history / "what changed") and D3 (saved rules) follow.
+3. Optional polish: a `.billu.json` Import that works with NO active import yet (currently
+   Save/Open enable only once a ledger is shown); fold the carry-over cleanups noted in the
+   d1-continuation-plan (cloneSnapshot guard comment; canonicalPayload built on immutableTxnKey).
 
 ## Multi-agent workflow
 Loop held even with the room offline: Claude/Codex spec a small slice → Grok implements
