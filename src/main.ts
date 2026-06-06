@@ -30,7 +30,19 @@ import { renderCurrencyOptions } from "./ui/dashboard-sections";
 import { renderPreImportPanel } from "./ui/dashboard-renderers";
 import { renderDashboardResults } from "./ui/dashboard-results";
 import { formatCurrency, formatRunway } from "./ui/formatters";
-import { deriveExcludedTransactionIdsFromQueue } from "./ui/review-queue";
+import { buildReviewDrawerItems, deriveExcludedTransactionIdsFromQueue } from "./ui/review-queue";
+import type { ReviewDrawerItem } from "./ui/review-drawer";
+import { createInMemoryWorkspaceStore, type WorkspaceStore } from "./workspace/workspace-store";
+import { createIndexedDbWorkspaceStore } from "./workspace/indexeddb-workspace-store";
+import {
+  buildSignatureIndex,
+  restoreOverrides,
+  restoreReviewExclusions,
+  persistOverride,
+  clearPersistedOverride,
+  persistReviewDecision,
+  type SignatureIndex
+} from "./workspace/persistence-bridge";
 import {
   readCashOnHand as readCashOnHandInput,
   readFutureEventsText as readFutureEventsTextInput
@@ -67,6 +79,21 @@ const classificationOverrides = new Map<string, ClassificationOverride>();
 // Rows the user marked "Looks right" without changing them — cleared from the
 // category-review queue without an override.
 const confirmedCategoryIds = new Set<string>();
+
+// D1 persistence. The store starts in-memory and is upgraded to the durable
+// IndexedDB-backed store once it opens; `storeReady` gates restore on that.
+// `signatureIndex` bridges the active ledger's volatile record ids to the
+// reload-stable signatures that everything is persisted under.
+let workspaceStore: WorkspaceStore = createInMemoryWorkspaceStore();
+const storeReady: Promise<void> = createIndexedDbWorkspaceStore()
+  .then((durable) => {
+    workspaceStore = durable.store;
+  })
+  .catch(() => {
+    // Keep the in-memory fallback; persistence silently degrades.
+  });
+let signatureIndex: SignatureIndex | null = null;
+let currentReviewItems: ReviewDrawerItem[] = [];
 
 document.querySelector<HTMLDivElement>("#app")!.innerHTML = renderAppShell(SAMPLE_DATASETS);
 
@@ -109,6 +136,10 @@ clearButton.addEventListener("click", () => {
   reviewExcludedItemIds.clear();
   classificationOverrides.clear();
   confirmedCategoryIds.clear();
+  // Drop the per-ledger index; persisted signatures are intentionally kept so
+  // re-importing the same file restores its overrides and review decisions.
+  signatureIndex = null;
+  currentReviewItems = [];
   fileInput.value = "";
   paintPreImport();
   status.textContent = "Import cleared. Waiting for a CSV or Excel file.";
@@ -246,6 +277,14 @@ function renderImportResult(
       })
   });
   const excludedTransactionIds = view.excludedTransactionIds ?? [];
+  // Keep the current review items so a toggle can be mapped back to its
+  // reload-stable signature for persistence.
+  currentReviewItems = buildReviewDrawerItems({
+    summary: view.reviewSummary,
+    rejectedRows: result.rejectedRows,
+    excludedReviewItemIds: reviewExcludedItemIds,
+    formatMoney
+  });
   // Rows confirmed "Looks right" leave the queue/tile — UNLESS they still carry an
   // active override, so the user can always reach Reset (P2: confirm-then-stuck).
   const visibleCategoryItems = view.categoryReview.items.filter(
@@ -281,11 +320,17 @@ function renderImportResult(
     onReviewDecision: (decision) => {
       if (decision.excluded) reviewExcludedItemIds.add(decision.itemId);
       else reviewExcludedItemIds.delete(decision.itemId);
+      const item = currentReviewItems.find((candidate) => candidate.id === decision.itemId);
+      if (item && signatureIndex) {
+        persistReviewDecision(workspaceStore, signatureIndex, item, decision.excluded);
+      }
       renderImportResult(result, sourceName, { reopenReviewItemId: decision.itemId });
     },
     onRecategorize: (id, patch) => {
-      classificationOverrides.set(id, { ...classificationOverrides.get(id), ...patch });
+      const override = { ...classificationOverrides.get(id), ...patch };
+      classificationOverrides.set(id, override);
       confirmedCategoryIds.delete(id);
+      if (signatureIndex) persistOverride(workspaceStore, signatureIndex, id, override);
       renderImportResult(result, sourceName, { reopenCategoryItemId: id });
     },
     onConfirmCategory: (id) => {
@@ -295,6 +340,7 @@ function renderImportResult(
     onResetCategory: (id) => {
       classificationOverrides.delete(id);
       confirmedCategoryIds.delete(id);
+      if (signatureIndex) clearPersistedOverride(workspaceStore, signatureIndex, id);
       renderImportResult(result, sourceName, { reopenCategoryItemId: id });
     }
   });
@@ -319,8 +365,50 @@ function resetDashboardViewState(): void {
 function bindMappingReview(): void {
   bindImportReviewActions({
     getDraftImport: () => draftImport,
-    renderImportResult
+    renderImportResult: (result, sourceName) => {
+      void activateImportResult(result, sourceName);
+    }
   });
+}
+
+// Entry point for a freshly confirmed import: sign the ledger, restore any
+// persisted overrides + review exclusions for matching signatures, THEN render.
+// Re-renders (filters, cockpit actions) call renderImportResult directly and
+// reuse the signatureIndex built here.
+async function activateImportResult(result: CsvImportResult, sourceName: string): Promise<void> {
+  await storeReady;
+  signatureIndex = buildSignatureIndex(result.records);
+
+  const restoredOverrides = restoreOverrides(workspaceStore, signatureIndex);
+  classificationOverrides.clear();
+  for (const [id, override] of restoredOverrides) {
+    classificationOverrides.set(id, override);
+  }
+
+  // Build the review items from the (now override-applied) ledger so stored
+  // review decisions can be matched back to this import's synthetic item ids.
+  const probe = buildDashboardView({
+    result,
+    filters: viewState.filters,
+    trendGrain: viewState.trendGrain,
+    reviewPreset: viewState.reviewPreset,
+    selectedTransactionId: viewState.selectedTransactionId,
+    cashOnHand: readCashOnHand(),
+    futureEventsText: readFutureEventsText(),
+    overrides: classificationOverrides
+  });
+  const probeItems = buildReviewDrawerItems({
+    summary: probe.reviewSummary,
+    rejectedRows: result.rejectedRows,
+    excludedReviewItemIds: new Set<string>(),
+    formatMoney
+  });
+  reviewExcludedItemIds.clear();
+  for (const id of restoreReviewExclusions(workspaceStore, probeItems, signatureIndex)) {
+    reviewExcludedItemIds.add(id);
+  }
+
+  renderImportResult(result, sourceName);
 }
 
 function bindDashboardFilters(): void {
