@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { txnSignature } from "./txn-signature";
+import { signLedger } from "./sign-ledger";
 import type { TransactionRecord } from "../finance/types";
 
 function baseRecord(over: Partial<TransactionRecord> = {}): TransactionRecord {
@@ -64,5 +65,47 @@ describe("txnSignature", () => {
 
   it("returns a txn_ prefixed deterministic id", () => {
     expect(txnSignature(baseRecord(), 0)).toMatch(/^txn_[0-9a-f]{16}$/);
+  });
+});
+
+describe("txnSignature golden values", () => {
+  it("pins exact signature strings for a fixed set of records", () => {
+    const cafe = baseRecord();
+    const wire = baseRecord({
+      dateISO: "2026-02-01",
+      amount: 100,
+      description: "Wire transfer",
+      account: "Amex",
+      sourceSheet: "Transactions",
+    });
+    const withoutSheet = baseRecord({ sourceSheet: undefined });
+
+    expect(txnSignature(cafe, 0)).toBe("txn_cf9eb6d2886ffbd0");
+    expect(txnSignature(cafe, 1)).toBe("txn_cb9c71ef9ec12d6c");
+    expect(txnSignature(wire, 0)).toBe("txn_f5c33438a180458c");
+    expect(txnSignature(withoutSheet, 0)).toBe("txn_cf9eb6d2886ffbd0");
+  });
+});
+
+describe("signLedger golden stability", () => {
+  const goldenLedgerRecords = [
+    baseRecord({ id: "a" }),
+    baseRecord({ id: "b" }),
+    baseRecord({ id: "c", amount: 12 }),
+  ];
+
+  const goldenSignedLedger = [
+    { id: "a", signature: "txn_cf9eb6d2886ffbd0" },
+    { id: "b", signature: "txn_cb9c71ef9ec12d6c" },
+    { id: "c", signature: "txn_e1bccfafa1277b4e" },
+  ];
+
+  it("produces byte-stable output across independent calls on the same records", () => {
+    const first = signLedger(goldenLedgerRecords);
+    const second = signLedger(goldenLedgerRecords);
+
+    expect(first).toEqual(goldenSignedLedger);
+    expect(second).toEqual(goldenSignedLedger);
+    expect(JSON.stringify(second)).toBe(JSON.stringify(first));
   });
 });
