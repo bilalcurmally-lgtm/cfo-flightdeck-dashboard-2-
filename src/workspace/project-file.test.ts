@@ -6,6 +6,7 @@ import {
 } from "./project-file";
 import {
   WORKSPACE_SNAPSHOT_VERSION,
+  createInMemoryWorkspaceStore,
   type WorkspaceSnapshot,
 } from "./workspace-store";
 
@@ -28,6 +29,24 @@ describe("project-file", () => {
     const parsed = parseProjectFile(text);
 
     expect(parsed).toEqual({ ok: true, snapshot: sampleSnapshot });
+  });
+
+  it("round-trips through in-memory stores via serialize and parse", () => {
+    const store = createInMemoryWorkspaceStore();
+    store.setCategoryOverride(SIG_A, { parent: "Financing", flow: "revenue" });
+    store.setDecision(SIG_B, { excluded: true });
+
+    const originalSnapshot = store.snapshot();
+    const parsed = parseProjectFile(serializeProjectFile(originalSnapshot));
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) {
+      return;
+    }
+
+    const store2 = createInMemoryWorkspaceStore();
+    store2.load(parsed.snapshot);
+
+    expect(store2.snapshot()).toEqual(originalSnapshot);
   });
 
   it("returns deep-copied snapshots that are isolated from later mutation", () => {
