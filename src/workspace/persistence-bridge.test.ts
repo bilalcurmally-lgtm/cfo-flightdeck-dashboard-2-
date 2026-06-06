@@ -115,6 +115,36 @@ describe("persistence-bridge", () => {
     expect(restored.has("transfer:z9:z7")).toBe(true);
   });
 
+  it("uses a stable kind-only key for rejected items with empty rowIds", () => {
+    const indexA = buildSignatureIndex([record({ id: "a" })]);
+    const indexB = buildSignatureIndex([record({ id: "b", amount: 200 })]);
+    const item = reviewItem({ id: "rejected:rows", kind: "rejected", rowIds: [] });
+
+    expect(reviewItemSignature(item, indexA)).toBe("review:rejected:");
+    expect(reviewItemSignature(item, indexB)).toBe("review:rejected:");
+    expect(reviewItemSignature(item, indexA)).toBe(reviewItemSignature(item, indexB));
+  });
+
+  it("assigns different signatures to same-kind items with disjoint rows", () => {
+    const index = buildSignatureIndex([
+      record({ id: "a", amount: 10, description: "alpha" }),
+      record({ id: "b", amount: 20, description: "beta" }),
+    ]);
+    const itemA = reviewItem({ id: "duplicate:a", kind: "duplicate", rowIds: ["a"] });
+    const itemB = reviewItem({ id: "duplicate:b", kind: "duplicate", rowIds: ["b"] });
+
+    expect(reviewItemSignature(itemA, index)).not.toBe(reviewItemSignature(itemB, index));
+  });
+
+  it("filters unresolved rowIds out of review-item signatures instead of throwing", () => {
+    const index = buildSignatureIndex([record({ id: "known", amount: 50, description: "present" })]);
+    const mixed = reviewItem({ id: "transfer:mixed", kind: "transfer", rowIds: ["known", "missing"] });
+    const knownOnly = reviewItem({ id: "transfer:known", kind: "transfer", rowIds: ["known"] });
+
+    expect(() => reviewItemSignature(mixed, index)).not.toThrow();
+    expect(reviewItemSignature(mixed, index)).toBe(reviewItemSignature(knownOnly, index));
+  });
+
   it("does not restore exclusions for items whose decision is excluded:false", () => {
     const index = buildSignatureIndex([record({ id: "out-1", amount: 50, description: "x" })]);
     const store = createInMemoryWorkspaceStore();
