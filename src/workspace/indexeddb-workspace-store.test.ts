@@ -268,11 +268,13 @@ describe("createIndexedDbWorkspaceStore", () => {
       version: WORKSPACE_SNAPSHOT_VERSION,
       categoryOverrides: { [SIG_A]: { parent: "State A" } },
       decisions: { [SIG_B]: { excluded: true } },
+      imports: [],
     };
     const snapshotB = {
       version: WORKSPACE_SNAPSHOT_VERSION,
       categoryOverrides: { [SIG_A]: { parent: "State B", flow: "revenue" as const } },
       decisions: {},
+      imports: [],
     };
 
     const first = await createIndexedDbWorkspaceStore({ factory, dbName });

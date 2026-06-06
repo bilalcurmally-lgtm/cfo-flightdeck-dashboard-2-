@@ -25,6 +25,7 @@ function emptySnapshot(): WorkspaceSnapshot {
     version: WORKSPACE_SNAPSHOT_VERSION,
     categoryOverrides: {},
     decisions: {},
+    imports: [],
   };
 }
 

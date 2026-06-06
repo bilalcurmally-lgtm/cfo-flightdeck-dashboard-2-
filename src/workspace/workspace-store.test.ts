@@ -61,6 +61,7 @@ describe("createInMemoryWorkspaceStore", () => {
       version: WORKSPACE_SNAPSHOT_VERSION,
       categoryOverrides: { [SIG_A]: { flow: "outflow" } },
       decisions: { [SIG_B]: { excluded: false } },
+      imports: [],
     };
     store.load(incoming);
     incoming.categoryOverrides[SIG_A] = { parent: "After load" };
@@ -100,6 +101,7 @@ describe("createInMemoryWorkspaceStore", () => {
       version: WORKSPACE_SNAPSHOT_VERSION,
       categoryOverrides: { [SIG_A]: { parent: "Seed" } },
       decisions: { [SIG_B]: { excluded: true } },
+      imports: [],
     };
     const store = createInMemoryWorkspaceStore(initial);
     expect(store.getCategoryOverride(SIG_A)).toEqual({ parent: "Seed" });
@@ -107,5 +109,35 @@ describe("createInMemoryWorkspaceStore", () => {
 
     initial.categoryOverrides[SIG_A] = { parent: "Mutated seed" };
     expect(store.getCategoryOverride(SIG_A)).toEqual({ parent: "Seed" });
+  });
+});
+
+describe("workspace-store v2 migration", () => {
+  it("creates v2 snapshots with an empty imports array", () => {
+    const store = createInMemoryWorkspaceStore();
+    const snap = store.snapshot();
+    expect(snap.version).toBe(2);
+    expect(snap.imports).toEqual([]);
+  });
+
+  it("migrates a v1 snapshot (no imports, version 1) on load", () => {
+    const store = createInMemoryWorkspaceStore();
+    store.load({ version: 1, categoryOverrides: {}, decisions: {} } as never);
+    const snap = store.snapshot();
+    expect(snap.version).toBe(WORKSPACE_SNAPSHOT_VERSION);
+    expect(snap.imports).toEqual([]);
+  });
+
+  it("preserves an existing imports array on load", () => {
+    const store = createInMemoryWorkspaceStore();
+    const imp = {
+      importedAt: "2026-01-01T00:00:00.000Z",
+      sourceName: "x.csv",
+      signatureSet: ["txn_a"],
+      kpiSnapshot: { runwayMonths: 5 },
+      reviewItemSignatures: [],
+    };
+    store.load({ version: 2, categoryOverrides: {}, decisions: {}, imports: [imp] });
+    expect(store.snapshot().imports).toEqual([imp]);
   });
 });

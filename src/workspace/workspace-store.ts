@@ -1,15 +1,17 @@
 import type { ClassificationOverride } from "../finance/classification-overrides";
+import type { ImportSnapshot } from "./import-history";
 
 export interface ExclusionDecision {
   excluded: boolean;
 }
 
-export const WORKSPACE_SNAPSHOT_VERSION = 1;
+export const WORKSPACE_SNAPSHOT_VERSION = 2;
 
 export interface WorkspaceSnapshot {
   version: number;
   categoryOverrides: Record<string, ClassificationOverride>;
   decisions: Record<string, ExclusionDecision>;
+  imports: ImportSnapshot[];
 }
 
 export interface WorkspaceStore {
@@ -26,7 +28,7 @@ export interface WorkspaceStore {
 // Shallow-copies each override/decision value; assumes flat ClassificationOverride / ExclusionDecision shapes — revisit if nested fields are added.
 function cloneSnapshot(snapshot: WorkspaceSnapshot): WorkspaceSnapshot {
   return {
-    version: snapshot.version,
+    version: WORKSPACE_SNAPSHOT_VERSION,
     categoryOverrides: Object.fromEntries(
       Object.entries(snapshot.categoryOverrides).map(([signature, override]) => [
         signature,
@@ -39,6 +41,12 @@ function cloneSnapshot(snapshot: WorkspaceSnapshot): WorkspaceSnapshot {
         { ...decision },
       ]),
     ),
+    imports: (snapshot.imports ?? []).map((imp) => ({
+      ...imp,
+      signatureSet: [...imp.signatureSet],
+      kpiSnapshot: { ...imp.kpiSnapshot },
+      reviewItemSignatures: [...imp.reviewItemSignatures],
+    })),
   };
 }
 
@@ -47,6 +55,7 @@ function emptySnapshot(): WorkspaceSnapshot {
     version: WORKSPACE_SNAPSHOT_VERSION,
     categoryOverrides: {},
     decisions: {},
+    imports: [],
   };
 }
 
