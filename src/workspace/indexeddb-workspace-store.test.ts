@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { createIndexedDbWorkspaceStore } from "./indexeddb-workspace-store";
+import { WORKSPACE_SNAPSHOT_VERSION } from "./workspace-store";
 
 const SIG_A = "txn_aaaaaaaaaaaaaaaa";
 const SIG_B = "txn_bbbbbbbbbbbbbbbb";
@@ -242,6 +243,48 @@ describe("createIndexedDbWorkspaceStore", () => {
     expect(failedOpen.durable).toBe(false);
     failedOpen.store.setDecision(SIG_B, { excluded: false });
     expect(failedOpen.store.getDecision(SIG_B)).toEqual({ excluded: false });
+  });
+
+  it("persists clearCategoryOverride across reopen", async () => {
+    const { factory, waitForPersistence } = createFakeIdbFactory();
+    const dbName = "test-clear-write-through";
+
+    const first = await createIndexedDbWorkspaceStore({ factory, dbName });
+    first.store.setCategoryOverride(SIG_A, { parent: "Financing" });
+    await waitForPersistence();
+
+    first.store.clearCategoryOverride(SIG_A);
+    await waitForPersistence();
+
+    const second = await createIndexedDbWorkspaceStore({ factory, dbName });
+    expect(second.store.getCategoryOverride(SIG_A)).toBeUndefined();
+  });
+
+  it("persists load across reopen", async () => {
+    const { factory, waitForPersistence } = createFakeIdbFactory();
+    const dbName = "test-load-write-through";
+
+    const snapshotA = {
+      version: WORKSPACE_SNAPSHOT_VERSION,
+      categoryOverrides: { [SIG_A]: { parent: "State A" } },
+      decisions: { [SIG_B]: { excluded: true } },
+    };
+    const snapshotB = {
+      version: WORKSPACE_SNAPSHOT_VERSION,
+      categoryOverrides: { [SIG_A]: { parent: "State B", flow: "revenue" as const } },
+      decisions: {},
+    };
+
+    const first = await createIndexedDbWorkspaceStore({ factory, dbName });
+    first.store.load(snapshotA);
+    await waitForPersistence();
+
+    first.store.load(snapshotB);
+    await waitForPersistence();
+
+    const second = await createIndexedDbWorkspaceStore({ factory, dbName });
+    expect(second.store.getCategoryOverride(SIG_A)).toEqual({ parent: "State B", flow: "revenue" });
+    expect(second.store.getDecision(SIG_B)).toBeUndefined();
   });
 
   it("swallows write-through failures without throwing from setters", async () => {
