@@ -107,6 +107,33 @@ describe("project-file", () => {
     });
   });
 
+  it("drops unknown top-level snapshot keys on parse", () => {
+    const withExtraField = JSON.stringify({
+      kind: BILLU_FILE_KIND,
+      snapshot: {
+        version: WORKSPACE_SNAPSHOT_VERSION,
+        categoryOverrides: { [SIG_A]: { parent: "Financing" } },
+        decisions: { [SIG_B]: { excluded: true } },
+        futureField: 1,
+      },
+    });
+
+    expect(() => parseProjectFile(withExtraField)).not.toThrow();
+
+    const result = parseProjectFile(withExtraField);
+    expect(result).toEqual({
+      ok: true,
+      snapshot: {
+        version: WORKSPACE_SNAPSHOT_VERSION,
+        categoryOverrides: { [SIG_A]: { parent: "Financing" } },
+        decisions: { [SIG_B]: { excluded: true } },
+      },
+    });
+    if (result.ok) {
+      expect(result.snapshot).not.toHaveProperty("futureField");
+    }
+  });
+
   it("rejects malformed snapshot shapes without throwing", () => {
     const arrayOverrides = JSON.stringify({
       kind: BILLU_FILE_KIND,
