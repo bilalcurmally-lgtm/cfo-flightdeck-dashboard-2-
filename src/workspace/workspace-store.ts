@@ -1,5 +1,5 @@
 import type { ClassificationOverride } from "../finance/classification-overrides";
-import type { ImportSnapshot } from "./import-history";
+import { recordImport, type ImportSnapshot } from "./import-history";
 
 export interface ExclusionDecision {
   excluded: boolean;
@@ -23,6 +23,7 @@ export interface WorkspaceStore {
   clearDecision(signature: string): void;
   snapshot(): WorkspaceSnapshot;
   load(snapshot: WorkspaceSnapshot): void;
+  addImport(snapshot: ImportSnapshot, options?: { cap?: number }): void;
 }
 
 // Shallow-copies each override/decision value; assumes flat ClassificationOverride / ExclusionDecision shapes — revisit if nested fields are added.
@@ -95,6 +96,10 @@ export function createInMemoryWorkspaceStore(initial?: WorkspaceSnapshot): Works
 
     load(snapshot) {
       state = cloneSnapshot(snapshot);
+    },
+
+    addImport(snapshot, options) {
+      state.imports = recordImport(state.imports, snapshot, options);
     },
   };
 }

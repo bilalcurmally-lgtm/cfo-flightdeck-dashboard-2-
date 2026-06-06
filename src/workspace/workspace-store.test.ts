@@ -4,6 +4,7 @@ import {
   createInMemoryWorkspaceStore,
   type WorkspaceSnapshot,
 } from "./workspace-store";
+import type { ImportSnapshot } from "./import-history";
 
 const SIG_A = "txn_aaaaaaaaaaaaaaaa";
 const SIG_B = "txn_bbbbbbbbbbbbbbbb";
@@ -139,5 +140,34 @@ describe("workspace-store v2 migration", () => {
     };
     store.load({ version: 2, categoryOverrides: {}, decisions: {}, imports: [imp] });
     expect(store.snapshot().imports).toEqual([imp]);
+  });
+});
+describe("workspace-store addImport", () => {
+  const imp = (sig: string): ImportSnapshot => ({
+    importedAt: "2026-01-01T00:00:00.000Z",
+    sourceName: "x.csv",
+    signatureSet: [sig],
+    kpiSnapshot: { runwayMonths: 5 },
+    reviewItemSignatures: [],
+  });
+
+  it("appends an import to the snapshot", () => {
+    const store = createInMemoryWorkspaceStore();
+    store.addImport(imp("a"));
+    expect(store.snapshot().imports).toHaveLength(1);
+  });
+
+  it("dedups an identical-to-most-recent re-import", () => {
+    const store = createInMemoryWorkspaceStore();
+    store.addImport(imp("a"));
+    store.addImport(imp("a"));
+    expect(store.snapshot().imports).toHaveLength(1);
+  });
+
+  it("caps history via the cap option", () => {
+    const store = createInMemoryWorkspaceStore();
+    for (let i = 0; i < 5; i++) store.addImport(imp(`sig-${i}`), { cap: 3 });
+    expect(store.snapshot().imports).toHaveLength(3);
+    expect(store.snapshot().imports[0].signatureSet).toEqual(["sig-2"]);
   });
 });

@@ -175,6 +175,11 @@ function wrapWithWriteThrough(
       mirror.load(snapshot);
       enqueuePersist();
     },
+
+    addImport(snapshot, options) {
+      mirror.addImport(snapshot, options);
+      enqueuePersist();
+    },
   };
 }
 
