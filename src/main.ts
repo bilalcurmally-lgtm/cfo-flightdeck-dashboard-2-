@@ -41,8 +41,15 @@ import {
   persistOverride,
   clearPersistedOverride,
   persistReviewDecision,
+  reviewItemSignature,
   type SignatureIndex
 } from "./workspace/persistence-bridge";
+import {
+  compareToBaseline,
+  findComparableBaseline,
+  type ImportComparison,
+  type ImportSnapshot
+} from "./workspace/import-history";
 import {
   readCashOnHand as readCashOnHandInput,
   readFutureEventsText as readFutureEventsTextInput
@@ -95,6 +102,8 @@ const storeReady: Promise<void> = createIndexedDbWorkspaceStore()
   });
 let signatureIndex: SignatureIndex | null = null;
 let currentReviewItems: ReviewDrawerItem[] = [];
+// D2 import history: the comparison (if any) of the active import vs its baseline.
+let currentImportComparison: ImportComparison | null = null;
 
 document.querySelector<HTMLDivElement>("#app")!.innerHTML = renderAppShell(SAMPLE_DATASETS);
 
@@ -431,6 +440,45 @@ async function activateImportResult(result: CsvImportResult, sourceName: string)
   }
 
   renderImportResult(result, sourceName);
+  // Capture relies on currentReviewItems, which the render above populates.
+  captureImport(result, sourceName);
+  if (currentImportComparison) renderImportResult(result, sourceName); // re-render so the strip shows
+}
+
+// D2: record an ImportSnapshot for this import and compute its comparison vs the
+// most recent overlapping prior import (the welcome-back baseline).
+function captureImport(result: CsvImportResult, sourceName: string): void {
+  if (!signatureIndex) return;
+  const view = buildDashboardView({
+    result,
+    filters: viewState.filters,
+    trendGrain: viewState.trendGrain,
+    reviewPreset: viewState.reviewPreset,
+    selectedTransactionId: viewState.selectedTransactionId,
+    cashOnHand: readCashOnHand(),
+    futureEventsText: readFutureEventsText(),
+    overrides: classificationOverrides
+  });
+  const signatureSet = [...signatureIndex.idToSignature.values()];
+  const reviewItemSignatures = currentReviewItems.map((item) =>
+    reviewItemSignature(item, signatureIndex!)
+  );
+  const snapshot: ImportSnapshot = {
+    importedAt: new Date().toISOString(),
+    sourceName,
+    signatureSet,
+    kpiSnapshot: {
+      runwayMonths: view.summary.cashHealth.runwayMonths,
+      revenue: view.summary.revenue,
+      outflow: view.summary.outflow,
+      netCash: view.summary.netCash,
+      transactionCount: view.summary.transactionCount
+    },
+    reviewItemSignatures
+  };
+  const baseline = findComparableBaseline(workspaceStore.snapshot().imports, signatureSet);
+  currentImportComparison = baseline ? compareToBaseline(baseline, snapshot) : null;
+  workspaceStore.addImport(snapshot);
 }
 
 function bindDashboardFilters(): void {
