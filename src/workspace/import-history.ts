@@ -41,3 +41,28 @@ export function findComparableBaseline(
   }
   return undefined;
 }
+
+export interface KpiDelta {
+  key: string;
+  previous: number | null;
+  current: number | null;
+  delta: number | null;
+  direction: "up" | "down" | "flat";
+}
+
+export function diffKpiSnapshots(
+  previous: Record<string, number | null>,
+  current: Record<string, number | null>,
+): KpiDelta[] {
+  const keys = [...new Set([...Object.keys(previous), ...Object.keys(current)])];
+  return keys.map((key) => {
+    const prev = key in previous ? previous[key] : null;
+    const curr = key in current ? current[key] : null;
+    if (prev === null || curr === null) {
+      return { key, previous: prev, current: curr, delta: null, direction: "flat" as const };
+    }
+    const delta = curr - prev;
+    const direction = delta > 0 ? "up" : delta < 0 ? "down" : "flat";
+    return { key, previous: prev, current: curr, delta, direction };
+  });
+}

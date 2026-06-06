@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { findComparableBaseline, recordImport, type ImportSnapshot } from "./import-history";
+import {
+  diffKpiSnapshots,
+  findComparableBaseline,
+  recordImport,
+  type ImportSnapshot,
+} from "./import-history";
 
 function snap(over: Partial<ImportSnapshot> & { signatureSet: string[] }): ImportSnapshot {
   return {
@@ -65,5 +70,34 @@ describe("findComparableBaseline", () => {
     ];
     const baseline = findComparableBaseline(history, ["a", "c"]);
     expect(baseline?.sourceName).toBe("mid.csv");
+  });
+});
+
+describe("diffKpiSnapshots", () => {
+  it("computes per-key delta and direction", () => {
+    const deltas = diffKpiSnapshots({ runwayMonths: 7.2 }, { runwayMonths: 5.9 });
+    expect(deltas).toHaveLength(1);
+    expect(deltas[0]).toMatchObject({
+      key: "runwayMonths",
+      previous: 7.2,
+      current: 5.9,
+      direction: "down",
+    });
+    expect(deltas[0].delta).toBeCloseTo(-1.3, 10);
+  });
+
+  it("marks equal values as flat with zero delta", () => {
+    const deltas = diffKpiSnapshots({ revenue: 100 }, { revenue: 100 });
+    expect(deltas[0]).toMatchObject({ delta: 0, direction: "flat" });
+  });
+
+  it("uses null delta when either side is null", () => {
+    const deltas = diffKpiSnapshots({ runwayMonths: null }, { runwayMonths: 5 });
+    expect(deltas[0]).toMatchObject({ previous: null, current: 5, delta: null, direction: "flat" });
+  });
+
+  it("includes keys present in either snapshot", () => {
+    const deltas = diffKpiSnapshots({ a: 1 }, { b: 2 });
+    expect(deltas.map((d) => d.key).sort()).toEqual(["a", "b"]);
   });
 });
