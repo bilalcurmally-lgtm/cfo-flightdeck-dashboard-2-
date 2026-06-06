@@ -60,6 +60,7 @@ import { bindWorksheetPickerActions } from "./ui/worksheet-picker-actions";
 import { bindTransactionPreviewActions } from "./ui/transaction-preview-actions";
 import { renderReferencePanelContent } from "./ui/reference";
 import { bindPreImportActions } from "./ui/pre-import-actions";
+import { bindProjectFileActions } from "./ui/project-file-actions";
 
 type LoadedImportFile =
   | { kind: "csv"; result: CsvImportResult; source: string }
@@ -99,6 +100,8 @@ document.querySelector<HTMLDivElement>("#app")!.innerHTML = renderAppShell(SAMPL
 
 const fileInput = document.querySelector<HTMLInputElement>("#csv-file")!;
 const clearButton = document.querySelector<HTMLButtonElement>("#clear-button")!;
+const saveProjectButton = document.querySelector<HTMLButtonElement>("#save-project")!;
+const openProjectButton = document.querySelector<HTMLButtonElement>("#open-project")!;
 const referenceButton = document.querySelector<HTMLButtonElement>("#reference-button")!;
 const referencePanel = document.querySelector<HTMLElement>("#reference-panel")!;
 const status = document.querySelector<HTMLParagraphElement>("#status")!;
@@ -129,6 +132,20 @@ bindPreImportActions({
   loadSelectedSample
 });
 
+bindProjectFileActions({
+  status,
+  getStore: () => workspaceStore,
+  onLoaded: () => {
+    // Re-apply the freshly loaded workspace to the active import (if any).
+    if (activeImport) void activateImportResult(activeImport.result, activeImport.sourceName);
+  }
+});
+
+function setProjectActionsEnabled(enabled: boolean): void {
+  saveProjectButton.disabled = !enabled;
+  openProjectButton.disabled = !enabled;
+}
+
 clearButton.addEventListener("click", () => {
   activeImport = null;
   draftImport = null;
@@ -144,6 +161,7 @@ clearButton.addEventListener("click", () => {
   paintPreImport();
   status.textContent = "Import cleared. Waiting for a CSV or Excel file.";
   clearButton.disabled = true;
+  setProjectActionsEnabled(false);
 });
 
 referenceButton.addEventListener("click", () => {
@@ -202,6 +220,7 @@ function showImportError(sourceName: string, error: unknown): void {
   draftImport = null;
   paintPreImport();
   clearButton.disabled = true;
+  setProjectActionsEnabled(false);
   const message = error instanceof Error ? error.message : "Unknown import error.";
   status.textContent = `${sourceName}: could not read this import. ${message}`;
 }
@@ -214,6 +233,7 @@ function renderWorksheetPicker(sourceName: string, sheets: ParsedExcelSheet[]): 
   classificationOverrides.clear();
   confirmedCategoryIds.clear();
   clearButton.disabled = false;
+  setProjectActionsEnabled(false);
 
   if (sheets.length === 1) {
     const sheet = sheets[0];
@@ -242,6 +262,7 @@ function renderMappingReview(
   classificationOverrides.clear();
   confirmedCategoryIds.clear();
   clearButton.disabled = false;
+  setProjectActionsEnabled(false);
 
   status.textContent = `${sourceName}: review detected columns before calculations render.`;
   results.innerHTML = renderMappingReviewPanel(
@@ -259,6 +280,7 @@ function renderImportResult(
   activeImport = { result, sourceName };
   draftImport = null;
   clearButton.disabled = false;
+  setProjectActionsEnabled(true);
   const view = buildDashboardView({
     result,
     filters: viewState.filters,

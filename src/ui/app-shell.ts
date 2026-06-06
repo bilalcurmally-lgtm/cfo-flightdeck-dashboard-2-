@@ -20,6 +20,8 @@ export function renderAppShell(_samples: readonly SampleDataset[]): string {
         </aside>
         <div class="shell-actions" aria-label="Dashboard actions">
           ${renderAppbarLoadAction()}
+          <button id="save-project" type="button" disabled>Save project</button>
+          <button id="open-project" type="button" disabled>Open project</button>
           <button id="clear-button" type="button" disabled>Clear</button>
           <button id="reference-button" type="button" aria-expanded="false">Formulas</button>
         </div>
@@ -32,6 +34,13 @@ export function renderAppShell(_samples: readonly SampleDataset[]): string {
       type="file"
       accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
       aria-label="Choose a CSV or Excel file"
+    />
+    <input
+      id="project-file"
+      class="bw-sr-only"
+      type="file"
+      accept=".json,.billu.json,application/json"
+      aria-label="Open a .billu.json project file"
     />
     <p id="status" class="status" role="status">Waiting for a CSV or Excel file.</p>
 
