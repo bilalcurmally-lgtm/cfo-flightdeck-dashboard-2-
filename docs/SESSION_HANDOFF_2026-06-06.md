@@ -121,10 +121,11 @@ Grok now 5/5 clean slices, scope-disciplined (stayed out of main.ts on slice 6 a
 
 ---
 
-## 🧭 PICK UP HERE — next session (D2 in flight)
+## 🧭 Latest pick-up point — D2 in flight
 
-**State:** branch `codex/a1-audit-model` **tip `517fbb3`**, pushed, in sync. All green:
-tsc 0, vitest **358**, e2e 10/10 (`--workers=1`), build OK. Golden signatures intact.
+**State:** branch `codex/a1-audit-model`, with D2 S4 Task 4.2 completed locally by
+Codex on 2026-06-07. All green after the strip wiring: tsc 0, vitest **358**,
+e2e **12/12** (`--workers=1`), build OK. Golden signatures intact.
 
 **D2 progress (plan: `docs/superpowers/plans/2026-06-06-d2-import-history.md`):**
 - S1 ✅ WorkspaceSnapshot v2 + migration (Grok)
@@ -133,19 +134,12 @@ tsc 0, vitest **358**, e2e 10/10 (`--workers=1`), build OK. Golden signatures in
   captured + compared on every import; `currentImportComparison` is set. **Pipeline is live;
   the strip just isn't rendered yet.**
 - S4 Task 4.1 ✅ `welcome-back-strip.ts` renderer (Grok, `517fbb3`)
+- S4 Task 4.2 ✅ strip wired into `main.ts`; dismiss works; stale comparison is cleared
+  before a new import activation, on Clear, and on import error. New e2e:
+  `e2e/import-history.spec.ts` proves first import has no strip, reload + re-import shows
+  it, and dismiss removes it.
 
-**▶ FIRST ACTION TOMORROW — S4 Task 4.2 (mine, ~15 min): wire the strip into the cockpit.**
-In `src/main.ts` (see plan §"Task 4.2"):
-1. `import { renderWelcomeBackStrip } from "./ui/welcome-back-strip";`
-2. Add `let welcomeStripDismissed = false;` near `currentImportComparison`.
-3. In `renderImportResult`, right AFTER `results.innerHTML = renderDashboardResults({...});`:
-   if `currentImportComparison && !welcomeStripDismissed` → `results.insertAdjacentHTML("afterbegin", renderWelcomeBackStrip(currentImportComparison, { formatMoney, formatRunway }))`
-   and bind `[data-bw-welcome-dismiss]` click → set `welcomeStripDismissed = true` + remove `[data-bw-welcome-strip]`.
-4. Reset `welcomeStripDismissed = false;` at the top of `activateImportResult` (before first render).
-5. Set `currentImportComparison = null;` in the `clear` handler and `showImportError`.
-6. Gate: tsc 0, `npm run build`, then it's visibly testable (re-import a sample → strip shows).
-
-**THEN S5 (history panel):** cut Grok a brief for Task 5.1 (`import-history-panel.ts` pure
+**▶ NEXT ACTION — S5 (history panel):** cut Grok a brief for Task 5.1 (`import-history-panel.ts` pure
 renderer + test + styles), then I wire Task 5.2 (History toggle button in `app-shell.ts` +
 `main.ts`) and write Task 5.3 e2e (`e2e/import-history.spec.ts`: re-import shows strip;
 history panel lists ≥2 entries). That completes D2.

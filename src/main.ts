@@ -68,6 +68,7 @@ import { bindTransactionPreviewActions } from "./ui/transaction-preview-actions"
 import { renderReferencePanelContent } from "./ui/reference";
 import { bindPreImportActions } from "./ui/pre-import-actions";
 import { bindProjectFileActions } from "./ui/project-file-actions";
+import { renderWelcomeBackStrip } from "./ui/welcome-back-strip";
 
 type LoadedImportFile =
   | { kind: "csv"; result: CsvImportResult; source: string }
@@ -104,6 +105,7 @@ let signatureIndex: SignatureIndex | null = null;
 let currentReviewItems: ReviewDrawerItem[] = [];
 // D2 import history: the comparison (if any) of the active import vs its baseline.
 let currentImportComparison: ImportComparison | null = null;
+let welcomeStripDismissed = false;
 
 document.querySelector<HTMLDivElement>("#app")!.innerHTML = renderAppShell(SAMPLE_DATASETS);
 
@@ -166,6 +168,8 @@ clearButton.addEventListener("click", () => {
   // re-importing the same file restores its overrides and review decisions.
   signatureIndex = null;
   currentReviewItems = [];
+  currentImportComparison = null;
+  welcomeStripDismissed = false;
   fileInput.value = "";
   paintPreImport();
   status.textContent = "Import cleared. Waiting for a CSV or Excel file.";
@@ -227,6 +231,8 @@ async function loadImportFile(file: File): Promise<LoadedImportFile> {
 function showImportError(sourceName: string, error: unknown): void {
   activeImport = null;
   draftImport = null;
+  currentImportComparison = null;
+  welcomeStripDismissed = false;
   paintPreImport();
   clearButton.disabled = true;
   setProjectActionsEnabled(false);
@@ -344,6 +350,7 @@ function renderImportResult(
     formatMoney,
     formatRunway
   });
+  renderWelcomeStrip();
   bindDashboardFilters();
   bindDashboardCockpitActions({
     reopenReviewItemId: options.reopenReviewItemId,
@@ -408,6 +415,8 @@ function bindMappingReview(): void {
 // reuse the signatureIndex built here.
 async function activateImportResult(result: CsvImportResult, sourceName: string): Promise<void> {
   await storeReady;
+  currentImportComparison = null;
+  welcomeStripDismissed = false;
   signatureIndex = buildSignatureIndex(result.records);
 
   const restoredOverrides = restoreOverrides(workspaceStore, signatureIndex);
@@ -443,6 +452,20 @@ async function activateImportResult(result: CsvImportResult, sourceName: string)
   // Capture relies on currentReviewItems, which the render above populates.
   captureImport(result, sourceName);
   if (currentImportComparison) renderImportResult(result, sourceName); // re-render so the strip shows
+}
+
+function renderWelcomeStrip(): void {
+  if (!currentImportComparison || welcomeStripDismissed) return;
+  results.insertAdjacentHTML(
+    "afterbegin",
+    renderWelcomeBackStrip(currentImportComparison, { formatMoney, formatRunway })
+  );
+  results
+    .querySelector<HTMLButtonElement>("[data-bw-welcome-dismiss]")
+    ?.addEventListener("click", () => {
+      welcomeStripDismissed = true;
+      results.querySelector("[data-bw-welcome-strip]")?.remove();
+    });
 }
 
 // D2: record an ImportSnapshot for this import and compute its comparison vs the

@@ -968,23 +968,23 @@ git add src/ui/welcome-back-strip.ts src/ui/welcome-back-strip.test.ts src/style
 git commit -m "feat(ui): welcome-back strip renderer [D2]"
 ```
 
-### Task 4.2: Wire the strip into the cockpit **[integration]**
+### Task 4.2: Wire the strip into the cockpit **[integration]** ✅ done 2026-06-07
 
 **Files:** Modify `src/main.ts`
 
-- [ ] **Step 1: Import the renderer**
+- [x] **Step 1: Import the renderer**
 
 ```ts
 import { renderWelcomeBackStrip } from "./ui/welcome-back-strip";
 ```
 
-- [ ] **Step 2: Add dismiss state** near `let currentImportComparison`:
+- [x] **Step 2: Add dismiss state** near `let currentImportComparison`:
 
 ```ts
 let welcomeStripDismissed = false;
 ```
 
-- [ ] **Step 3: Render the strip** in `renderImportResult`, immediately after `results.innerHTML = renderDashboardResults({...});` insert the strip at the top of the results region and bind dismiss:
+- [x] **Step 3: Render the strip** in `renderImportResult`, immediately after `results.innerHTML = renderDashboardResults({...});` insert the strip at the top of the results region and bind dismiss:
 
 ```ts
   if (currentImportComparison && !welcomeStripDismissed) {
@@ -999,11 +999,11 @@ let welcomeStripDismissed = false;
   }
 ```
 
-- [ ] **Step 4: Reset dismiss on a new activation** — in `activateImportResult`, before the first `renderImportResult`, add `welcomeStripDismissed = false;`. Also clear `currentImportComparison = null;` in the `clear` handler and `showImportError`.
+- [x] **Step 4: Reset dismiss on a new activation** — in `activateImportResult`, before the first `renderImportResult`, add `welcomeStripDismissed = false;`. Also clear `currentImportComparison = null;` in the `clear` handler and `showImportError`.
 
-- [ ] **Step 5: Verify** `npx tsc --noEmit` → 0; `npm run build` → green.
+- [x] **Step 5: Verify** `npx tsc --noEmit` → 0; `npm run build` → green.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/main.ts
