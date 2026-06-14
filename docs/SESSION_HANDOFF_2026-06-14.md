@@ -135,7 +135,16 @@ next slice (metric contracts registry).
   - 15 new tests; full suite now `tsc` 0, `vitest` 392 passing.
 - `mcps/` left untouched (still untracked, pre-existing).
 
-Branch `codex/a1-audit-model` tip is now `793e447`. Still not pushed.
+Then wired the registry into the cockpit UI (`56f25e9`): the per-KPI lineage drawer now
+shows the contract's decision question above the formula and a "Good to know" caveats
+section below the audit trail (`src/ui/lineage-drawer.ts`, reusing calm audit-surface
+styling). Verified in-browser desktop + mobile via Preview MCP — computed tokens match
+DESIGN.md, clean text wrap at 375px. Note: Preview `screenshot` tool hung (headless
+renderer); used `eval` computed-style + bounding-box inspection instead, which is the
+recommended path for precise style checks. Full suite: tsc 0, vitest 394, e2e 16/16, build.
+Added `.claude/launch.json` (vite dev, port 5173) for Preview — left untracked.
+
+Branch `codex/a1-audit-model` tip is now `56f25e9`. Still not pushed.
 
 ## Next Session Priorities
 

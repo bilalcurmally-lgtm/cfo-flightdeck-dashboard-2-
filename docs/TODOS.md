@@ -149,8 +149,14 @@ Remaining:
 
 - Extend the registry to detail-role metrics (Top Heads/Subcategories, Transaction
   Preview, Raw Row, Import Quality) once those become first-class scalars.
-- Wire contracts into the cockpit UI (decision question + caveats on KPI hover/drilldown).
 - Feed contracts into the readiness/trust center below.
+
+Wired (2026-06-14):
+
+- The per-KPI lineage drawer now surfaces the contract's decision question (above the
+  formula) and a "Good to know" caveats section (below the audit trail), via
+  `getMetricContract(metric)` in `src/ui/lineage-drawer.ts`. Verified in-browser on
+  desktop + mobile (computed tokens match DESIGN.md; clean wrap at 375px).
 
 What:
 
