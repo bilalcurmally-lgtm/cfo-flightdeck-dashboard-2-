@@ -11,6 +11,7 @@ function input(overrides: Partial<ReadinessInput> = {}): ReadinessInput {
     unassignedHeads: 0,
     unassignedCounterparties: 0,
     hasCashOnHand: true,
+    revenueConcentration: 0,
     nonOperatingRows: 0,
     hasImportHistory: true,
     ...overrides
@@ -61,6 +62,14 @@ describe("assessReadiness", () => {
     const report = assessReadiness(input({ hasCashOnHand: false }));
     expect(report.status).toBe("partial");
     expect(report.signals.find((s) => s.id === "cashOnHand")?.severity).toBe("caution");
+  });
+
+  it("flags concentrated revenue as a caution", () => {
+    const report = assessReadiness(input({ revenueConcentration: 0.82 }));
+    expect(report.status).toBe("partial");
+    const signal = report.signals.find((s) => s.id === "revenueConcentration");
+    expect(signal?.severity).toBe("caution");
+    expect(signal?.detail).toContain("82%");
   });
 
   it("lets a blocker dominate cautions", () => {

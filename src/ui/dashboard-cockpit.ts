@@ -2,10 +2,20 @@ import type { AuditMetric, AuditedCockpit } from "../finance/audit";
 import type { CockpitViewModel, ReviewBreakdown } from "../finance/cockpit-kpis";
 import type { NonOperatingSummary } from "../finance/non-operating";
 import type { ReadinessReport } from "../finance/readiness";
-import type { NetCashContributors } from "../finance/metric-diagnostics";
+import type {
+  BurnContributors,
+  FilterExclusionImpact,
+  LargestTransactionInfluence,
+  NetCashContributors,
+  RevenueConcentration
+} from "../finance/metric-diagnostics";
 import { escapeHtml } from "./html";
+import { renderFilterExclusionImpact } from "./filter-exclusion-impact";
 import { renderLineageDrawer } from "./lineage-drawer";
+import { renderBurnContributors } from "./burn-contributors";
+import { renderLargestTransactionInfluence } from "./largest-transaction-influence";
 import { renderNetCashContributors } from "./net-cash-contributors";
+import { renderRevenueConcentration } from "./revenue-concentration";
 import { renderReadinessWidget, renderReadinessDrawer } from "./readiness-panel";
 import { renderReviewDrawer, type ReviewDrawerItem } from "./review-drawer";
 import { renderCategoryReviewDrawer } from "./category-review-drawer";
@@ -22,6 +32,10 @@ export interface CockpitExtras {
   categoryItems?: readonly CategoryReviewItem[];
   readiness?: ReadinessReport;
   netCashContributors?: NetCashContributors;
+  burnContributors?: BurnContributors;
+  revenueConcentration?: RevenueConcentration;
+  largestTransactionInfluence?: LargestTransactionInfluence | null;
+  filterExclusionImpact?: FilterExclusionImpact | null;
 }
 
 interface CockpitTile {
@@ -107,7 +121,7 @@ export function renderCockpitStrip(
   return `
     ${readiness ? renderReadinessWidget(readiness) : ""}
     <section class="${rootClass}" role="group" aria-label="Cockpit summary">${tiles}</section>
-    ${renderLineagePanel(viewModel, formatters, reviewItems, nonOperating, categoryItems, readiness, extras.netCashContributors)}
+    ${renderLineagePanel(viewModel, formatters, reviewItems, nonOperating, categoryItems, readiness, extras.netCashContributors, extras.burnContributors, extras.revenueConcentration, extras.largestTransactionInfluence, extras.filterExclusionImpact)}
   `;
 }
 
@@ -182,7 +196,11 @@ function renderLineagePanel(
   nonOperating: NonOperatingSummary | undefined,
   categoryItems: readonly CategoryReviewItem[],
   readiness: ReadinessReport | undefined,
-  netCashContributors: NetCashContributors | undefined
+  netCashContributors: NetCashContributors | undefined,
+  burnContributors: BurnContributors | undefined,
+  revenue: RevenueConcentration | undefined,
+  largest: LargestTransactionInfluence | null | undefined,
+  impact: FilterExclusionImpact | null | undefined
 ): string {
   if (!("lineage" in viewModel)) return "";
 
@@ -199,8 +217,28 @@ function renderLineagePanel(
         <template data-bw-lineage-template="${escapeHtml(metric)}">
           ${renderLineageDrawer(viewModel.lineage[metric], formatters)}
           ${
+            metric === "revenue" && revenue
+              ? renderRevenueConcentration(revenue, formatters.formatMoney)
+              : ""
+          }
+          ${
             metric === "netCash" && netCashContributors
               ? renderNetCashContributors(netCashContributors, formatters.formatMoney)
+              : ""
+          }
+          ${
+            metric === "netCash" && largest !== undefined
+              ? renderLargestTransactionInfluence(largest, formatters.formatMoney)
+              : ""
+          }
+          ${
+            metric === "netCash" && impact !== undefined
+              ? renderFilterExclusionImpact(impact, formatters.formatMoney)
+              : ""
+          }
+          ${
+            metric === "averageMonthlyOutflow" && burnContributors
+              ? renderBurnContributors(burnContributors, formatters.formatMoney)
               : ""
           }
         </template>

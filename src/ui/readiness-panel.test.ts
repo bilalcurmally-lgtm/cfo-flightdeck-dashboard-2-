@@ -12,6 +12,7 @@ function input(overrides: Partial<ReadinessInput> = {}): ReadinessInput {
     unassignedHeads: 0,
     unassignedCounterparties: 0,
     hasCashOnHand: true,
+    revenueConcentration: 0,
     nonOperatingRows: 0,
     hasImportHistory: true,
     ...overrides

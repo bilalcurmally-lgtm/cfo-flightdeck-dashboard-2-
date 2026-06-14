@@ -5,7 +5,13 @@ import type { ClassificationRule } from "../finance/classification-rules";
 import type { CsvImportResult, PeriodGrain } from "../finance/types";
 import { deriveAuditedCockpit } from "../finance/audit-derive";
 import { assessReadiness } from "../finance/readiness";
-import { topNetCashContributors } from "../finance/metric-diagnostics";
+import {
+  filterExclusionImpact,
+  largestTransactionInfluence,
+  revenueConcentration,
+  topBurnContributors,
+  topNetCashContributors
+} from "../finance/metric-diagnostics";
 import {
   renderCashHealthPanel,
   renderDashboardFilterPanel,
@@ -66,6 +72,7 @@ export function renderDashboardResults(input: DashboardResultsRenderInput): stri
       (record) => record.counterparty === "Unassigned Counterparty"
     ).length,
     hasCashOnHand: input.cashOnHand > 0,
+    revenueConcentration: input.view.summary.cashHealth.revenueConcentration,
     nonOperatingRows: input.view.nonOperating?.rows.length ?? 0,
     hasImportHistory: input.hasImportHistory ?? false
   });
@@ -78,7 +85,11 @@ export function renderDashboardResults(input: DashboardResultsRenderInput): stri
       nonOperating: input.view.nonOperating,
       categoryItems: input.view.categoryReview.items,
       readiness,
-      netCashContributors: topNetCashContributors(input.view.filteredRecords)
+      netCashContributors: topNetCashContributors(input.view.filteredRecords),
+      burnContributors: topBurnContributors(input.view.filteredRecords),
+      revenueConcentration: revenueConcentration(input.view.filteredRecords),
+      largestTransactionInfluence: largestTransactionInfluence(input.view.filteredRecords),
+      filterExclusionImpact: filterExclusionImpact(input.view.reviewSummary, input.view.summary)
     })}
     ${renderAppliedRuleFeedback(input.appliedRuleFeedback)}
     ${renderDashboardFilterPanel({

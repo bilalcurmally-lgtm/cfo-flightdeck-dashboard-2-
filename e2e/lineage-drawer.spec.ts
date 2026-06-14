@@ -120,10 +120,41 @@ test("net cash drawer shows the biggest inflow and outflow drivers", async ({ pa
   const panel = page.locator("[data-bw-lineage-panel]");
   await expect(panel).toBeVisible();
 
-  const contributors = panel.locator(".bw-contributors");
+  const contributors = panel.locator(".bw-contributors").filter({ hasText: "What's driving it" });
   await expect(contributors).toBeVisible();
   await expect(contributors).toContainText("Biggest inflows");
   await expect(contributors).toContainText("Biggest outflows");
+  await expect(panel).toContainText("Largest transaction");
+  await expect(panel).toContainText("Net cash impact");
+  await expect(panel).toContainText("Current view impact");
+});
+
+test("revenue drawer shows concentration by head and counterparty", async ({ page }) => {
+  await loadAgencySample(page);
+
+  await page.locator('[data-bw-lineage-trigger="revenue"]').click();
+  const panel = page.locator("[data-bw-lineage-panel]");
+  await expect(panel).toBeVisible();
+
+  const concentration = panel.locator(".bw-contributors");
+  await expect(concentration).toBeVisible();
+  await expect(concentration).toContainText("Revenue concentration");
+  await expect(concentration).toContainText("Top head");
+  await expect(concentration).toContainText("Top counterparty");
+});
+
+test("average burn drawer shows burn drivers by head and subcategory", async ({ page }) => {
+  await loadAgencySample(page);
+
+  await page.locator('[data-bw-lineage-trigger="averageMonthlyOutflow"]').click();
+  const panel = page.locator("[data-bw-lineage-panel]");
+  await expect(panel).toBeVisible();
+
+  const contributors = panel.locator(".bw-contributors");
+  await expect(contributors).toBeVisible();
+  await expect(contributors).toContainText("What's driving burn");
+  await expect(contributors).toContainText("By head");
+  await expect(contributors).toContainText("By subcategory");
 });
 
 test("readiness widget opens the trust drawer", async ({ page }) => {

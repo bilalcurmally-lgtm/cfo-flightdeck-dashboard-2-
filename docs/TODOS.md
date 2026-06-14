@@ -245,7 +245,7 @@ Suggested UI:
 
 Source: Data Analytics plugin `metric-diagnostics`.
 
-Status: first explainer shipped on 2026-06-14.
+Status: first diagnostics family slices shipped on 2026-06-14.
 
 Shipped:
 
@@ -260,11 +260,54 @@ Shipped:
 - Net-cash contributors (`topNetCashContributors`): the per-KPI net-cash audit drawer now
   shows the biggest inflows and outflows behind the number (grouped by head, sorted by
   magnitude), via `src/ui/net-cash-contributors.ts`. 13 tests + e2e.
+- Burn contributors (`topBurnContributors`): the average-burn audit drawer now shows the
+  biggest outflow drivers by head and by head/subcategory, including share of total burn,
+  via `src/ui/burn-contributors.ts`. Covered by model tests, renderer tests, cockpit wiring
+  tests, and desktop/mobile e2e.
+- Revenue concentration (`revenueConcentration`): the revenue audit drawer now shows top
+  revenue sources by head and counterparty, including share of total revenue, via
+  `src/ui/revenue-concentration.ts`.
+- Readiness now receives `cashHealth.revenueConcentration` and flags concentrated revenue
+  at the existing 75% caution threshold.
+- Largest-transaction influence (`largestTransactionInfluence`): the net-cash audit drawer
+  now calls out the single largest row, its share of gross activity, and its signed net-cash
+  impact via `src/ui/largest-transaction-influence.ts`.
+- Filter/exclusion impact (`filterExclusionImpact`): the net-cash audit drawer now shows
+  how the current review preset, non-operating exclusions, and review decisions changed
+  revenue, outflow, net cash, and visible row count via `src/ui/filter-exclusion-impact.ts`.
 
-Remaining (later explainers):
+Remaining:
 
-- Burn contributors by head/subcategory; revenue concentration by head/counterparty;
-  largest-transaction influence; filter/exclusion impact summary.
+- The initial diagnostics family from the Data Analytics plugin study is complete. Future
+  diagnostics should be driven by concrete user/accountant questions.
+
+Verification after burn contributors on 2026-06-14:
+
+- `npx tsc --noEmit`
+- `npx vitest run` - 435 passed
+- `npx playwright test --workers=1` - 22 passed
+- `npm run build`
+
+Verification after revenue concentration on 2026-06-14:
+
+- `npx tsc --noEmit`
+- `npx vitest run` - 444 passed
+- `npx playwright test --workers=1` - 24 passed
+- `npm run build`
+
+Verification after filter/exclusion impact on 2026-06-14:
+
+- `npx tsc --noEmit`
+- `npx vitest run` - 457 passed
+- `npx playwright test --workers=1` - 24 passed
+- `npm run build`
+
+Verification after largest-transaction influence on 2026-06-14:
+
+- `npx tsc --noEmit`
+- `npx vitest run` - 451 passed
+- `npx playwright test --workers=1` - 24 passed
+- `npm run build`
 
 What:
 

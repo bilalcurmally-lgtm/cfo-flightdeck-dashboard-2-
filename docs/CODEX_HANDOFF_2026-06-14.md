@@ -13,6 +13,15 @@ below is **on `main`** now. Here's the state, what changed, and what's left for 
 - `mcps/` and `.claude/launch.json` are untracked and intentionally left alone.
 - Verification at handoff: `tsc --noEmit` 0, `vitest run` 427 passed, `playwright
   --workers=1` 20 passed, `npm run build` green.
+- Codex continuation after this handoff shipped burn contributors on `main` working tree:
+  `vitest run` 435 passed, `playwright --workers=1` 22 passed, `npm run build` green.
+- Codex continuation then shipped revenue concentration diagnostics/readiness:
+  `vitest run` 444 passed, `playwright --workers=1` 24 passed, `npm run build` green.
+- Codex continuation then shipped largest-transaction influence:
+  `vitest run` 451 passed, `playwright --workers=1` 24 passed, `npm run build` green.
+- Codex continuation then shipped filter/exclusion impact, completing the initial
+  diagnostics family: `vitest run` 457 passed, `playwright --workers=1` 24 passed,
+  `npm run build` green.
 
 ## What I Shipped This Session (all on `main`)
 
@@ -34,6 +43,18 @@ below is **on `main`** now. Here's the state, what changed, and what's left for 
      `cashOnHand` + `averageMonthlyOutflow` (open Record, backward compatible).
    - `topNetCashContributors(records, opts)` — biggest inflows/outflows behind net cash.
      Rendered in the net-cash audit drawer via `src/ui/net-cash-contributors.ts`.
+   - `topBurnContributors(records, opts)` — biggest outflow heads/subcategories behind
+     average burn. Rendered in the average-burn audit drawer via
+     `src/ui/burn-contributors.ts`.
+   - `revenueConcentration(records, opts)` — top revenue head/counterparty and share of
+     revenue. Rendered in the revenue audit drawer via `src/ui/revenue-concentration.ts`
+     and wired into readiness at the 75% caution threshold.
+   - `largestTransactionInfluence(records)` — single largest row, share of gross activity,
+     and signed net-cash impact. Rendered in the net-cash audit drawer via
+     `src/ui/largest-transaction-influence.ts`.
+   - `filterExclusionImpact(before, after)` — how current review preset, non-operating
+     exclusions, and review decisions changed revenue/outflow/net-cash/row count. Rendered
+     in the net-cash audit drawer via `src/ui/filter-exclusion-impact.ts`.
 
 ## Conventions I Followed (please keep)
 
@@ -60,15 +81,8 @@ don't trust Preview screenshots; lean on Playwright at real viewports.
 **Finish the diagnostics family** (`src/finance/metric-diagnostics.ts` is the home; each is a
 pure model + a small drawer/section renderer, TDD'd):
 
-1. **Burn contributors by head/subcategory** — mirror `topNetCashContributors` but for the
-   runway/avg-burn drawer ("what's driving burn?").
-2. **Revenue concentration by head/counterparty** — `cashHealth.revenueConcentration` is
-   already a number; explain it ("X% from top source <name>"). Also worth wiring a
-   `revenueConcentration` signal into `assessReadiness` (the readiness model has the slot;
-   I didn't feed it an input).
-3. **Largest-transaction influence** — `cashHealth.largestTransaction` already exists.
-4. **Filter/exclusion impact summary** — how much current filters/exclusions moved the
-   numbers vs unfiltered. Novel; needs filtered-vs-base comparison.
+The initial diagnostics family is complete. Future diagnostics should start from concrete
+operator/accountant questions rather than adding generic panels.
 
 **Then the next backlog tiers in `docs/TODOS.md`:**
 

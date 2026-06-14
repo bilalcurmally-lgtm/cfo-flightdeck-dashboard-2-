@@ -194,3 +194,51 @@ Branch `codex/a1-audit-model` tip is now at the diagnostics commit. Still not pu
 4. Decide whether the compact "rules applied" signal needs a drilldown/audit drawer.
 5. Consider opening the PR for `codex/a1-audit-model` (C1/C2 + D1 + D2 + D3 + metric registry).
 6. Keep `mcps/` untouched unless the user explicitly asks to work on it.
+
+## Codex Continuation - Burn Contributors
+
+- Picked up from merged `main` tip `e55a2a4`.
+- Shipped `topBurnContributors(records, opts)` in `src/finance/metric-diagnostics.ts`.
+- Added `src/ui/burn-contributors.ts` renderer and wired it through `CockpitExtras` into
+  the average-burn audit drawer.
+- Added model, renderer, cockpit, and desktop/mobile e2e coverage for the burn drawer.
+- Updated shared `.bw-contributors` styling to support amount + percent share rows.
+- Full gate: `npx tsc --noEmit` 0, `npx vitest run` 435 passed, `npx playwright test
+  --workers=1` 22 passed, `npm run build` green.
+- Next diagnostics priority: revenue concentration by head/counterparty, including wiring
+  `revenueConcentration` into readiness.
+
+## Codex Continuation - Revenue Concentration
+
+- Shipped `revenueConcentration(records, opts)` in `src/finance/metric-diagnostics.ts`.
+- Added `src/ui/revenue-concentration.ts` renderer and wired it through `CockpitExtras` into
+  the revenue audit drawer.
+- Readiness now accepts `revenueConcentration` and emits a caution when the largest source
+  reaches the existing 75% concentration threshold.
+- Added model, renderer, readiness, cockpit, and desktop/mobile e2e coverage.
+- Full gate: `npx tsc --noEmit` 0, `npx vitest run` 444 passed, `npx playwright test
+  --workers=1` 24 passed, `npm run build` green.
+- Next diagnostics priority: largest-transaction influence.
+
+## Codex Continuation - Largest Transaction Influence
+
+- Shipped `largestTransactionInfluence(records)` in `src/finance/metric-diagnostics.ts`.
+- Added `src/ui/largest-transaction-influence.ts` renderer and wired it through
+  `CockpitExtras` into the net-cash audit drawer.
+- The drawer now shows the largest row, share of gross activity, and signed net-cash impact.
+- Added model, renderer, cockpit, and desktop/mobile e2e coverage.
+- Full gate: `npx tsc --noEmit` 0, `npx vitest run` 451 passed, `npx playwright test
+  --workers=1` 24 passed, `npm run build` green.
+- Next diagnostics priority: filter/exclusion impact summary.
+
+## Codex Continuation - Filter/Exclusion Impact
+
+- Shipped `filterExclusionImpact(before, after)` in `src/finance/metric-diagnostics.ts`.
+- Added `src/ui/filter-exclusion-impact.ts` renderer and wired it through `CockpitExtras`
+  into the net-cash audit drawer.
+- The drawer now shows how the current review preset, non-operating exclusions, and review
+  decisions changed revenue, outflow, net cash, and visible row count.
+- Added model, renderer, cockpit, and desktop/mobile e2e coverage.
+- Full gate: `npx tsc --noEmit` 0, `npx vitest run` 457 passed, `npx playwright test
+  --workers=1` 24 passed, `npm run build` green.
+- Initial local metric diagnostics family is complete.

@@ -24,6 +24,8 @@ export interface ReadinessInput {
   unassignedCounterparties: number;
   /** Whether a cash-on-hand figure was provided (runway depends on it). */
   hasCashOnHand: boolean;
+  /** Share of revenue from the largest source, 0..1. */
+  revenueConcentration: number;
   nonOperatingRows: number;
   /** Whether a prior import exists to compare against. */
   hasImportHistory: boolean;
@@ -135,6 +137,17 @@ export function assessReadiness(input: ReadinessInput): ReadinessReport {
         input.unassignedCounterparties,
         "row"
       )} without a counterparty, so revenue concentration is partial.`
+    });
+  }
+
+  if (input.revenueConcentration >= 0.75) {
+    signals.push({
+      id: "revenueConcentration",
+      severity: "caution",
+      label: "Revenue concentration",
+      detail: `${Math.round(
+        input.revenueConcentration * 100
+      )}% of revenue comes from one source.`
     });
   }
 

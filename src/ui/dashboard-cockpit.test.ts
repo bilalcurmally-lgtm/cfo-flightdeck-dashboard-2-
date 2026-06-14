@@ -29,6 +29,77 @@ describe("renderCockpitStrip", () => {
     expect(html).toContain('aria-expanded="false"');
   });
 
+  it("adds burn contributors to the average burn drawer when provided", () => {
+    const html = renderCockpitStrip(baseViewModel(), formatters, [], {
+      burnContributors: {
+        total: 6000,
+        heads: [{ label: "Payroll", amount: 4500, share: 0.75 }],
+        subcategories: [{ label: "Payroll / Engineering", amount: 3000, share: 0.5 }]
+      }
+    });
+
+    expect(html).toContain('data-bw-lineage-template="averageMonthlyOutflow"');
+    expect(html).toContain("What's driving burn");
+    expect(html).toContain("Payroll / Engineering");
+  });
+
+  it("adds revenue concentration to the revenue drawer when provided", () => {
+    const html = renderCockpitStrip(baseViewModel(), formatters, [], {
+      revenueConcentration: {
+        total: 10000,
+        topHead: { label: "Retainers", amount: 7000, share: 0.7 },
+        topCounterparty: { label: "Northstar", amount: 8000, share: 0.8 },
+        heads: [{ label: "Retainers", amount: 7000, share: 0.7 }],
+        counterparties: [{ label: "Northstar", amount: 8000, share: 0.8 }]
+      }
+    });
+
+    expect(html).toContain('data-bw-lineage-template="revenue"');
+    expect(html).toContain("Revenue concentration");
+    expect(html).toContain("Top counterparty");
+  });
+
+  it("adds largest transaction influence to the net cash drawer when provided", () => {
+    const html = renderCockpitStrip(baseViewModel(), formatters, [], {
+      largestTransactionInfluence: {
+        id: "txn-1",
+        label: "Annual retainer",
+        dateISO: "2026-03-01",
+        head: "Client",
+        counterparty: "Northstar",
+        flow: "revenue",
+        amount: 5000,
+        signedImpact: 5000,
+        totalActivity: 10000,
+        netCash: 2000,
+        shareOfActivity: 0.5
+      }
+    });
+
+    expect(html).toContain('data-bw-lineage-template="netCash"');
+    expect(html).toContain("Largest transaction");
+    expect(html).toContain("Annual retainer");
+  });
+
+  it("adds filter and exclusion impact to the net cash drawer when provided", () => {
+    const html = renderCockpitStrip(baseViewModel(), formatters, [], {
+      filterExclusionImpact: {
+        before: { revenue: 10000, outflow: 7000, netCash: 3000, transactionCount: 10 },
+        after: { revenue: 8000, outflow: 4000, netCash: 4000, transactionCount: 7 },
+        hiddenRecords: 3,
+        deltas: [
+          { metric: "revenue", before: 10000, after: 8000, delta: -2000 },
+          { metric: "outflow", before: 7000, after: 4000, delta: -3000 },
+          { metric: "netCash", before: 3000, after: 4000, delta: 1000 }
+        ]
+      }
+    });
+
+    expect(html).toContain('data-bw-lineage-template="netCash"');
+    expect(html).toContain("Current view impact");
+    expect(html).toContain("3 rows hidden");
+  });
+
   it("omits the review tile and uses the base five-column class when count is zero", () => {
     const html = renderCockpitStrip(
       {

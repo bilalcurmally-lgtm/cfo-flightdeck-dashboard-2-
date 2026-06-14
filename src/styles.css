@@ -1777,7 +1777,7 @@ button.bw-kpi--review {
   line-height: 1.4;
 }
 
-/* Net-cash "what's driving it" — biggest inflows / outflows beside the audit tree. */
+/* Metric diagnostics: compact contributor lists beside audit trees. */
 .bw-contributors {
   display: grid;
   gap: 8px;
@@ -1808,16 +1808,40 @@ button.bw-kpi--review {
 
 .bw-contributors__row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 8px;
   align-items: baseline;
   color: var(--color-ink-soft);
   font-size: 0.8rem;
 }
 
-.bw-contributors__amount {
+.bw-contributors__label {
+  min-width: 0;
+}
+
+.bw-contributors__label small {
+  color: var(--color-muted);
+  display: block;
+  font-size: 0.72rem;
+  margin-top: 2px;
+}
+
+.bw-contributors__amount,
+.bw-contributors__share {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+.bw-contributors__share {
+  color: var(--color-muted);
+  min-width: 3ch;
+  text-align: right;
+}
+
+.bw-contributors__note {
+  color: var(--color-ink-soft);
+  font-size: 0.8rem;
+  margin: 0;
 }
 
 @media (max-width: 540px) {
