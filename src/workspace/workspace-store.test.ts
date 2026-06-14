@@ -63,6 +63,7 @@ describe("createInMemoryWorkspaceStore", () => {
       categoryOverrides: { [SIG_A]: { flow: "outflow" } },
       decisions: { [SIG_B]: { excluded: false } },
       imports: [],
+      rules: [],
     };
     store.load(incoming);
     incoming.categoryOverrides[SIG_A] = { parent: "After load" };
@@ -103,6 +104,7 @@ describe("createInMemoryWorkspaceStore", () => {
       categoryOverrides: { [SIG_A]: { parent: "Seed" } },
       decisions: { [SIG_B]: { excluded: true } },
       imports: [],
+      rules: [],
     };
     const store = createInMemoryWorkspaceStore(initial);
     expect(store.getCategoryOverride(SIG_A)).toEqual({ parent: "Seed" });
@@ -117,16 +119,18 @@ describe("workspace-store v2 migration", () => {
   it("creates v2 snapshots with an empty imports array", () => {
     const store = createInMemoryWorkspaceStore();
     const snap = store.snapshot();
-    expect(snap.version).toBe(2);
+    expect(snap.version).toBe(WORKSPACE_SNAPSHOT_VERSION);
     expect(snap.imports).toEqual([]);
+    expect(snap.rules).toEqual([]);
   });
 
-  it("migrates a v1 snapshot (no imports, version 1) on load", () => {
+  it("migrates a v1 snapshot (no imports or rules, version 1) on load", () => {
     const store = createInMemoryWorkspaceStore();
     store.load({ version: 1, categoryOverrides: {}, decisions: {} } as never);
     const snap = store.snapshot();
     expect(snap.version).toBe(WORKSPACE_SNAPSHOT_VERSION);
     expect(snap.imports).toEqual([]);
+    expect(snap.rules).toEqual([]);
   });
 
   it("preserves an existing imports array on load", () => {
@@ -138,8 +142,56 @@ describe("workspace-store v2 migration", () => {
       kpiSnapshot: { runwayMonths: 5 },
       reviewItemSignatures: [],
     };
-    store.load({ version: 2, categoryOverrides: {}, decisions: {}, imports: [imp] });
+    store.load({ version: 2, categoryOverrides: {}, decisions: {}, imports: [imp], rules: [] });
     expect(store.snapshot().imports).toEqual([imp]);
+  });
+
+  it("round-trips saved classification rules", () => {
+    const store = createInMemoryWorkspaceStore();
+    store.setRules([
+      {
+        id: "stripe-revenue",
+        field: "counterparty",
+        contains: "stripe",
+        override: { flow: "revenue", parent: "Sales" },
+        enabled: true,
+        label: "Stripe revenue",
+      },
+    ]);
+
+    expect(store.getRules()).toEqual([
+      {
+        id: "stripe-revenue",
+        field: "counterparty",
+        contains: "stripe",
+        override: { flow: "revenue", parent: "Sales" },
+        enabled: true,
+        label: "Stripe revenue",
+      },
+    ]);
+    expect(store.snapshot().rules).toHaveLength(1);
+  });
+
+  it("isolates rule mutations from stored state", () => {
+    const store = createInMemoryWorkspaceStore();
+    store.setRules([
+      {
+        id: "stripe-revenue",
+        field: "counterparty",
+        contains: "stripe",
+        override: { flow: "revenue", parent: "Sales" },
+        enabled: true,
+      },
+    ]);
+
+    const rules = store.getRules();
+    rules[0].contains = "mutated";
+    rules[0].override.parent = "Mutated";
+
+    expect(store.getRules()[0]).toMatchObject({
+      contains: "stripe",
+      override: { parent: "Sales" },
+    });
   });
 });
 describe("workspace-store addImport", () => {

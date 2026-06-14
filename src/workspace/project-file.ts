@@ -5,8 +5,16 @@ import {
 } from "./workspace-store";
 import type { ImportSnapshot } from "./import-history";
 import type { ClassificationOverride } from "../finance/classification-overrides";
+import type { ClassificationRule } from "../finance/classification-rules";
 
-const SUPPORTED_VERSIONS = [1, 2];
+const SUPPORTED_VERSIONS = [1, 2, 3];
+const CLASSIFICATION_RULE_FIELDS = new Set([
+  "account",
+  "counterparty",
+  "description",
+  "head",
+  "subcategory",
+]);
 
 export const BILLU_FILE_KIND = "billu-workspace";
 
@@ -19,7 +27,7 @@ export type ParseProjectFileResult =
   | { ok: true; snapshot: WorkspaceSnapshot }
   | { ok: false; error: string };
 
-// Shallow-copies each override/decision value; assumes flat ClassificationOverride / ExclusionDecision shapes — revisit if nested fields are added.
+// Shallow-copies each value; assumes flat ClassificationOverride / ExclusionDecision / ClassificationRule shapes — revisit if nested fields are added.
 function cloneSnapshot(snapshot: WorkspaceSnapshot): WorkspaceSnapshot {
   return {
     version: WORKSPACE_SNAPSHOT_VERSION,
@@ -41,6 +49,10 @@ function cloneSnapshot(snapshot: WorkspaceSnapshot): WorkspaceSnapshot {
       kpiSnapshot: { ...imp.kpiSnapshot },
       reviewItemSignatures: [...imp.reviewItemSignatures],
     })),
+    rules: (snapshot.rules ?? []).map((rule) => ({
+      ...rule,
+      override: { ...rule.override },
+    })),
   };
 }
 
@@ -53,7 +65,12 @@ function isClassificationOverride(value: unknown): value is ClassificationOverri
     return false;
   }
 
-  if ("flow" in value && value.flow !== undefined && typeof value.flow !== "string") {
+  if (
+    "flow" in value &&
+    value.flow !== undefined &&
+    value.flow !== "revenue" &&
+    value.flow !== "outflow"
+  ) {
     return false;
   }
 
@@ -79,6 +96,20 @@ function isImportSnapshot(value: unknown): value is ImportSnapshot {
     Array.isArray(value.reviewItemSignatures) &&
     value.reviewItemSignatures.every((s) => typeof s === "string")
   );
+}
+
+function isClassificationRule(value: unknown): value is ClassificationRule {
+  if (!isPlainObject(value)) return false;
+  if (typeof value.id !== "string") return false;
+  if (typeof value.field !== "string" || !CLASSIFICATION_RULE_FIELDS.has(value.field)) {
+    return false;
+  }
+  if (typeof value.contains !== "string") return false;
+  if (typeof value.enabled !== "boolean") return false;
+  if ("label" in value && value.label !== undefined && typeof value.label !== "string") {
+    return false;
+  }
+  return isClassificationOverride(value.override);
 }
 
 function parseSnapshot(value: unknown): WorkspaceSnapshot | string {
@@ -118,7 +149,15 @@ function parseSnapshot(value: unknown): WorkspaceSnapshot | string {
     imports = value.imports as ImportSnapshot[];
   }
 
-  return { version: WORKSPACE_SNAPSHOT_VERSION, categoryOverrides, decisions, imports };
+  let rules: ClassificationRule[] = [];
+  if ("rules" in value && value.rules !== undefined) {
+    if (!Array.isArray(value.rules) || !value.rules.every(isClassificationRule)) {
+      return "snapshot.rules must be an array of classification rules";
+    }
+    rules = value.rules as ClassificationRule[];
+  }
+
+  return { version: WORKSPACE_SNAPSHOT_VERSION, categoryOverrides, decisions, imports, rules };
 }
 
 export function serializeProjectFile(snapshot: WorkspaceSnapshot): string {

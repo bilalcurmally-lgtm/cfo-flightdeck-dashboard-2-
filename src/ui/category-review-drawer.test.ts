@@ -24,4 +24,13 @@ describe("renderCategoryReviewDrawer", () => {
     el.innerHTML = renderCategoryReviewDrawer([item({ acted: true })]);
     expect(el.querySelector('[data-role="reset"]')).not.toBeNull();
   });
+  it("shows Remember rule only for acted rows", () => {
+    const acted = document.createElement("div");
+    acted.innerHTML = renderCategoryReviewDrawer([item({ acted: true })]);
+    expect(acted.querySelector('[data-role="save-rule"]')).not.toBeNull();
+
+    const untouched = document.createElement("div");
+    untouched.innerHTML = renderCategoryReviewDrawer([item({ acted: false })]);
+    expect(untouched.querySelector('[data-role="save-rule"]')).toBeNull();
+  });
 });

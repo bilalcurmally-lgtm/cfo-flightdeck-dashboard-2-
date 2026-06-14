@@ -7,9 +7,12 @@ import {
   reviewItemSignature,
   restoreOverrides,
   restoreReviewExclusions,
+  restoreCategoryConfirmations,
   persistOverride,
   clearPersistedOverride,
   persistReviewDecision,
+  persistCategoryConfirmation,
+  clearCategoryConfirmation,
 } from "./persistence-bridge";
 
 function record(partial: Partial<TransactionRecord> & { id: string }): TransactionRecord {
@@ -151,5 +154,23 @@ describe("persistence-bridge", () => {
     const item = reviewItem({ id: "duplicate:k", kind: "duplicate", rowIds: ["out-1"] });
     persistReviewDecision(store, index, item, false);
     expect(restoreReviewExclusions(store, [item], index).has("duplicate:k")).toBe(false);
+  });
+
+  it("restores category confirmations by transaction signature", () => {
+    const store = createInMemoryWorkspaceStore();
+    const index = buildSignatureIndex([record({ id: "row-a", description: "owner draw" })]);
+    persistCategoryConfirmation(store, index, "row-a");
+
+    const reloadedIndex = buildSignatureIndex([record({ id: "fresh-a", description: "owner draw" })]);
+    expect([...restoreCategoryConfirmations(store, reloadedIndex)]).toEqual(["fresh-a"]);
+  });
+
+  it("clears category confirmations", () => {
+    const store = createInMemoryWorkspaceStore();
+    const index = buildSignatureIndex([record({ id: "row-a", description: "owner draw" })]);
+    persistCategoryConfirmation(store, index, "row-a");
+    clearCategoryConfirmation(store, index, "row-a");
+
+    expect(restoreCategoryConfirmations(store, index).has("row-a")).toBe(false);
   });
 });

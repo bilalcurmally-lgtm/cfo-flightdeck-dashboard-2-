@@ -124,6 +124,7 @@ describe("bindProjectFileActions", () => {
       categoryOverrides: { [SIG]: { parent: "Internal" } },
       decisions: {},
       imports: [],
+      rules: [],
     });
 
     bindProjectFileActions({

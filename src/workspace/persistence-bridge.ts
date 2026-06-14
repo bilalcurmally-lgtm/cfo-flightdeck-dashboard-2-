@@ -36,6 +36,11 @@ export function reviewItemSignature(item: ReviewDrawerItem, index: SignatureInde
   return `review:${item.kind}:${signatures.join("|")}`;
 }
 
+export function categoryConfirmationSignature(id: string, index: SignatureIndex): string | undefined {
+  const signature = index.idToSignature.get(id);
+  return signature ? `category:${signature}` : undefined;
+}
+
 export function restoreOverrides(
   store: WorkspaceStore,
   index: SignatureIndex,
@@ -59,6 +64,18 @@ export function restoreReviewExclusions(
     if (decision?.excluded) excludedItemIds.add(item.id);
   }
   return excludedItemIds;
+}
+
+export function restoreCategoryConfirmations(
+  store: WorkspaceStore,
+  index: SignatureIndex,
+): Set<string> {
+  const confirmedIds = new Set<string>();
+  for (const [id] of index.idToSignature) {
+    const signature = categoryConfirmationSignature(id, index);
+    if (signature && store.getDecision(signature)) confirmedIds.add(id);
+  }
+  return confirmedIds;
 }
 
 export function persistOverride(
@@ -87,4 +104,22 @@ export function persistReviewDecision(
   excluded: boolean,
 ): void {
   store.setDecision(reviewItemSignature(item, index), { excluded });
+}
+
+export function persistCategoryConfirmation(
+  store: WorkspaceStore,
+  index: SignatureIndex,
+  id: string,
+): void {
+  const signature = categoryConfirmationSignature(id, index);
+  if (signature) store.setDecision(signature, { excluded: false });
+}
+
+export function clearCategoryConfirmation(
+  store: WorkspaceStore,
+  index: SignatureIndex,
+  id: string,
+): void {
+  const signature = categoryConfirmationSignature(id, index);
+  if (signature) store.clearDecision(signature);
 }

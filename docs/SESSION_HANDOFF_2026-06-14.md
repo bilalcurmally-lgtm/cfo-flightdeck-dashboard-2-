@@ -1,0 +1,124 @@
+# Session Handoff - 2026-06-14
+
+## Summary
+
+Studied the official OpenAI Data Analytics role-specific plugin template, folded the useful
+ideas into the Billu.Works planning docs, completed D2 S5: the import history browser, and
+started D3 with the saved-rules foundation slice.
+
+## Git State
+
+- Branch: `codex/a1-audit-model`.
+- Changed this session:
+  - `.gitignore`: added `.reference/` for local reference checkouts.
+  - `docs/data-analytics-plugin-study.md`: new study note on the official Data Analytics
+    plugin template.
+  - `docs/TODOS.md`: replaced the old two-item deferred TODO with a unified backlog.
+  - `src/ui/import-history-panel.ts`: new pure renderer for persisted import history.
+  - `src/ui/import-history-panel.test.ts`: renderer coverage.
+  - `src/ui/app-shell.ts`: History action and hidden panel container.
+  - `src/main.ts`: History panel toggle/wiring.
+  - `src/styles.css`: history panel styles and mobile behavior.
+  - `e2e/import-history.spec.ts`: extended to cover strip plus history panel.
+  - `src/finance/classification-rules.ts`: pure saved-rule engine.
+  - `src/finance/classification-rules.test.ts`: rule-engine coverage.
+  - `src/workspace/workspace-store.ts`: WorkspaceSnapshot v3 with rules.
+  - `src/workspace/project-file.ts`: project-file v3 migration and rules validation.
+  - `src/workspace/indexeddb-workspace-store.ts`: rules write-through persistence.
+  - `src/ui/category-review-drawer.ts`: acted rows can save a reusable rule.
+  - `src/ui/dashboard-cockpit-actions.ts`: save-rule click binding.
+  - `src/ui/saved-rules-actions.ts`: saved-rule enable/disable/delete binding.
+  - `src/ui/dashboard-sections.ts`: Local Settings saved-rules management surface.
+  - `e2e/lineage-drawer.spec.ts`: recategorize -> Remember rule status coverage.
+  - `e2e/lineage-drawer.spec.ts`: saved-rule disable/delete coverage.
+  - `public/sample-owner-next.csv`: distinct import fixture for saved-rule auto-apply.
+  - `e2e/lineage-drawer.spec.ts`: saved-rule applies to distinct matching import.
+  - `src/finance/classification-rules.ts`: rule application now reports matched rows/rules.
+  - `src/workspace/persistence-bridge.ts`: persisted category confirmations.
+  - `src/ui/dashboard-results.ts`: compact saved-rules-applied signal.
+  - `e2e/lineage-drawer.spec.ts`: confirmed category rows carry forward as handled.
+  - `docs/SESSION_HANDOFF_2026-06-14.md`: this handoff.
+- Untracked `mcps/` remains pre-existing and untouched.
+
+## Reference Checkout
+
+The official plugin templates were cloned locally to:
+
+`.reference/role-specific-plugins`
+
+The studied plugin lives at:
+
+`.reference/role-specific-plugins/plugins/data-analytics`
+
+This folder is intentionally ignored by Git.
+
+## What Changed In Planning
+
+`docs/TODOS.md` now reconciles:
+
+- the latest D2 handoff state,
+- `docs/designs/MASTER_PLAN_AUDITABLE_COCKPIT.md`,
+- the original roadmap/deferred items,
+- and the Data Analytics plugin study.
+
+The updated order is:
+
+1. Finish D2 import history browser.
+2. Land or PR `codex/a1-audit-model`.
+3. Build D3 saved rules and carried review queue.
+4. Add analytics-inspired metric contracts, readiness/trust center, and local metric
+   diagnostics.
+5. Then proceed to accountant workbook export, dashboard manifests, chart specs, confidence,
+   positioning, budget-vs-actual, and expected-income forecast tagging.
+
+## D2 S5 Shipped
+
+- Added a History button beside the existing project actions.
+- History is enabled only once a dashboard import is active.
+- Opening History renders persisted imports newest-first from `workspaceStore.snapshot().imports`.
+- The panel shows source name, import date, transaction count, and runway snapshot.
+- Identical re-import dedupe is preserved: the e2e uses same-ledger re-import for the welcome
+  strip, then imports a distinct sample so the history panel lists two entries.
+
+## D3 Foundation Shipped
+
+- Added a pure classification-rule engine for "field contains text -> classification
+  override" rules.
+- Added WorkspaceSnapshot v3 with `rules: ClassificationRule[]`.
+- Project files now migrate v1/v2 snapshots forward to v3 with `rules: []`.
+- Project-file validation rejects unsupported rule fields and invalid override flows.
+- IndexedDB-backed workspaces persist rules through the write-through store.
+- Import activation applies saved rules first, then signature-specific category overrides
+  win. This preserves the user's explicit row-level choices over broad reusable rules.
+- Category review rows that have been recategorized now show `Remember rule`.
+- Clicking `Remember rule` stores a reusable rule:
+  - uses counterparty when it is present and not `Unassigned Counterparty`
+  - falls back to description
+  - stores the active classification override as the rule action
+- Local Settings now lists saved rules.
+- Rules can be enabled/disabled or deleted from Local Settings.
+- Added a purpose-built fixture, `public/sample-owner-next.csv`, with the same `Owner`
+  counterparty but different date, amount, and description.
+- E2E now proves create rule -> clear -> import distinct matching file -> rule applies
+  automatically. This confirms the rule engine is doing the work, not transaction-signature
+  persistence.
+- Rule matches now show a compact import-level signal with rows/rules applied.
+- Saved-rule changes re-activate the current import so disabling/deleting rules updates the
+  current classifications, not just Local Settings text.
+- Rule-applied category rows no longer carry forward as unresolved category-review work.
+- `Looks right` category confirmations persist by stable transaction signature.
+- E2E now proves confirmed category rows stay out of future category-review queues on re-import.
+
+## Verification
+
+- `npx tsc --noEmit` -> 0
+- `npx vitest run` -> 377 passed (73 files)
+- `npx playwright test --workers=1` -> 16 passed
+- `npm run build` -> green
+
+## Next Session Priorities
+
+1. Tune the rule-learning copy now that the auto-apply and carry-forward behavior is proven end-to-end.
+2. Decide whether the compact "rules applied" signal needs a drilldown/audit drawer.
+3. Move to the analytics-inspired metric contracts registry.
+4. Keep `mcps/` untouched unless the user explicitly asks to work on it.

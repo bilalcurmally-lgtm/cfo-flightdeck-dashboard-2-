@@ -1,6 +1,7 @@
 import type { DashboardViewData } from "../finance/dashboard-view";
 import type { DashboardFilters } from "../finance/filters";
 import type { ReviewPreset } from "../finance/review-presets";
+import type { ClassificationRule } from "../finance/classification-rules";
 import type { CsvImportResult, PeriodGrain } from "../finance/types";
 import { deriveAuditedCockpit } from "../finance/audit-derive";
 import {
@@ -27,6 +28,8 @@ export interface DashboardResultsRenderInput {
   activeReviewPreset: ReviewPreset;
   reviewPresetLabel: string;
   currencyOptionsHtml: string;
+  savedRules?: readonly ClassificationRule[];
+  appliedRuleFeedback?: { rowCount: number; ruleCount: number } | null;
   cashOnHand: number;
   excludedTransactionIds?: readonly string[];
   excludedReviewItemIds?: readonly string[];
@@ -55,6 +58,7 @@ export function renderDashboardResults(input: DashboardResultsRenderInput): stri
       nonOperating: input.view.nonOperating,
       categoryItems: input.view.categoryReview.items
     })}
+    ${renderAppliedRuleFeedback(input.appliedRuleFeedback)}
     ${renderDashboardFilterPanel({
       records: input.result.records,
       filteredRecordCount: input.view.filteredRecords.length,
@@ -82,7 +86,7 @@ export function renderDashboardResults(input: DashboardResultsRenderInput): stri
       formatMoney: input.formatMoney,
       formatRunway: input.formatRunway
     })}
-    ${renderSettingsPanel(input.currencyOptionsHtml)}
+    ${renderSettingsPanel(input.currencyOptionsHtml, input.savedRules)}
     ${renderForecastPanel(input.view.forecast, input.view.futureEventsText, input.formatMoney)}
     ${renderInsightGrid(input.view.summary, input.activeTrendGrain, input.formatMoney)}
     ${renderDiagnosticsPanel(input.view.summary, input.formatMoney)}
@@ -93,5 +97,19 @@ export function renderDashboardResults(input: DashboardResultsRenderInput): stri
       input.view.selectedRecord,
       input.formatMoney
     )}
+  `;
+}
+
+function renderAppliedRuleFeedback(
+  feedback: DashboardResultsRenderInput["appliedRuleFeedback"]
+): string {
+  if (!feedback || feedback.rowCount === 0) return "";
+  const rows = `${feedback.rowCount} row${feedback.rowCount === 1 ? "" : "s"}`;
+  const rules = `${feedback.ruleCount} saved rule${feedback.ruleCount === 1 ? "" : "s"}`;
+  return `
+    <section class="rules-applied" aria-label="Saved rules applied">
+      <strong>${rows} classified by ${rules}</strong>
+      <span>Review or disable saved rules in Local Settings.</span>
+    </section>
   `;
 }

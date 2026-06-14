@@ -9,6 +9,8 @@ import {
   applyClassificationOverrides,
   type ClassificationOverride
 } from "./finance/classification-overrides";
+import { applyClassificationRulesWithMatches } from "./finance/classification-rules";
+import type { ClassificationRule, ClassificationRuleField } from "./finance/classification-rules";
 import { reviewPresetLabel } from "./finance/review-presets";
 import { parseExcelWorkbook, type ParsedExcelSheet } from "./import/excel";
 import { classifyImportFile } from "./import/files";
@@ -32,15 +34,19 @@ import { renderDashboardResults } from "./ui/dashboard-results";
 import { formatCurrency, formatRunway } from "./ui/formatters";
 import { buildReviewDrawerItems, deriveExcludedTransactionIdsFromQueue } from "./ui/review-queue";
 import type { ReviewDrawerItem } from "./ui/review-drawer";
+import type { CategoryReviewItem } from "./ui/category-review-queue";
 import { createInMemoryWorkspaceStore, type WorkspaceStore } from "./workspace/workspace-store";
 import { createIndexedDbWorkspaceStore } from "./workspace/indexeddb-workspace-store";
 import {
   buildSignatureIndex,
   restoreOverrides,
   restoreReviewExclusions,
+  restoreCategoryConfirmations,
   persistOverride,
   clearPersistedOverride,
   persistReviewDecision,
+  persistCategoryConfirmation,
+  clearCategoryConfirmation,
   reviewItemSignature,
   type SignatureIndex
 } from "./workspace/persistence-bridge";
@@ -55,6 +61,7 @@ import {
   readFutureEventsText as readFutureEventsTextInput
 } from "./ui/dashboard-settings-form";
 import { bindDashboardSettingsActions } from "./ui/dashboard-settings-actions";
+import { bindSavedRulesActions } from "./ui/saved-rules-actions";
 import { bindDashboardFilterActions } from "./ui/dashboard-filter-actions";
 import { bindDashboardExportActions } from "./ui/dashboard-export-actions";
 import { bindDashboardCockpitActions } from "./ui/dashboard-cockpit-actions";
@@ -69,6 +76,7 @@ import { renderReferencePanelContent } from "./ui/reference";
 import { bindPreImportActions } from "./ui/pre-import-actions";
 import { bindProjectFileActions } from "./ui/project-file-actions";
 import { renderWelcomeBackStrip } from "./ui/welcome-back-strip";
+import { renderImportHistoryPanel } from "./ui/import-history-panel";
 
 type LoadedImportFile =
   | { kind: "csv"; result: CsvImportResult; source: string }
@@ -85,6 +93,8 @@ const reviewExcludedItemIds = new Set<string>();
 // In-session Type/Group recategorizations (C2). Pure & reversible: dropping an
 // entry restores the original classification.
 const classificationOverrides = new Map<string, ClassificationOverride>();
+const ruleAppliedCategoryIds = new Set<string>();
+let appliedRuleFeedback: { rowCount: number; ruleCount: number } | null = null;
 // Rows the user marked "Looks right" without changing them — cleared from the
 // category-review queue without an override.
 const confirmedCategoryIds = new Set<string>();
@@ -106,6 +116,7 @@ let currentReviewItems: ReviewDrawerItem[] = [];
 // D2 import history: the comparison (if any) of the active import vs its baseline.
 let currentImportComparison: ImportComparison | null = null;
 let welcomeStripDismissed = false;
+let historyOpen = false;
 
 document.querySelector<HTMLDivElement>("#app")!.innerHTML = renderAppShell(SAMPLE_DATASETS);
 
@@ -113,8 +124,10 @@ const fileInput = document.querySelector<HTMLInputElement>("#csv-file")!;
 const clearButton = document.querySelector<HTMLButtonElement>("#clear-button")!;
 const saveProjectButton = document.querySelector<HTMLButtonElement>("#save-project")!;
 const openProjectButton = document.querySelector<HTMLButtonElement>("#open-project")!;
+const historyButton = document.querySelector<HTMLButtonElement>("#history-button")!;
 const referenceButton = document.querySelector<HTMLButtonElement>("#reference-button")!;
 const referencePanel = document.querySelector<HTMLElement>("#reference-panel")!;
+const historyPanel = document.querySelector<HTMLElement>("#history-panel")!;
 const status = document.querySelector<HTMLParagraphElement>("#status")!;
 const results = document.querySelector<HTMLElement>("#results")!;
 
@@ -155,6 +168,8 @@ bindProjectFileActions({
 function setProjectActionsEnabled(enabled: boolean): void {
   saveProjectButton.disabled = !enabled;
   openProjectButton.disabled = !enabled;
+  historyButton.disabled = !enabled;
+  if (!enabled) closeHistoryPanel();
 }
 
 clearButton.addEventListener("click", () => {
@@ -163,6 +178,8 @@ clearButton.addEventListener("click", () => {
   resetDashboardViewState();
   reviewExcludedItemIds.clear();
   classificationOverrides.clear();
+  ruleAppliedCategoryIds.clear();
+  appliedRuleFeedback = null;
   confirmedCategoryIds.clear();
   // Drop the per-ledger index; persisted signatures are intentionally kept so
   // re-importing the same file restores its overrides and review decisions.
@@ -180,6 +197,11 @@ clearButton.addEventListener("click", () => {
 referenceButton.addEventListener("click", () => {
   referenceOpen = !referenceOpen;
   renderReferencePanel();
+});
+
+historyButton.addEventListener("click", () => {
+  historyOpen = !historyOpen;
+  renderHistoryPanel();
 });
 
 function openFilePicker(): void {
@@ -219,6 +241,19 @@ function renderReferencePanel(): void {
   referencePanel.innerHTML = referenceOpen ? renderReferencePanelContent() : "";
 }
 
+function closeHistoryPanel(): void {
+  historyOpen = false;
+  renderHistoryPanel();
+}
+
+function renderHistoryPanel(): void {
+  historyButton.setAttribute("aria-expanded", String(historyOpen));
+  historyPanel.hidden = !historyOpen;
+  historyPanel.innerHTML = historyOpen
+    ? renderImportHistoryPanel(workspaceStore.snapshot().imports, { formatRunway })
+    : "";
+}
+
 async function loadImportFile(file: File): Promise<LoadedImportFile> {
   if (classifyImportFile(file) === "xlsx") {
     return { kind: "excel", sheets: await parseExcelWorkbook(file) };
@@ -246,6 +281,8 @@ function renderWorksheetPicker(sourceName: string, sheets: ParsedExcelSheet[]): 
   resetDashboardViewState();
   reviewExcludedItemIds.clear();
   classificationOverrides.clear();
+  ruleAppliedCategoryIds.clear();
+  appliedRuleFeedback = null;
   confirmedCategoryIds.clear();
   clearButton.disabled = false;
   setProjectActionsEnabled(false);
@@ -275,6 +312,8 @@ function renderMappingReview(
   resetDashboardViewState();
   reviewExcludedItemIds.clear();
   classificationOverrides.clear();
+  ruleAppliedCategoryIds.clear();
+  appliedRuleFeedback = null;
   confirmedCategoryIds.clear();
   clearButton.disabled = false;
   setProjectActionsEnabled(false);
@@ -325,7 +364,9 @@ function renderImportResult(
   // Rows confirmed "Looks right" leave the queue/tile — UNLESS they still carry an
   // active override, so the user can always reach Reset (P2: confirm-then-stuck).
   const visibleCategoryItems = view.categoryReview.items.filter(
-    (item) => !confirmedCategoryIds.has(item.id) || classificationOverrides.has(item.id)
+    (item) =>
+      (!confirmedCategoryIds.has(item.id) || classificationOverrides.has(item.id)) &&
+      !ruleAppliedCategoryIds.has(item.id)
   );
   const displayView = {
     ...view,
@@ -344,6 +385,8 @@ function renderImportResult(
     activeReviewPreset: viewState.reviewPreset,
     reviewPresetLabel: reviewPresetLabel(viewState.reviewPreset),
     currencyOptionsHtml: renderCurrencyOptions(settings.currency),
+    savedRules: workspaceStore.getRules(),
+    appliedRuleFeedback,
     cashOnHand: readCashOnHand(),
     excludedTransactionIds,
     excludedReviewItemIds: [...reviewExcludedItemIds],
@@ -367,22 +410,39 @@ function renderImportResult(
     onRecategorize: (id, patch) => {
       const override = { ...classificationOverrides.get(id), ...patch };
       classificationOverrides.set(id, override);
+      ruleAppliedCategoryIds.delete(id);
       confirmedCategoryIds.delete(id);
+      if (signatureIndex) clearCategoryConfirmation(workspaceStore, signatureIndex, id);
       if (signatureIndex) persistOverride(workspaceStore, signatureIndex, id, override);
       renderImportResult(result, sourceName, { reopenCategoryItemId: id });
     },
     onConfirmCategory: (id) => {
       confirmedCategoryIds.add(id);
+      if (signatureIndex) persistCategoryConfirmation(workspaceStore, signatureIndex, id);
       renderImportResult(result, sourceName, { reopenCategoryItemId: id });
     },
     onResetCategory: (id) => {
       classificationOverrides.delete(id);
+      ruleAppliedCategoryIds.delete(id);
       confirmedCategoryIds.delete(id);
-      if (signatureIndex) clearPersistedOverride(workspaceStore, signatureIndex, id);
+      if (signatureIndex) {
+        clearPersistedOverride(workspaceStore, signatureIndex, id);
+        clearCategoryConfirmation(workspaceStore, signatureIndex, id);
+      }
       renderImportResult(result, sourceName, { reopenCategoryItemId: id });
+    },
+    onSaveCategoryRule: (id) => {
+      const item = visibleCategoryItems.find((candidate) => candidate.id === id);
+      const override = classificationOverrides.get(id);
+      if (!item || !override) return;
+
+      workspaceStore.setRules([...workspaceStore.getRules(), buildClassificationRule(item, override)]);
+      renderImportResult(result, sourceName, { reopenCategoryItemId: id });
+      status.textContent = `${sourceName}: saved a rule for future imports.`;
     }
   });
   bindLiveInputs();
+  bindSavedRules(result, sourceName);
   // Export reflects in-session Type/Group edits (overridden records); non-operating
   // rows stay because they are not in excludedTransactionIds. The full-ledger
   // export gets every row with overrides applied (no removal); the reviewer report
@@ -419,10 +479,29 @@ async function activateImportResult(result: CsvImportResult, sourceName: string)
   welcomeStripDismissed = false;
   signatureIndex = buildSignatureIndex(result.records);
 
-  const restoredOverrides = restoreOverrides(workspaceStore, signatureIndex);
   classificationOverrides.clear();
+  ruleAppliedCategoryIds.clear();
+  appliedRuleFeedback = null;
+  confirmedCategoryIds.clear();
+  const ruleApplication = applyClassificationRulesWithMatches(result.records, workspaceStore.getRules());
+  for (const [id, override] of ruleApplication.overrides) {
+    classificationOverrides.set(id, override);
+    ruleAppliedCategoryIds.add(id);
+  }
+  if (ruleApplication.matchedRecordIds.size > 0) {
+    appliedRuleFeedback = {
+      rowCount: ruleApplication.matchedRecordIds.size,
+      ruleCount: ruleApplication.matchedRuleIds.size
+    };
+  }
+
+  const restoredOverrides = restoreOverrides(workspaceStore, signatureIndex);
   for (const [id, override] of restoredOverrides) {
     classificationOverrides.set(id, override);
+    ruleAppliedCategoryIds.delete(id);
+  }
+  for (const id of restoreCategoryConfirmations(workspaceStore, signatureIndex)) {
+    confirmedCategoryIds.add(id);
   }
 
   // Build the review items from the (now override-applied) ledger so stored
@@ -543,6 +622,18 @@ function bindLiveInputs(): void {
   });
 }
 
+function bindSavedRules(result: CsvImportResult, sourceName: string): void {
+  bindSavedRulesActions({
+    getRules: () => workspaceStore.getRules(),
+    setRules: (rules) => workspaceStore.setRules(rules),
+    onRulesChanged: (action) => {
+      void activateImportResult(result, sourceName).then(() => {
+        status.textContent = `${sourceName}: saved rule ${action === "delete" ? "deleted" : "updated"} for future imports.`;
+      });
+    }
+  });
+}
+
 function bindExportButton(
   visibleSummary: FinanceSummary,
   visibleRecords: TransactionRecord[],
@@ -587,4 +678,26 @@ function readCashOnHand(): number {
 
 function readFutureEventsText(): string {
   return readFutureEventsTextInput(document, settings.futureEventsText);
+}
+
+function buildClassificationRule(
+  item: CategoryReviewItem,
+  override: ClassificationOverride
+): ClassificationRule {
+  const field = preferredRuleField(item);
+  const contains = String(item.record[field]).trim();
+  return {
+    id: `rule-${Date.now()}-${item.id}`,
+    field,
+    contains,
+    override: { ...override },
+    enabled: true,
+    label: `${contains} -> ${override.flow ?? item.flow} / ${override.parent ?? item.parent}`
+  };
+}
+
+function preferredRuleField(item: CategoryReviewItem): ClassificationRuleField {
+  const counterparty = item.record.counterparty.trim();
+  if (counterparty && counterparty !== "Unassigned Counterparty") return "counterparty";
+  return "description";
 }

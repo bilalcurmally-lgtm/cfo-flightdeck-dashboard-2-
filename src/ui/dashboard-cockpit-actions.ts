@@ -14,6 +14,7 @@ export interface DashboardCockpitActionBindings {
   onRecategorize?: (id: string, patch: ClassificationOverride) => void;
   onConfirmCategory?: (id: string) => void;
   onResetCategory?: (id: string) => void;
+  onSaveCategoryRule?: (id: string) => void;
   reopenCategoryItemId?: string;
 }
 
@@ -24,6 +25,7 @@ export function bindDashboardCockpitActions({
   onRecategorize,
   onConfirmCategory,
   onResetCategory,
+  onSaveCategoryRule,
   reopenCategoryItemId
 }: DashboardCockpitActionBindings = {}): void {
   const panel = root.querySelector<HTMLElement>("[data-bw-lineage-panel]");
@@ -71,7 +73,12 @@ export function bindDashboardCockpitActions({
     trigger.setAttribute("aria-expanded", "true");
     closeButton.focus();
     bindReviewToggles(activeBody, onReviewDecision);
-    bindCategoryControls(activeBody, { onRecategorize, onConfirmCategory, onResetCategory });
+    bindCategoryControls(activeBody, {
+      onRecategorize,
+      onConfirmCategory,
+      onResetCategory,
+      onSaveCategoryRule
+    });
   };
 
   const openReview = (trigger: HTMLButtonElement) => {
@@ -199,10 +206,11 @@ function bindCategoryControls(
   handlers: Pick<
     DashboardCockpitActionBindings,
     "onRecategorize" | "onConfirmCategory" | "onResetCategory"
+    | "onSaveCategoryRule"
   >
 ): void {
-  const { onRecategorize, onConfirmCategory, onResetCategory } = handlers;
-  if (!onRecategorize && !onConfirmCategory && !onResetCategory) return;
+  const { onRecategorize, onConfirmCategory, onResetCategory, onSaveCategoryRule } = handlers;
+  if (!onRecategorize && !onConfirmCategory && !onResetCategory && !onSaveCategoryRule) return;
 
   const flowSelects = Array.from(
     activeBody.querySelectorAll<HTMLSelectElement>('[data-role="flow-select"]')
@@ -241,6 +249,16 @@ function bindCategoryControls(
     button.addEventListener("click", () => {
       const id = button.dataset.categoryId;
       if (id) onResetCategory?.(id);
+    });
+  }
+
+  const saveRuleButtons = Array.from(
+    activeBody.querySelectorAll<HTMLButtonElement>('[data-role="save-rule"]')
+  );
+  for (const button of saveRuleButtons) {
+    button.addEventListener("click", () => {
+      const id = button.dataset.categoryId;
+      if (id) onSaveCategoryRule?.(id);
     });
   }
 }

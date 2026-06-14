@@ -1,17 +1,19 @@
 import type { ClassificationOverride } from "../finance/classification-overrides";
+import type { ClassificationRule } from "../finance/classification-rules";
 import { recordImport, type ImportSnapshot } from "./import-history";
 
 export interface ExclusionDecision {
   excluded: boolean;
 }
 
-export const WORKSPACE_SNAPSHOT_VERSION = 2;
+export const WORKSPACE_SNAPSHOT_VERSION = 3;
 
 export interface WorkspaceSnapshot {
   version: number;
   categoryOverrides: Record<string, ClassificationOverride>;
   decisions: Record<string, ExclusionDecision>;
   imports: ImportSnapshot[];
+  rules: ClassificationRule[];
 }
 
 export interface WorkspaceStore {
@@ -24,9 +26,11 @@ export interface WorkspaceStore {
   snapshot(): WorkspaceSnapshot;
   load(snapshot: WorkspaceSnapshot): void;
   addImport(snapshot: ImportSnapshot, options?: { cap?: number }): void;
+  getRules(): ClassificationRule[];
+  setRules(rules: readonly ClassificationRule[]): void;
 }
 
-// Shallow-copies each override/decision value; assumes flat ClassificationOverride / ExclusionDecision shapes — revisit if nested fields are added.
+// Shallow-copies each value; assumes flat ClassificationOverride / ExclusionDecision / ClassificationRule shapes — revisit if nested fields are added.
 function cloneSnapshot(snapshot: WorkspaceSnapshot): WorkspaceSnapshot {
   return {
     version: WORKSPACE_SNAPSHOT_VERSION,
@@ -48,6 +52,10 @@ function cloneSnapshot(snapshot: WorkspaceSnapshot): WorkspaceSnapshot {
       kpiSnapshot: { ...imp.kpiSnapshot },
       reviewItemSignatures: [...imp.reviewItemSignatures],
     })),
+    rules: (snapshot.rules ?? []).map((rule) => ({
+      ...rule,
+      override: { ...rule.override },
+    })),
   };
 }
 
@@ -57,6 +65,7 @@ function emptySnapshot(): WorkspaceSnapshot {
     categoryOverrides: {},
     decisions: {},
     imports: [],
+    rules: [],
   };
 }
 
@@ -100,6 +109,14 @@ export function createInMemoryWorkspaceStore(initial?: WorkspaceSnapshot): Works
 
     addImport(snapshot, options) {
       state.imports = recordImport(state.imports, snapshot, options);
+    },
+
+    getRules() {
+      return state.rules.map((rule) => ({ ...rule, override: { ...rule.override } }));
+    },
+
+    setRules(rules) {
+      state.rules = rules.map((rule) => ({ ...rule, override: { ...rule.override } }));
     },
   };
 }

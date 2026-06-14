@@ -26,6 +26,7 @@ function emptySnapshot(): WorkspaceSnapshot {
     categoryOverrides: {},
     decisions: {},
     imports: [],
+    rules: [],
   };
 }
 
@@ -178,6 +179,15 @@ function wrapWithWriteThrough(
 
     addImport(snapshot, options) {
       mirror.addImport(snapshot, options);
+      enqueuePersist();
+    },
+
+    getRules() {
+      return mirror.getRules();
+    },
+
+    setRules(rules) {
+      mirror.setRules(rules);
       enqueuePersist();
     },
   };

@@ -22,6 +22,7 @@ const sampleSnapshot: WorkspaceSnapshot = {
     [SIG_B]: { excluded: true },
   },
   imports: [],
+  rules: [],
 };
 
 describe("project-file", () => {
@@ -36,6 +37,15 @@ describe("project-file", () => {
     const store = createInMemoryWorkspaceStore();
     store.setCategoryOverride(SIG_A, { parent: "Financing", flow: "revenue" });
     store.setDecision(SIG_B, { excluded: true });
+    store.setRules([
+      {
+        id: "stripe-revenue",
+        field: "counterparty",
+        contains: "stripe",
+        override: { flow: "revenue", parent: "Sales" },
+        enabled: true,
+      },
+    ]);
 
     const originalSnapshot = store.snapshot();
     const parsed = parseProjectFile(serializeProjectFile(originalSnapshot));
@@ -129,6 +139,7 @@ describe("project-file", () => {
         categoryOverrides: { [SIG_A]: { parent: "Financing" } },
         decisions: { [SIG_B]: { excluded: true } },
         imports: [],
+        rules: [],
       },
     });
     if (result.ok) {
@@ -191,8 +202,9 @@ describe("project-file v1->v2 migration", () => {
     const result = parseProjectFile(v1);
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.snapshot.version).toBe(2);
+      expect(result.snapshot.version).toBe(WORKSPACE_SNAPSHOT_VERSION);
       expect(result.snapshot.imports).toEqual([]);
+      expect(result.snapshot.rules).toEqual([]);
       expect(result.snapshot.categoryOverrides.sig).toEqual({ parent: "Food" });
     }
   });
@@ -200,7 +212,7 @@ describe("project-file v1->v2 migration", () => {
   it("rejects a newer (unknown) version loudly", () => {
     const v3 = JSON.stringify({
       kind: BILLU_FILE_KIND,
-      snapshot: { version: 3, categoryOverrides: {}, decisions: {}, imports: [] },
+      snapshot: { version: 999, categoryOverrides: {}, decisions: {}, imports: [], rules: [] },
     });
     expect(parseProjectFile(v3).ok).toBe(false);
   });
@@ -229,5 +241,100 @@ describe("project-file v1->v2 migration", () => {
     const result = parseProjectFile(v2);
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.snapshot.imports).toHaveLength(1);
+  });
+
+  it("round-trips a v3 file with classification rules", () => {
+    const v3 = JSON.stringify({
+      kind: BILLU_FILE_KIND,
+      snapshot: {
+        version: 3,
+        categoryOverrides: {},
+        decisions: {},
+        imports: [],
+        rules: [{
+          id: "stripe-revenue",
+          field: "counterparty",
+          contains: "stripe",
+          override: { flow: "revenue", parent: "Sales" },
+          enabled: true,
+          label: "Stripe revenue",
+        }],
+      },
+    });
+
+    const result = parseProjectFile(v3);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.snapshot.rules).toEqual([{
+        id: "stripe-revenue",
+        field: "counterparty",
+        contains: "stripe",
+        override: { flow: "revenue", parent: "Sales" },
+        enabled: true,
+        label: "Stripe revenue",
+      }]);
+    }
+  });
+
+  it("rejects malformed classification rules", () => {
+    const bad = JSON.stringify({
+      kind: BILLU_FILE_KIND,
+      snapshot: {
+        version: 3,
+        categoryOverrides: {},
+        decisions: {},
+        imports: [],
+        rules: [{ id: "bad", field: "counterparty", contains: 123, override: {}, enabled: true }],
+      },
+    });
+
+    expect(parseProjectFile(bad)).toEqual({
+      ok: false,
+      error: "snapshot.rules must be an array of classification rules",
+    });
+  });
+
+  it("rejects classification rules with unsupported fields or flows", () => {
+    const badField = JSON.stringify({
+      kind: BILLU_FILE_KIND,
+      snapshot: {
+        version: 3,
+        categoryOverrides: {},
+        decisions: {},
+        imports: [],
+        rules: [{
+          id: "bad",
+          field: "dateISO",
+          contains: "2026",
+          override: { parent: "Sales" },
+          enabled: true,
+        }],
+      },
+    });
+    const badFlow = JSON.stringify({
+      kind: BILLU_FILE_KIND,
+      snapshot: {
+        version: 3,
+        categoryOverrides: {},
+        decisions: {},
+        imports: [],
+        rules: [{
+          id: "bad",
+          field: "counterparty",
+          contains: "stripe",
+          override: { flow: "income" },
+          enabled: true,
+        }],
+      },
+    });
+
+    expect(parseProjectFile(badField)).toEqual({
+      ok: false,
+      error: "snapshot.rules must be an array of classification rules",
+    });
+    expect(parseProjectFile(badFlow)).toEqual({
+      ok: false,
+      error: "snapshot.rules must be an array of classification rules",
+    });
   });
 });

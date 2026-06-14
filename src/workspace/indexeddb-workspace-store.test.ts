@@ -269,12 +269,14 @@ describe("createIndexedDbWorkspaceStore", () => {
       categoryOverrides: { [SIG_A]: { parent: "State A" } },
       decisions: { [SIG_B]: { excluded: true } },
       imports: [],
+      rules: [],
     };
     const snapshotB = {
       version: WORKSPACE_SNAPSHOT_VERSION,
       categoryOverrides: { [SIG_A]: { parent: "State B", flow: "revenue" as const } },
       decisions: {},
       imports: [],
+      rules: [],
     };
 
     const first = await createIndexedDbWorkspaceStore({ factory, dbName });
@@ -287,6 +289,34 @@ describe("createIndexedDbWorkspaceStore", () => {
     const second = await createIndexedDbWorkspaceStore({ factory, dbName });
     expect(second.store.getCategoryOverride(SIG_A)).toEqual({ parent: "State B", flow: "revenue" });
     expect(second.store.getDecision(SIG_B)).toBeUndefined();
+  });
+
+  it("persists saved classification rules across reopen", async () => {
+    const { factory, waitForPersistence } = createFakeIdbFactory();
+    const dbName = "test-rules-write-through";
+
+    const first = await createIndexedDbWorkspaceStore({ factory, dbName });
+    first.store.setRules([
+      {
+        id: "stripe-revenue",
+        field: "counterparty",
+        contains: "stripe",
+        override: { flow: "revenue", parent: "Sales" },
+        enabled: true,
+      },
+    ]);
+    await waitForPersistence();
+
+    const second = await createIndexedDbWorkspaceStore({ factory, dbName });
+    expect(second.store.getRules()).toEqual([
+      {
+        id: "stripe-revenue",
+        field: "counterparty",
+        contains: "stripe",
+        override: { flow: "revenue", parent: "Sales" },
+        enabled: true,
+      },
+    ]);
   });
 
   it("swallows write-through failures without throwing from setters", async () => {

@@ -30,6 +30,7 @@ export function renderCategoryReviewDrawer(items: readonly CategoryReviewItem[])
         ${GROUP_OPTIONS.map((g) => `<option value="${escapeHtml(g)}"${sel(g, it.parent)}>${escapeHtml(g)}</option>`).join("")}
       </select></label>
       <button type="button" data-role="confirm" data-category-id="${escapeHtml(it.id)}">Looks right</button>
+      ${it.acted ? `<button type="button" data-role="save-rule" data-category-id="${escapeHtml(it.id)}">Remember rule</button>` : ""}
       ${it.acted ? `<button type="button" data-role="reset" data-category-id="${escapeHtml(it.id)}">Reset</button>` : ""}
     </li>`).join("")}
     </ul>

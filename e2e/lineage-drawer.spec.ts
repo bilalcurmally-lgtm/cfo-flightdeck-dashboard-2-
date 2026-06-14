@@ -1,5 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+const OWNER_NEXT_FIXTURE = "public/sample-owner-next.csv";
+
 interface Box {
   x: number;
   y: number;
@@ -95,6 +97,61 @@ test("recategorizing a row to Internal re-derives runway live", async ({ page })
   await expect(page.locator('[data-tile="non-operating"]')).toBeVisible();
   expect(await page.locator('[data-kpi="runway"] .bw-kpi__value').innerText()).not.toBe(before);
   await expect(row.locator('[data-role="group-select"]')).toBeFocused();
+
+  await row.locator('[data-role="save-rule"]').click();
+  await expect(page.locator("#status")).toContainText("saved a rule for future imports");
+  await page.locator("[data-bw-lineage-close]").click();
+
+  const savedRules = page.locator(".saved-rules");
+  await expect(savedRules).toContainText("Owner");
+  await savedRules.locator("[data-rule-toggle]").click();
+  await expect(page.locator("#status")).toContainText("saved rule updated");
+  await expect(savedRules).toContainText("Disabled");
+
+  await savedRules.locator("[data-rule-delete]").click();
+  await expect(page.locator("#status")).toContainText("saved rule deleted");
+  await expect(savedRules).toContainText("No saved rules yet");
+});
+
+test("remembered category rule applies to a distinct matching import", async ({ page }) => {
+  await loadAgencySample(page);
+  await page.locator('[data-tile="category-review"]').click();
+  const row = page.locator(".category-review-item").first();
+  await row.locator('[data-role="group-select"]').selectOption("Internal");
+  await row.locator('[data-role="save-rule"]').click();
+  await expect(page.locator("#status")).toContainText("saved a rule for future imports");
+  await page.locator("[data-bw-lineage-close]").click();
+
+  await page.locator("#clear-button").click();
+  await page.locator("#csv-file").setInputFiles(OWNER_NEXT_FIXTURE);
+  await page.getByRole("button", { name: "Apply Mapping" }).click();
+
+  await expect(page.locator('[data-tile="non-operating"]')).toBeVisible();
+  await expect(page.locator(".rules-applied")).toContainText("1 row classified by 1 saved rule");
+  await expect(page.locator('[data-tile="category-review"]')).toHaveCount(0);
+});
+
+test("confirmed category rows do not carry forward as unresolved review work", async ({ page }) => {
+  await loadAgencySample(page);
+  await page.locator('[data-tile="category-review"]').click();
+  const ownerRow = page
+    .locator(".category-review-item")
+    .filter({ hasText: "Owner draw distribution" });
+  await expect(ownerRow).toBeVisible();
+  await ownerRow.locator('[data-role="confirm"]').click();
+  await expect(
+    page.locator(".category-review-item").filter({ hasText: "Owner draw distribution" })
+  ).toHaveCount(0);
+
+  await page.locator("[data-bw-lineage-close]").click();
+  await page.locator("#clear-button").click();
+  await page.locator('[data-bw-sample-path="/sample-agency.csv"]').click();
+  await page.getByRole("button", { name: "Apply Mapping" }).click();
+
+  await page.locator('[data-tile="category-review"]').click();
+  await expect(
+    page.locator(".category-review-item").filter({ hasText: "Owner draw distribution" })
+  ).toHaveCount(0);
 });
 
 test("toggling a review item reopens the drawer with focus on that item", async ({ page }) => {

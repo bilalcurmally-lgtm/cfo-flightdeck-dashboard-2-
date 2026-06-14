@@ -3,6 +3,7 @@ import type { ForecastResult } from "../finance/forecast";
 import { reviewPresetLabel, type ReviewPreset } from "../finance/review-presets";
 import type { FinanceSummary } from "../finance/summary";
 import type { CsvImportResult, PeriodGrain, TransactionRecord } from "../finance/types";
+import type { ClassificationRule } from "../finance/classification-rules";
 import { currencyOptions } from "../finance/currencies";
 import { escapeHtml } from "./html";
 import { filterSelect, metricCard, reviewPresetButton, trendGrainLabel, trendGrainOption } from "./controls";
@@ -176,7 +177,10 @@ export function renderCashHealthPanel(
   `;
 }
 
-export function renderSettingsPanel(currencyOptionsHtml: string): string {
+export function renderSettingsPanel(
+  currencyOptionsHtml: string,
+  rules: readonly ClassificationRule[] = []
+): string {
   return `
     <section class="settings-panel" aria-labelledby="settings-title">
       <div>
@@ -192,7 +196,50 @@ export function renderSettingsPanel(currencyOptionsHtml: string): string {
         </label>
         <button id="reset-settings" type="button">Reset Settings</button>
       </div>
+      ${renderSavedRules(rules)}
     </section>
+  `;
+}
+
+function renderSavedRules(rules: readonly ClassificationRule[]): string {
+  if (rules.length === 0) {
+    return `
+      <div class="saved-rules" aria-label="Saved classification rules">
+        <h3>Saved Rules</h3>
+        <p class="saved-rules__empty">No saved rules yet.</p>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="saved-rules" aria-label="Saved classification rules">
+      <h3>Saved Rules</h3>
+      <ul class="saved-rules__list">
+        ${rules.map((rule) => renderSavedRule(rule)).join("")}
+      </ul>
+    </div>
+  `;
+}
+
+function renderSavedRule(rule: ClassificationRule): string {
+  const action = [
+    rule.override.flow ? `Type: ${rule.override.flow}` : "",
+    rule.override.parent ? `Group: ${rule.override.parent}` : ""
+  ].filter(Boolean).join(" · ");
+  const description = `${rule.field} contains "${rule.contains}" · ${action || "No action"}`;
+  return `
+    <li class="saved-rules__item" data-rule-id="${escapeHtml(rule.id)}">
+      <div>
+        <strong>${escapeHtml(rule.label ?? `${rule.field} contains ${rule.contains}`)}</strong>
+        <span>${escapeHtml(description)}</span>
+      </div>
+      <div class="saved-rules__actions">
+        <button type="button" data-rule-toggle="${escapeHtml(rule.id)}" aria-pressed="${rule.enabled}">
+          ${rule.enabled ? "Enabled" : "Disabled"}
+        </button>
+        <button type="button" data-rule-delete="${escapeHtml(rule.id)}">Delete</button>
+      </div>
+    </li>
   `;
 }
 

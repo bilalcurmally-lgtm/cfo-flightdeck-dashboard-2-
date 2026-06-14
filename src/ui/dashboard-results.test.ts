@@ -20,6 +20,7 @@ describe("renderDashboardResults", () => {
       activeReviewPreset: "duplicates",
       reviewPresetLabel: "Possible duplicates",
       currencyOptionsHtml: '<option value="USD" selected>USD</option>',
+      appliedRuleFeedback: { rowCount: 2, ruleCount: 1 },
       cashOnHand: 5000,
       formatMoney: (value) => `$${value}`,
       formatRunway: (months) => `${months} months`
@@ -35,6 +36,7 @@ describe("renderDashboardResults", () => {
     expect(html).toContain('id="export-trend-png"');
     expect(html).toContain("Possible duplicates");
     expect(html).toContain('id="currency-select"');
+    expect(html).toContain("2 rows classified by 1 saved rule");
     expect(html).toContain("13-Week Forecast");
     expect(html).toContain("Duplicate & Transfer Checks");
     expect(html).toContain("Transaction Detail");

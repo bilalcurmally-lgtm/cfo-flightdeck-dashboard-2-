@@ -114,6 +114,41 @@ describe("bindDashboardCockpitActions", () => {
 
     expect(decisions).toEqual([{ itemId: "transfer:out:in", excluded: true }]);
   });
+
+  it("opens the category drawer and reports save-rule clicks", () => {
+    const categoryTrigger = button();
+    const closeButton = button();
+    const panel = element();
+    const title = element();
+    const activeBody = element();
+    const categoryTemplate = element(
+      '<section><button data-role="save-rule" data-category-id="cat-a">Remember rule</button></section>'
+    );
+    const saved: string[] = [];
+
+    bindDashboardCockpitActions({
+      root: root({
+        triggers: [],
+        templates: {},
+        categoryTrigger,
+        categoryTemplate,
+        panel,
+        panelTitle: title,
+        activeBody,
+        closeButton
+      }),
+      onSaveCategoryRule: (id) => saved.push(id)
+    });
+
+    categoryTrigger.fire("click");
+
+    expect(panel.hidden).toBe(false);
+    expect(title.textContent).toBe("Category review");
+    const saveRule = activeBody.children[0];
+    saveRule.fire("click");
+
+    expect(saved).toEqual(["cat-a"]);
+  });
 });
 
 interface FakeRootParts {
@@ -121,6 +156,8 @@ interface FakeRootParts {
   templates: Record<string, FakeElement>;
   reviewTrigger?: FakeElement;
   reviewTemplate?: FakeElement;
+  categoryTrigger?: FakeElement;
+  categoryTemplate?: FakeElement;
   panel: FakeElement;
   panelTitle?: FakeElement;
   activeBody: FakeElement;
@@ -139,6 +176,7 @@ function root(parts: FakeRootParts): DashboardCockpitActionRoot {
       if (selector === "[data-bw-lineage-active]") return parts.activeBody;
       if (selector === "[data-bw-lineage-close]") return parts.closeButton;
       if (selector === "[data-bw-review-template]") return parts.reviewTemplate ?? null;
+      if (selector === "[data-bw-category-template]") return parts.categoryTemplate ?? null;
       const templateMatch = selector.match(/\[data-bw-lineage-template="(.+)"\]/);
       return templateMatch ? parts.templates[templateMatch[1]] ?? null : null;
     },
@@ -147,6 +185,8 @@ function root(parts: FakeRootParts): DashboardCockpitActionRoot {
         ? parts.triggers
         : selector === "[data-bw-review-trigger]" && parts.reviewTrigger
           ? [parts.reviewTrigger]
+          : selector === "[data-bw-category-trigger]" && parts.categoryTrigger
+            ? [parts.categoryTrigger]
           : [],
     addEventListener: () => {}
   } as unknown as DashboardCockpitActionRoot;
@@ -193,7 +233,11 @@ function element(innerHTML = ""): FakeElement {
     },
     getAttribute: (name) => fake.attributes[name] ?? null,
     querySelectorAll: (selector) =>
-      selector === "[data-bw-review-toggle]" ? fake.children : [],
+      selector === "[data-bw-review-toggle]"
+        ? fake.children.filter((child) => child.dataset.bwReviewToggle)
+        : selector === '[data-role="save-rule"]'
+          ? fake.children.filter((child) => child.dataset.role === "save-rule")
+          : [],
     focus: () => {
       fake.focusCount += 1;
     },
@@ -207,10 +251,21 @@ function button(): FakeElement {
 }
 
 function parseChildren(innerHTML: string): FakeElement[] {
-  const match = innerHTML.match(/data-bw-review-toggle="([^"]+)".*?aria-pressed="([^"]+)"/);
-  if (!match) return [];
-  const child = button();
-  child.dataset.bwReviewToggle = match[1];
-  child.attributes["aria-pressed"] = match[2];
-  return [child];
+  const reviewMatch = innerHTML.match(/data-bw-review-toggle="([^"]+)".*?aria-pressed="([^"]+)"/);
+  if (reviewMatch) {
+    const child = button();
+    child.dataset.bwReviewToggle = reviewMatch[1];
+    child.attributes["aria-pressed"] = reviewMatch[2];
+    return [child];
+  }
+
+  const saveRuleMatch = innerHTML.match(/data-role="save-rule".*?data-category-id="([^"]+)"/);
+  if (saveRuleMatch) {
+    const child = button();
+    child.dataset.role = "save-rule";
+    child.dataset.categoryId = saveRuleMatch[1];
+    return [child];
+  }
+
+  return [];
 }

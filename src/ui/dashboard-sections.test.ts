@@ -91,6 +91,33 @@ describe("renderSettingsPanel", () => {
     expect(html).toContain('id="currency-select"');
     expect(html).toContain('<option value="USD">USD</option>');
     expect(html).toContain('id="reset-settings"');
+    expect(html).toContain("No saved rules yet.");
+  });
+
+  it("renders saved classification rules", () => {
+    const html = renderSettingsPanel('<option value="USD">USD</option>', [
+      {
+        id: "stripe-rule",
+        field: "counterparty",
+        contains: "Stripe",
+        override: { flow: "revenue", parent: "Sales" },
+        enabled: true,
+        label: "Stripe revenue"
+      },
+      {
+        id: "rent-rule",
+        field: "description",
+        contains: "rent",
+        override: { parent: "Operating Costs" },
+        enabled: false
+      }
+    ]);
+
+    expect(html).toContain("Stripe revenue");
+    expect(html).toContain('data-rule-toggle="stripe-rule"');
+    expect(html).toContain('aria-pressed="true"');
+    expect(html).toContain('data-rule-delete="rent-rule"');
+    expect(html).toContain("Disabled");
   });
 });
 
