@@ -388,6 +388,7 @@ function renderImportResult(
     savedRules: workspaceStore.getRules(),
     appliedRuleFeedback,
     cashOnHand: readCashOnHand(),
+    hasImportHistory: workspaceStore.snapshot().imports.length > 1,
     excludedTransactionIds,
     excludedReviewItemIds: [...reviewExcludedItemIds],
     formatMoney,

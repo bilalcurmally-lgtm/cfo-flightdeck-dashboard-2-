@@ -1,8 +1,10 @@
 import type { AuditMetric, AuditedCockpit } from "../finance/audit";
 import type { CockpitViewModel, ReviewBreakdown } from "../finance/cockpit-kpis";
 import type { NonOperatingSummary } from "../finance/non-operating";
+import type { ReadinessReport } from "../finance/readiness";
 import { escapeHtml } from "./html";
 import { renderLineageDrawer } from "./lineage-drawer";
+import { renderReadinessWidget, renderReadinessDrawer } from "./readiness-panel";
 import { renderReviewDrawer, type ReviewDrawerItem } from "./review-drawer";
 import { renderCategoryReviewDrawer } from "./category-review-drawer";
 import type { CategoryReviewItem } from "./category-review-queue";
@@ -16,6 +18,7 @@ export interface CockpitFormatters {
 export interface CockpitExtras {
   nonOperating?: NonOperatingSummary;
   categoryItems?: readonly CategoryReviewItem[];
+  readiness?: ReadinessReport;
 }
 
 interface CockpitTile {
@@ -97,9 +100,11 @@ export function renderCockpitStrip(
   const tileCount =
     5 + (showReview ? 1 : 0) + (showNonOperating ? 1 : 0) + (showCategoryReview ? 1 : 0);
   const rootClass = tileCount > 5 ? `bw-cockpit bw-cockpit--${tileCount}` : "bw-cockpit";
+  const readiness = extras.readiness;
   return `
+    ${readiness ? renderReadinessWidget(readiness) : ""}
     <section class="${rootClass}" role="group" aria-label="Cockpit summary">${tiles}</section>
-    ${renderLineagePanel(viewModel, formatters, reviewItems, nonOperating, categoryItems)}
+    ${renderLineagePanel(viewModel, formatters, reviewItems, nonOperating, categoryItems, readiness)}
   `;
 }
 
@@ -172,7 +177,8 @@ function renderLineagePanel(
   formatters: CockpitFormatters,
   reviewItems: readonly ReviewDrawerItem[],
   nonOperating: NonOperatingSummary | undefined,
-  categoryItems: readonly CategoryReviewItem[]
+  categoryItems: readonly CategoryReviewItem[],
+  readiness: ReadinessReport | undefined
 ): string {
   if (!("lineage" in viewModel)) return "";
 
@@ -211,6 +217,13 @@ function renderLineagePanel(
       ${renderCategoryReviewDrawer(categoryItems)}
     </template>
   `;
+  const readinessTemplate = readiness
+    ? `
+    <template data-bw-readiness-template>
+      ${renderReadinessDrawer(readiness)}
+    </template>
+  `
+    : "";
 
   return `
     <aside class="bw-lineage-panel" data-bw-lineage-panel role="dialog" aria-modal="false" aria-label="KPI audit trail" hidden>
@@ -220,7 +233,7 @@ function renderLineagePanel(
       </div>
       <div class="bw-lineage-panel__body" data-bw-lineage-active></div>
     </aside>
-    <div class="bw-lineage-templates" hidden>${templates}${reviewTemplate}${nonOperatingTemplate}${categoryTemplate}</div>
+    <div class="bw-lineage-templates" hidden>${templates}${reviewTemplate}${nonOperatingTemplate}${categoryTemplate}${readinessTemplate}</div>
   `;
 }
 

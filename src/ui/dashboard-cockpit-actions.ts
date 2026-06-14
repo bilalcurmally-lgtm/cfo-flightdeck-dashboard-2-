@@ -44,11 +44,15 @@ export function bindDashboardCockpitActions({
   const categoryTriggers = Array.from(
     root.querySelectorAll<HTMLButtonElement>("[data-bw-category-trigger]")
   );
+  const readinessTriggers = Array.from(
+    root.querySelectorAll<HTMLButtonElement>("[data-bw-readiness-trigger]")
+  );
   const allTriggers = [
     ...triggers,
     ...reviewTriggers,
     ...nonOperatingTriggers,
-    ...categoryTriggers
+    ...categoryTriggers,
+    ...readinessTriggers
   ];
   let activeTrigger: HTMLButtonElement | null = null;
 
@@ -99,6 +103,12 @@ export function bindDashboardCockpitActions({
     openTemplate(trigger, template, "Category review");
   };
 
+  const openReadiness = (trigger: HTMLButtonElement) => {
+    const template = root.querySelector<HTMLTemplateElement>("[data-bw-readiness-template]");
+    if (!template) return;
+    openTemplate(trigger, template, "Dashboard readiness");
+  };
+
   for (const trigger of triggers) {
     trigger.addEventListener("click", () => {
       const metric = trigger.dataset.bwLineageTrigger;
@@ -123,6 +133,10 @@ export function bindDashboardCockpitActions({
 
   for (const trigger of categoryTriggers) {
     trigger.addEventListener("click", () => openCategory(trigger));
+  }
+
+  for (const trigger of readinessTriggers) {
+    trigger.addEventListener("click", () => openReadiness(trigger));
   }
 
   // After a toggle re-renders the dashboard, reopen the review drawer so the

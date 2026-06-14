@@ -113,6 +113,22 @@ test("recategorizing a row to Internal re-derives runway live", async ({ page })
   await expect(savedRules).toContainText("No saved rules yet");
 });
 
+test("readiness widget opens the trust drawer", async ({ page }) => {
+  await loadAgencySample(page);
+
+  const widget = page.locator(".bw-readiness");
+  await expect(widget).toBeVisible();
+  await expect(widget.locator(".bw-readiness__status")).not.toBeEmpty();
+
+  await page.locator("[data-bw-readiness-trigger]").click();
+  const panel = page.locator("[data-bw-lineage-panel]");
+  await expect(panel).toBeVisible();
+  await expect(panel.locator(".bw-readiness-drawer")).toBeVisible();
+  await expect(panel.locator("[data-bw-lineage-panel-title]")).toHaveText(
+    "Dashboard readiness"
+  );
+});
+
 test("remembered category rule applies to a distinct matching import", async ({ page }) => {
   await loadAgencySample(page);
   await page.locator('[data-tile="category-review"]').click();

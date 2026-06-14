@@ -11,6 +11,9 @@
   --color-accent-soft: #f5e3d4;
   --color-success-soft: #e3f0e7;
   --color-danger-soft: #f3dfd5;
+  /* DESIGN.md palette accents used sparingly for readiness/trust status. */
+  --color-olive: #899a3f;
+  --color-coral: #ee7064;
   --shadow-panel: 0 18px 45px rgb(28 48 38 / 10%);
   --shadow-glass: inset 0 1px 0 rgb(255 255 255 / 72%), 0 14px 32px rgb(29 79 60 / 12%);
   color: var(--color-ink);
@@ -1230,6 +1233,130 @@ th {
   font-size: 0.76rem;
   letter-spacing: 0;
   text-transform: uppercase;
+}
+
+/* Compact trust widget above the cockpit. Calm soft-panel surface with a small
+   status accent (left border) colored per DESIGN.md: olive=ready, accent=caveats,
+   coral=needs review. Non-blocking — hidden entirely for an empty dashboard. */
+.bw-readiness {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  margin-bottom: 14px;
+  padding: 10px 14px;
+  border: 1px solid var(--color-line);
+  border-left: 3px solid var(--color-line);
+  border-radius: 8px;
+  background: var(--color-panel);
+  box-shadow: var(--shadow-panel);
+}
+
+.bw-readiness--ready {
+  border-left-color: var(--color-olive);
+}
+
+.bw-readiness--partial {
+  border-left-color: var(--color-accent);
+}
+
+.bw-readiness--needs-review {
+  border-left-color: var(--color-coral);
+}
+
+.bw-readiness__status {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-ink);
+}
+
+.bw-readiness--ready .bw-readiness__status {
+  color: var(--color-primary);
+}
+
+.bw-readiness--partial .bw-readiness__status {
+  color: var(--color-accent);
+}
+
+.bw-readiness--needs-review .bw-readiness__status {
+  color: var(--color-coral);
+}
+
+.bw-readiness__headline {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--color-ink-soft);
+  font-size: 0.85rem;
+}
+
+.bw-readiness__details {
+  padding: 5px 12px;
+  border: 1px solid var(--color-primary);
+  border-radius: 999px;
+  background: var(--color-panel);
+  color: var(--color-primary);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.bw-readiness__details:hover {
+  background: var(--color-success-soft);
+}
+
+.bw-readiness-drawer__headline {
+  margin: 0 0 4px;
+  color: var(--color-ink);
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.bw-readiness-drawer__clear {
+  margin: 0;
+  color: var(--color-ink-soft);
+  font-size: 0.85rem;
+}
+
+.bw-readiness__signals {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bw-readiness__signal {
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+  border-left: 2px solid var(--color-line);
+  border-radius: 4px;
+  background: var(--color-canvas);
+}
+
+.bw-readiness__signal--blocker {
+  border-left-color: var(--color-coral);
+}
+
+.bw-readiness__signal--caution {
+  border-left-color: var(--color-accent);
+}
+
+.bw-readiness__signal--info {
+  border-left-color: var(--color-line);
+}
+
+.bw-readiness__signal-label {
+  color: var(--color-ink);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.bw-readiness__signal-detail {
+  color: var(--color-ink-soft);
+  font-size: 0.8rem;
+  line-height: 1.4;
 }
 
 .bw-cockpit {
