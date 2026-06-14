@@ -245,6 +245,25 @@ Suggested UI:
 
 Source: Data Analytics plugin `metric-diagnostics`.
 
+Status: first explainer shipped on 2026-06-14.
+
+Shipped:
+
+- `src/finance/metric-diagnostics.ts`: pure `explainRunwayChange(prev, curr, formatters)`
+  → `{ direction, headline, drivers }`. Decomposes a runway delta into cash-on-hand and
+  monthly-burn drivers via an exact counterfactual split (parts sum to the whole), names the
+  dominant driver, and handles unavailable-runway / no-comparable-baseline cases.
+- `ImportSnapshot.kpiSnapshot` now also captures `cashOnHand` + `averageMonthlyOutflow`
+  (open Record, backward compatible; legacy baselines degrade to no drivers).
+- Welcome-back strip renders a "why" sub-line under the delta summary when cash/burn drivers
+  are available. 12 tests; browser-verified layout.
+
+Remaining (later explainers):
+
+- Top positive/negative contributors to Net Cash; burn contributors by head/subcategory;
+  revenue concentration by head/counterparty; largest-transaction influence; filter/exclusion
+  impact summary.
+
 What:
 
 - Add deterministic local explanations for why cash metrics changed or look risky.

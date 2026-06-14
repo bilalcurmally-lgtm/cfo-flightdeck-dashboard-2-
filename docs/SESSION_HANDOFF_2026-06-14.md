@@ -159,7 +159,17 @@ Then shipped the **P1 Dashboard Readiness / Trust Center** in two slices:
 
 Full suite after both: `tsc` 0, `vitest` 410, `playwright` 18/18, build green.
 
-Branch `codex/a1-audit-model` tip is now at the readiness-widget commit. Still not pushed.
+Then shipped the **P1 Local Metric Diagnostics** first explainer ("why did runway change?"):
+`src/finance/metric-diagnostics.ts` — pure `explainRunwayChange(prev, curr, formatters)` that
+decomposes a runway delta into cash-on-hand and monthly-burn drivers (exact counterfactual
+split, dominant driver named). `ImportSnapshot.kpiSnapshot` now also captures `cashOnHand` +
+`averageMonthlyOutflow` (open Record, backward compatible). The welcome-back strip renders a
+"why" sub-line under the delta summary when drivers are available (legacy baselines degrade to
+no line, so no duplication). Why-line layout browser-verified (sits under text, ink-soft); the
+full cash/burn-driven scenario is unit-covered (live repro is blocked by capture-after-import
++ same-ledger dedupe). Full suite: `tsc` 0, `vitest` 418, `playwright` 18/18, build green.
+
+Branch `codex/a1-audit-model` tip is now at the diagnostics commit. Still not pushed.
 
 ## Next Session Priorities
 
