@@ -1,11 +1,13 @@
+import type { TransactionRecord } from "./types";
+
 /**
  * Local metric diagnostics — deterministic, offline explanations of *why* a cash
- * metric changed between imports. First explainer: "why did runway change?", which
- * decomposes the runway delta into its cash-on-hand and monthly-burn drivers using
- * an exact counterfactual split (so the parts always sum to the whole change).
+ * metric changed between imports or *what* is driving it now. Explainers:
+ *  - explainRunwayChange: decomposes a runway delta into cash vs burn drivers.
+ *  - topNetCashContributors: the biggest inflows and outflows behind net cash.
  *
- * Pure: callers pass the two metric snapshots plus formatters (mirroring the
- * lineage drawer), and the model returns fully-formed plain-English text.
+ * Pure: callers pass the metric snapshots/records plus formatters (mirroring the
+ * lineage drawer), and the model returns fully-formed values or text.
  */
 
 export interface RunwayInputs {
@@ -147,4 +149,66 @@ function buildDrivers(
 function shortClause(driver: RunwayDriver): string {
   const verb = driver.direction === "up" ? "increased" : "decreased";
   return driver.factor === "cash" ? `cash on hand ${verb}` : `monthly burn ${verb}`;
+}
+
+export interface NetCashContributor {
+  label: string;
+  amount: number;
+  flow: "revenue" | "outflow";
+}
+
+export interface NetCashContributors {
+  positives: NetCashContributor[];
+  negatives: NetCashContributor[];
+}
+
+export interface NetCashContributorOptions {
+  limit?: number;
+  groupBy?: "head" | "counterparty";
+}
+
+/**
+ * The biggest inflows (positives) and outflows (negatives) behind net cash,
+ * grouped by head (default) or counterparty and sorted by magnitude. Answers
+ * "what is driving net cash?" alongside the lineage drawer's "how it was computed".
+ */
+export function topNetCashContributors(
+  records: readonly TransactionRecord[],
+  options: NetCashContributorOptions = {}
+): NetCashContributors {
+  const limit = options.limit ?? 3;
+  const key = options.groupBy ?? "head";
+
+  const positives = groupByLabel(records, "revenue", key);
+  const negatives = groupByLabel(records, "outflow", key);
+
+  return {
+    positives: rank(positives, "revenue", limit),
+    negatives: rank(negatives, "outflow", limit)
+  };
+}
+
+function groupByLabel(
+  records: readonly TransactionRecord[],
+  flow: "revenue" | "outflow",
+  key: "head" | "counterparty"
+): Map<string, number> {
+  const totals = new Map<string, number>();
+  for (const record of records) {
+    if (record.flow !== flow) continue;
+    const label = record[key];
+    totals.set(label, (totals.get(label) ?? 0) + record.amount);
+  }
+  return totals;
+}
+
+function rank(
+  totals: Map<string, number>,
+  flow: "revenue" | "outflow",
+  limit: number
+): NetCashContributor[] {
+  return [...totals.entries()]
+    .map(([label, amount]) => ({ label, amount, flow }))
+    .sort((a, b) => b.amount - a.amount)
+    .slice(0, limit);
 }

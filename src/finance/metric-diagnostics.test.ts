@@ -1,9 +1,36 @@
 import { describe, expect, it } from "vitest";
 import {
   explainRunwayChange,
+  topNetCashContributors,
   type DiagnosticsFormatters,
   type RunwayInputs
 } from "./metric-diagnostics";
+import type { TransactionRecord } from "./types";
+
+function record(
+  head: string,
+  flow: TransactionRecord["flow"],
+  amount: number
+): TransactionRecord {
+  return {
+    id: `${head}-${flow}-${amount}`,
+    date: new Date("2026-03-01T00:00:00"),
+    dateISO: "2026-03-01",
+    periodDaily: "2026-03-01",
+    periodWeekly: "2026-03-01",
+    periodMonthly: "2026-03",
+    head,
+    parent: "Group",
+    subcategory: "Subcategory",
+    description: "Memo",
+    counterparty: "Counterparty",
+    account: "Operating",
+    flow,
+    amount,
+    signedNet: flow === "revenue" ? amount : -amount,
+    runningBalance: null
+  };
+}
 
 const formatters: DiagnosticsFormatters = {
   formatMoney: (value) => `$${Math.round(value)}`,
@@ -71,5 +98,68 @@ describe("explainRunwayChange", () => {
     const result = explainRunwayChange(inputs(), inputs(), formatters);
     expect(result.direction).toBe("flat");
     expect(result.headline.toLowerCase()).toContain("held");
+  });
+});
+
+describe("topNetCashContributors", () => {
+  it("groups revenue by head and returns the biggest inflows first", () => {
+    const result = topNetCashContributors([
+      record("Client A", "revenue", 2000),
+      record("Client A", "revenue", 500),
+      record("Client B", "revenue", 1000),
+      record("Rent", "outflow", 800)
+    ]);
+
+    expect(result.positives.map((c) => [c.label, c.amount])).toEqual([
+      ["Client A", 2500],
+      ["Client B", 1000]
+    ]);
+    expect(result.positives[0].flow).toBe("revenue");
+  });
+
+  it("groups outflow by head and returns the biggest outflows first", () => {
+    const result = topNetCashContributors([
+      record("Payroll", "outflow", 3000),
+      record("Rent", "outflow", 1500),
+      record("Software", "outflow", 200),
+      record("Client A", "revenue", 100)
+    ]);
+
+    expect(result.negatives.map((c) => c.label)).toEqual([
+      "Payroll",
+      "Rent",
+      "Software"
+    ]);
+    expect(result.negatives[0].flow).toBe("outflow");
+  });
+
+  it("respects the limit on each side", () => {
+    const result = topNetCashContributors(
+      [
+        record("A", "revenue", 5),
+        record("B", "revenue", 4),
+        record("C", "revenue", 3),
+        record("X", "outflow", 5),
+        record("Y", "outflow", 4),
+        record("Z", "outflow", 3)
+      ],
+      { limit: 2 }
+    );
+    expect(result.positives).toHaveLength(2);
+    expect(result.negatives).toHaveLength(2);
+    expect(result.positives.map((c) => c.label)).toEqual(["A", "B"]);
+  });
+
+  it("returns empty sides for an empty ledger", () => {
+    expect(topNetCashContributors([])).toEqual({ positives: [], negatives: [] });
+  });
+
+  it("groups by counterparty when asked", () => {
+    const a = record("Misc", "revenue", 1000);
+    const b = record("Misc", "revenue", 400);
+    const result = topNetCashContributors([{ ...a, counterparty: "Stripe" }, { ...b, counterparty: "Direct" }], {
+      groupBy: "counterparty"
+    });
+    expect(result.positives.map((c) => c.label)).toEqual(["Stripe", "Direct"]);
   });
 });

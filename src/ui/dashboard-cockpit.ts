@@ -2,8 +2,10 @@ import type { AuditMetric, AuditedCockpit } from "../finance/audit";
 import type { CockpitViewModel, ReviewBreakdown } from "../finance/cockpit-kpis";
 import type { NonOperatingSummary } from "../finance/non-operating";
 import type { ReadinessReport } from "../finance/readiness";
+import type { NetCashContributors } from "../finance/metric-diagnostics";
 import { escapeHtml } from "./html";
 import { renderLineageDrawer } from "./lineage-drawer";
+import { renderNetCashContributors } from "./net-cash-contributors";
 import { renderReadinessWidget, renderReadinessDrawer } from "./readiness-panel";
 import { renderReviewDrawer, type ReviewDrawerItem } from "./review-drawer";
 import { renderCategoryReviewDrawer } from "./category-review-drawer";
@@ -19,6 +21,7 @@ export interface CockpitExtras {
   nonOperating?: NonOperatingSummary;
   categoryItems?: readonly CategoryReviewItem[];
   readiness?: ReadinessReport;
+  netCashContributors?: NetCashContributors;
 }
 
 interface CockpitTile {
@@ -104,7 +107,7 @@ export function renderCockpitStrip(
   return `
     ${readiness ? renderReadinessWidget(readiness) : ""}
     <section class="${rootClass}" role="group" aria-label="Cockpit summary">${tiles}</section>
-    ${renderLineagePanel(viewModel, formatters, reviewItems, nonOperating, categoryItems, readiness)}
+    ${renderLineagePanel(viewModel, formatters, reviewItems, nonOperating, categoryItems, readiness, extras.netCashContributors)}
   `;
 }
 
@@ -178,7 +181,8 @@ function renderLineagePanel(
   reviewItems: readonly ReviewDrawerItem[],
   nonOperating: NonOperatingSummary | undefined,
   categoryItems: readonly CategoryReviewItem[],
-  readiness: ReadinessReport | undefined
+  readiness: ReadinessReport | undefined,
+  netCashContributors: NetCashContributors | undefined
 ): string {
   if (!("lineage" in viewModel)) return "";
 
@@ -194,6 +198,11 @@ function renderLineagePanel(
       (metric) => `
         <template data-bw-lineage-template="${escapeHtml(metric)}">
           ${renderLineageDrawer(viewModel.lineage[metric], formatters)}
+          ${
+            metric === "netCash" && netCashContributors
+              ? renderNetCashContributors(netCashContributors, formatters.formatMoney)
+              : ""
+          }
         </template>
       `
     )

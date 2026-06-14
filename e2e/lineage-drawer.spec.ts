@@ -113,6 +113,19 @@ test("recategorizing a row to Internal re-derives runway live", async ({ page })
   await expect(savedRules).toContainText("No saved rules yet");
 });
 
+test("net cash drawer shows the biggest inflow and outflow drivers", async ({ page }) => {
+  await loadAgencySample(page);
+
+  await page.locator('[data-bw-lineage-trigger="netCash"]').click();
+  const panel = page.locator("[data-bw-lineage-panel]");
+  await expect(panel).toBeVisible();
+
+  const contributors = panel.locator(".bw-contributors");
+  await expect(contributors).toBeVisible();
+  await expect(contributors).toContainText("Biggest inflows");
+  await expect(contributors).toContainText("Biggest outflows");
+});
+
 test("readiness widget opens the trust drawer", async ({ page }) => {
   await loadAgencySample(page);
 
