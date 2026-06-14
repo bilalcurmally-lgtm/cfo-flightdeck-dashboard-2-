@@ -257,12 +257,14 @@ Shipped:
   (open Record, backward compatible; legacy baselines degrade to no drivers).
 - Welcome-back strip renders a "why" sub-line under the delta summary when cash/burn drivers
   are available. 12 tests; browser-verified layout.
+- Net-cash contributors (`topNetCashContributors`): the per-KPI net-cash audit drawer now
+  shows the biggest inflows and outflows behind the number (grouped by head, sorted by
+  magnitude), via `src/ui/net-cash-contributors.ts`. 13 tests + e2e.
 
 Remaining (later explainers):
 
-- Top positive/negative contributors to Net Cash; burn contributors by head/subcategory;
-  revenue concentration by head/counterparty; largest-transaction influence; filter/exclusion
-  impact summary.
+- Burn contributors by head/subcategory; revenue concentration by head/counterparty;
+  largest-transaction influence; filter/exclusion impact summary.
 
 What:
 

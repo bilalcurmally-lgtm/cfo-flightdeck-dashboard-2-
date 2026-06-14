@@ -5,6 +5,7 @@ import type { ClassificationRule } from "../finance/classification-rules";
 import type { CsvImportResult, PeriodGrain } from "../finance/types";
 import { deriveAuditedCockpit } from "../finance/audit-derive";
 import { assessReadiness } from "../finance/readiness";
+import { topNetCashContributors } from "../finance/metric-diagnostics";
 import {
   renderCashHealthPanel,
   renderDashboardFilterPanel,
@@ -76,7 +77,8 @@ export function renderDashboardResults(input: DashboardResultsRenderInput): stri
     }, reviewItems, {
       nonOperating: input.view.nonOperating,
       categoryItems: input.view.categoryReview.items,
-      readiness
+      readiness,
+      netCashContributors: topNetCashContributors(input.view.filteredRecords)
     })}
     ${renderAppliedRuleFeedback(input.appliedRuleFeedback)}
     ${renderDashboardFilterPanel({
