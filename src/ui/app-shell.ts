@@ -23,6 +23,7 @@ export function renderAppShell(_samples: readonly SampleDataset[]): string {
           <button id="save-project" type="button" disabled>Save project</button>
           <button id="open-project" type="button" disabled>Open project</button>
           <button id="clear-button" type="button" disabled>Clear</button>
+          <button id="history-button" type="button" aria-expanded="false" disabled>History</button>
           <button id="reference-button" type="button" aria-expanded="false">Formulas</button>
         </div>
       </div>
@@ -45,6 +46,7 @@ export function renderAppShell(_samples: readonly SampleDataset[]): string {
     <p id="status" class="status" role="status">Waiting for a CSV or Excel file.</p>
 
     <section id="reference-panel" class="reference-panel" aria-label="Formula reference" hidden></section>
+    <section id="history-panel" class="reference-panel" aria-label="Import history" hidden></section>
     <section id="results" class="results" aria-live="polite"></section>
   </section>
 `;
