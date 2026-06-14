@@ -196,6 +196,26 @@ Initial role map:
 
 Source: Data Analytics plugin `validate-data` and `analyze-data-quality` workflows.
 
+Status: shipped on 2026-06-14.
+
+Shipped:
+
+- `src/finance/readiness.ts`: pure `assessReadiness(input)` model. Folds rejected rows,
+  duplicates, transfers, category review, unassigned heads/counterparties, missing
+  cash-on-hand, non-operating, and import-history availability into one
+  `{ status, headline, signals }`. Severity model: blocker -> needs-review, caution ->
+  partial, info never downgrades; empty when no transactions.
+- `src/ui/readiness-panel.ts`: pure widget + drawer renderers.
+- Wired through `CockpitExtras` into the cockpit strip and the existing lineage-panel
+  drawer infra (`dashboard-cockpit.ts`, `dashboard-cockpit-actions.ts`,
+  `dashboard-results.ts`, `main.ts`). Compact trust widget above the cockpit; click opens
+  a detail drawer. Non-blocking (hidden when empty). Status accents per DESIGN.md
+  (olive/accent/coral). 16 tests + e2e; browser-verified desktop + mobile.
+
+Remaining:
+
+- Local metric diagnostics ("why did runway change?") below can build on this.
+
 What:
 
 - Add a readiness model that summarizes whether the current dashboard is ready, partial, or

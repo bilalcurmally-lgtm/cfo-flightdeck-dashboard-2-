@@ -144,7 +144,22 @@ renderer); used `eval` computed-style + bounding-box inspection instead, which i
 recommended path for precise style checks. Full suite: tsc 0, vitest 394, e2e 16/16, build.
 Added `.claude/launch.json` (vite dev, port 5173) for Preview — left untracked.
 
-Branch `codex/a1-audit-model` tip is now `56f25e9`. Still not pushed.
+Then shipped the **P1 Dashboard Readiness / Trust Center** in two slices:
+
+- `b...` (readiness model): `src/finance/readiness.ts` — pure `assessReadiness(input)` folding
+  all scattered trust signals into `{ status, headline, signals }` (blocker→needs-review,
+  caution→partial, info never downgrades, empty when no rows). 9 tests.
+- readiness widget (`src/ui/readiness-panel.ts`): compact trust widget above the cockpit +
+  detail drawer, wired through `CockpitExtras` into the existing lineage-panel drawer infra
+  (template + action trigger mirroring non-operating/category). `dashboard-results.ts` maps
+  view signals → `ReadinessInput`; `main.ts` feeds `hasImportHistory`. Status accents per
+  DESIGN.md (added `--color-olive` / `--color-coral`). Browser-verified desktop + mobile via
+  Preview MCP `eval` (screenshot tool still hangs) — coral/accent/line severity borders all
+  resolve to the right tokens; clean wrap at 375px.
+
+Full suite after both: `tsc` 0, `vitest` 410, `playwright` 18/18, build green.
+
+Branch `codex/a1-audit-model` tip is now at the readiness-widget commit. Still not pushed.
 
 ## Next Session Priorities
 
