@@ -3,6 +3,7 @@ import {
   createDashboardViewState,
   resetDashboardFilters,
   selectDashboardFilter,
+  selectDashboardFilters,
   selectReviewPreset,
   selectTransaction,
   selectTrendGrain
@@ -70,6 +71,25 @@ describe("selectDashboardFilter", () => {
         ...state.filters,
         account: "Checking"
       }
+    });
+  });
+});
+
+describe("selectDashboardFilters", () => {
+  it("updates multiple filters and returns to the all review preset", () => {
+    const state = {
+      ...createDashboardViewState(),
+      reviewPreset: "duplicates" as const
+    };
+
+    expect(selectDashboardFilters(state, { flow: "outflow", head: "Software" })).toEqual({
+      ...state,
+      filters: {
+        ...state.filters,
+        flow: "outflow",
+        head: "Software"
+      },
+      reviewPreset: "all"
     });
   });
 });

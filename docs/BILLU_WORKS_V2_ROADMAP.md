@@ -1,6 +1,6 @@
 # Billu.Works Finance Dashboard V2 Roadmap
 
-Last updated: 2026-04-27
+Last updated: 2026-05-23
 
 ## Why V2 Exists
 
@@ -86,6 +86,46 @@ Exit: real-world exports need less manual cleanup.
 - exportable summaries and chart data. (visible monthly trend CSV added)
 
 Exit: ready to publish as a free Billu.Works utility.
+
+## Product Stack: Next Frontend And Product Priorities
+
+These are now part of the working stack and should be layered in while backend hardening continues.
+
+### Immediate UX Priorities
+
+- First-run onboarding state.
+  - Let users feel the dashboard before they understand every control.
+  - Prefer a loaded sample/demo path or a rich pre-import state with clear `Load Sample`, `Load Excel Demo`, and `Load your own file` actions.
+- KPI cockpit treatment.
+  - Revenue, outflow, net cash, average burn, and runway should feel like the first instrument panel.
+  - The math already exists; the missing piece is emotional hierarchy and first-viewport impact.
+- Founder runway emphasis.
+  - Cash runway should be prominent enough that a founder sees it without hunting.
+  - Keep the calculation client-side and auditable.
+- README/product story refresh.
+  - README is behind the actual app. Update it so finished features are not mistaken for gaps.
+
+### Product Expansion Candidates
+
+- Budget vs Actual.
+  - Start with manual monthly/category budgets compared against imported actuals.
+  - This is the strongest next expansion after the finance cockpit feels excellent.
+- Invoices / Receivables.
+  - Useful, but larger scope. Treat it as a later module rather than bolting on a second admin dashboard.
+- One dashboard, wider scope.
+  - Prefer one coherent small-business financial cockpit over two half-products stapled together.
+  - Suggested information architecture: Overview, P&L, Runway, Transactions.
+
+### Export / Sharing
+
+- Keep improving the print report.
+- Consider a true one-click PDF export later if browser print is not enough for accountants/investors.
+
+### Visual Direction Note
+
+- Explore a Bloomberg-terminal level of information density and cockpit confidence, but keep Billu.Works small-business readable.
+- Do not sacrifice import review, audit legibility, or calm trust for visual intensity.
+- `DESIGN.md` remains the source of truth: soft financial cockpit, sage/cream base, tactile controls, clear audit surfaces.
 
 ## Phase 6: Traffic And Monetization
 

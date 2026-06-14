@@ -1,4 +1,4 @@
-import { parseAmount, classifyFlow } from "../finance/amount";
+import { parseAmount, parseSplitDebitCreditAmount, classifyFlow } from "../finance/amount";
 import { parseDate, startOfWeek, toIsoDate } from "../finance/date";
 import type { DateFormat, ImportMapping, ImportedRow, TransactionRecord } from "../finance/types";
 
@@ -33,7 +33,12 @@ export function mapRowToRecord(
   dateFormat: DateFormat
 ): TransactionRecord | null {
   const date = parseDate(row[mapping.date], dateFormat);
-  const amountRaw = parseAmount(row[mapping.amount]);
+  const amountRaw = mapping.amount
+    ? parseAmount(row[mapping.amount])
+    : parseSplitDebitCreditAmount(
+        mapping.debit ? row[mapping.debit] : "",
+        mapping.credit ? row[mapping.credit] : ""
+      );
   if (!date || amountRaw === null) return null;
 
   const typeValue = mapping.type ? String(row[mapping.type] || "").trim().toLowerCase() : "";
@@ -55,6 +60,7 @@ export function mapRowToRecord(
     (mapping.account ? String(row[mapping.account] || "").trim() : "") || UNASSIGNED_ACCOUNT;
   const signedNet = flow === "revenue" ? amount : -amount;
   const runningBalance = mapping.runningBalance ? parseAmount(row[mapping.runningBalance]) : null;
+  const sourceSheet = sourceSheetFromRow(row);
 
   return {
     id: `${date.toISOString()}-${index}`,
@@ -63,6 +69,7 @@ export function mapRowToRecord(
     periodDaily: toIsoDate(date),
     periodWeekly: toIsoDate(startOfWeek(date)),
     periodMonthly: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`,
+    sourceSheet,
     head,
     parent,
     subcategory,
@@ -74,4 +81,29 @@ export function mapRowToRecord(
     signedNet,
     runningBalance
   };
+}
+
+function sourceSheetFromRow(row: ImportedRow): string | undefined {
+  const worksheetColumns = Object.keys(row)
+    .map((key) => {
+      const suffixMatch = key.match(/^worksheet_(\d+)$/i);
+      return {
+        key,
+        rank: suffixMatch ? Number(suffixMatch[1]) : key.toLowerCase() === "worksheet" ? 1 : 0
+      };
+    })
+    .filter((entry) => entry.rank > 0)
+    .sort((a, b) => b.rank - a.rank);
+
+  for (const { key } of worksheetColumns) {
+    const value = String(row[key] || "").trim();
+    if (value) return value;
+  }
+
+  for (const key of ["Source Sheet", "Sheet"]) {
+    const value = String(row[key] || "").trim();
+    if (value) return value;
+  }
+
+  return undefined;
 }

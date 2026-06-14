@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 import type { CsvImportResult } from "../finance/types";
 import { analyzeImportReadiness } from "../import/validation";
 import type { ParsedExcelSheet } from "../import/excel";
-import { renderMappingReviewPanel, renderWorksheetOption, renderWorksheetPickerPanel } from "./import-review";
+import {
+  renderMappingReviewPanel,
+  renderRejectedRows,
+  renderWorksheetOption,
+  renderWorksheetPickerPanel
+} from "./import-review";
 
 describe("renderWorksheetOption", () => {
   it("renders a worksheet row preview alongside sheet metadata", () => {
@@ -67,9 +72,25 @@ describe("renderWorksheetPickerPanel", () => {
     expect(html).toContain("2 sheets found");
     expect(html).toContain("Operating");
     expect(html).toContain("Helper");
+    expect(html).toContain('data-combine-compatible-sheets="true"');
+    expect(html).toContain("Combine Compatible Sheets");
+    expect(html).toContain("Combine plan");
+    expect(html).toContain("1 sheet · 1 row can be combined");
+    expect(html).toContain("<strong>Helper:</strong>");
+    expect(html).toContain("No imported rows");
     expect(html).toContain('data-sheet-index="0"');
     expect(html).toContain('data-sheet-index="1"');
     expect(html).toContain('type="button" disabled');
+  });
+
+  it("disables the combine action when no worksheet rows can be imported", () => {
+    const html = renderWorksheetPickerPanel([
+      sheet({ name: "Helper", rows: [], rawRowCount: 0 }),
+      sheet({ name: "Notes", rows: [], rawRowCount: 0 })
+    ]);
+
+    expect(html).toContain('data-combine-compatible-sheets="true" type="button" disabled');
+    expect(html).toContain("No compatible worksheet rows found yet.");
   });
 });
 
@@ -84,11 +105,55 @@ describe("renderMappingReviewPanel", () => {
     expect(html).toContain('id="mapping-title"');
     expect(html).toContain('data-mapping-key="date"');
     expect(html).toContain('data-mapping-key="amount"');
+    expect(html).toContain('data-mapping-key="debit"');
+    expect(html).toContain('data-mapping-key="credit"');
     expect(html).toContain('id="mapping-date-format"');
     expect(html).toContain('id="apply-mapping"');
     expect(html).toContain("2/2 rows ready");
     expect(html).toContain('class="table-wrap mapping-preview"');
     expect(html).toContain("<td>Northstar Studio</td>");
+    expect(html).toContain("Confirm the required date and amount columns, then adjust optional fields if this file uses different labels.");
+  });
+
+  it("shows split debit and credit mappings in the import summary", () => {
+    const result: CsvImportResult = {
+      rawRows: [{ Date: "2026-05-01", Debit: "1200", Credit: "", Particulars: "Rent" }],
+      records: [],
+      rejectedRows: [],
+      mapping: {
+        date: "Date",
+        amount: "",
+        debit: "Debit",
+        credit: "Credit",
+        description: "Particulars"
+      },
+      dateFormat: "ymd"
+    };
+
+    const html = renderRejectedRows(result);
+
+    expect(html).toContain("<dt>Amount</dt>");
+    expect(html).toContain("<dd>split Debit/Credit</dd>");
+    expect(html).toContain("<dt>Debit</dt>");
+    expect(html).toContain("<dd>Debit</dd>");
+    expect(html).toContain("<dt>Credit</dt>");
+    expect(html).toContain("<dd>Credit</dd>");
+  });
+
+  it("uses format-neutral copy when the raw preview has no rows", () => {
+    const html = renderMappingReviewPanel(
+      {
+        rawRows: [],
+        records: [],
+        rejectedRows: [],
+        mapping: { date: "", amount: "" },
+        dateFormat: "ymd"
+      },
+      analyzeImportReadiness([], { date: "", amount: "" }, "ymd")
+    );
+
+    expect(html).toContain("No rows found in this file.");
+    expect(html).not.toContain("No rows found in this CSV.");
   });
 });
 

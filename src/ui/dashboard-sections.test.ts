@@ -1,3 +1,4 @@
+import { placeholderCashHealthLineage, placeholderSummaryLineage } from "../finance/audit-fixtures";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_FILTERS } from "../finance/filters";
 import type { ForecastResult } from "../finance/forecast";
@@ -36,6 +37,7 @@ describe("renderDashboardFilterPanel", () => {
     expect(html).toContain('value="2026-03-01"');
     expect(html).toContain('value="weekly" selected');
     expect(html).toContain("1 of 2 records shown");
+    expect(html).toContain("Flow: revenue · From 2026-03-01");
     expect(html).toContain("possible duplicates");
     expect(html).toContain("Duplicates (2)");
     expect(html).toContain("Transfers (0)");
@@ -49,6 +51,7 @@ describe("renderExportPanel", () => {
     const html = renderExportPanel();
 
     expect(html).toContain('id="export-transactions"');
+    expect(html).toContain('id="export-transactions-xlsx"');
     expect(html).toContain('id="export-visible-transactions"');
     expect(html).toContain('id="export-reviewer"');
     expect(html).toContain('id="export-trend"');
@@ -88,6 +91,33 @@ describe("renderSettingsPanel", () => {
     expect(html).toContain('id="currency-select"');
     expect(html).toContain('<option value="USD">USD</option>');
     expect(html).toContain('id="reset-settings"');
+    expect(html).toContain("No saved rules yet.");
+  });
+
+  it("renders saved classification rules", () => {
+    const html = renderSettingsPanel('<option value="USD">USD</option>', [
+      {
+        id: "stripe-rule",
+        field: "counterparty",
+        contains: "Stripe",
+        override: { flow: "revenue", parent: "Sales" },
+        enabled: true,
+        label: "Stripe revenue"
+      },
+      {
+        id: "rent-rule",
+        field: "description",
+        contains: "rent",
+        override: { parent: "Operating Costs" },
+        enabled: false
+      }
+    ]);
+
+    expect(html).toContain("Stripe revenue");
+    expect(html).toContain('data-rule-toggle="stripe-rule"');
+    expect(html).toContain('aria-pressed="true"');
+    expect(html).toContain('data-rule-delete="rent-rule"');
+    expect(html).toContain("Disabled");
   });
 });
 
@@ -186,7 +216,9 @@ function summary(): FinanceSummary {
       transferCandidates: []
     },
     warnings: [],
+    lineage: placeholderSummaryLineage(),
     cashHealth: {
+      lineage: placeholderCashHealthLineage(),
       averageMonthlyOutflow: 300,
       runwayMonths: 2,
       largestTransaction: null,

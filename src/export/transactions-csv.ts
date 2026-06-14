@@ -4,6 +4,7 @@ import { exportDateStamp, safeExportStem } from "./filenames";
 export function buildTransactionsCsv(records: TransactionRecord[]): string {
   const header = [
     "date",
+    "sourceSheet",
     "flow",
     "account",
     "head",
@@ -18,6 +19,7 @@ export function buildTransactionsCsv(records: TransactionRecord[]): string {
   const lines = records.map((record) =>
     [
       record.dateISO,
+      csvEscape(record.sourceSheet ?? ""),
       record.flow,
       csvEscape(record.account),
       csvEscape(record.head),

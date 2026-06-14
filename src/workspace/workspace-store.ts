@@ -1,0 +1,122 @@
+import type { ClassificationOverride } from "../finance/classification-overrides";
+import type { ClassificationRule } from "../finance/classification-rules";
+import { recordImport, type ImportSnapshot } from "./import-history";
+
+export interface ExclusionDecision {
+  excluded: boolean;
+}
+
+export const WORKSPACE_SNAPSHOT_VERSION = 3;
+
+export interface WorkspaceSnapshot {
+  version: number;
+  categoryOverrides: Record<string, ClassificationOverride>;
+  decisions: Record<string, ExclusionDecision>;
+  imports: ImportSnapshot[];
+  rules: ClassificationRule[];
+}
+
+export interface WorkspaceStore {
+  getCategoryOverride(signature: string): ClassificationOverride | undefined;
+  setCategoryOverride(signature: string, override: ClassificationOverride): void;
+  clearCategoryOverride(signature: string): void;
+  getDecision(signature: string): ExclusionDecision | undefined;
+  setDecision(signature: string, decision: ExclusionDecision): void;
+  clearDecision(signature: string): void;
+  snapshot(): WorkspaceSnapshot;
+  load(snapshot: WorkspaceSnapshot): void;
+  addImport(snapshot: ImportSnapshot, options?: { cap?: number }): void;
+  getRules(): ClassificationRule[];
+  setRules(rules: readonly ClassificationRule[]): void;
+}
+
+// Shallow-copies each value; assumes flat ClassificationOverride / ExclusionDecision / ClassificationRule shapes — revisit if nested fields are added.
+function cloneSnapshot(snapshot: WorkspaceSnapshot): WorkspaceSnapshot {
+  return {
+    version: WORKSPACE_SNAPSHOT_VERSION,
+    categoryOverrides: Object.fromEntries(
+      Object.entries(snapshot.categoryOverrides).map(([signature, override]) => [
+        signature,
+        { ...override },
+      ]),
+    ),
+    decisions: Object.fromEntries(
+      Object.entries(snapshot.decisions).map(([signature, decision]) => [
+        signature,
+        { ...decision },
+      ]),
+    ),
+    imports: (snapshot.imports ?? []).map((imp) => ({
+      ...imp,
+      signatureSet: [...imp.signatureSet],
+      kpiSnapshot: { ...imp.kpiSnapshot },
+      reviewItemSignatures: [...imp.reviewItemSignatures],
+    })),
+    rules: (snapshot.rules ?? []).map((rule) => ({
+      ...rule,
+      override: { ...rule.override },
+    })),
+  };
+}
+
+function emptySnapshot(): WorkspaceSnapshot {
+  return {
+    version: WORKSPACE_SNAPSHOT_VERSION,
+    categoryOverrides: {},
+    decisions: {},
+    imports: [],
+    rules: [],
+  };
+}
+
+export function createInMemoryWorkspaceStore(initial?: WorkspaceSnapshot): WorkspaceStore {
+  let state = initial ? cloneSnapshot(initial) : emptySnapshot();
+
+  return {
+    getCategoryOverride(signature) {
+      const override = state.categoryOverrides[signature];
+      return override ? { ...override } : undefined;
+    },
+
+    setCategoryOverride(signature, override) {
+      state.categoryOverrides[signature] = { ...override };
+    },
+
+    clearCategoryOverride(signature) {
+      delete state.categoryOverrides[signature];
+    },
+
+    getDecision(signature) {
+      const decision = state.decisions[signature];
+      return decision ? { ...decision } : undefined;
+    },
+
+    setDecision(signature, decision) {
+      state.decisions[signature] = { ...decision };
+    },
+
+    clearDecision(signature) {
+      delete state.decisions[signature];
+    },
+
+    snapshot() {
+      return cloneSnapshot(state);
+    },
+
+    load(snapshot) {
+      state = cloneSnapshot(snapshot);
+    },
+
+    addImport(snapshot, options) {
+      state.imports = recordImport(state.imports, snapshot, options);
+    },
+
+    getRules() {
+      return state.rules.map((rule) => ({ ...rule, override: { ...rule.override } }));
+    },
+
+    setRules(rules) {
+      state.rules = rules.map((rule) => ({ ...rule, override: { ...rule.override } }));
+    },
+  };
+}

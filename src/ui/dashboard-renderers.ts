@@ -1,4 +1,5 @@
 import type { CsvImportResult, ImportedRow, TransactionRecord } from "../finance/types";
+import type { SampleDataset } from "../import/sample-datasets";
 import type {
   AccountBalance,
   FinanceSummary,
@@ -10,6 +11,68 @@ import type {
 import { escapeHtml } from "./html";
 
 type MoneyFormatter = (value: number) => string;
+
+interface PreImportChoice {
+  action: "import-file" | "load-excel-demo" | "load-sample-csv";
+  label: string;
+  desc: string;
+  meta: string;
+}
+
+export function renderPreImportPanel(samples: readonly SampleDataset[]): string {
+  return `
+    <section class="bw-importpanel" aria-labelledby="pre-import-title">
+      <div class="bw-importpanel__intro">
+        <p class="eyebrow">Start here</p>
+        <h2 id="pre-import-title">Load a file, inspect the rows, then trust the cockpit.</h2>
+        <p>
+          Choose your own CSV or Excel export, open the full Northstar workbook, or start with a small sample.
+          Everything stays in this browser.
+        </p>
+      </div>
+      <div class="bw-choice-grid">
+        ${renderPreImportChoice({
+          action: "import-file",
+          label: "Import your file",
+          desc: "CSV or Excel bank exports parsed locally.",
+          meta: ".csv .xlsx"
+        })}
+        ${renderPreImportChoice({
+          action: "load-excel-demo",
+          label: "Open Excel demo",
+          desc: "Six-sheet Northstar workbook with messy bank data.",
+          meta: "workbook"
+        })}
+        ${renderPreImportChoice({
+          action: "load-sample-csv",
+          label: "Load sample CSV",
+          desc: "A fast path into the mapping review flow.",
+          meta: samples[0]?.label ?? "sample"
+        })}
+      </div>
+      <div class="bw-samples" aria-label="Sample CSV shortcuts">
+        <span>or load:</span>
+        ${samples
+          .map(
+            (sample) => `
+              <button
+                class="bw-sample-link"
+                data-bw-action="load-sample-csv"
+                data-bw-sample-path="${escapeHtml(sample.path)}"
+                type="button"
+              >${escapeHtml(sample.label)}</button>
+            `
+          )
+          .join("")}
+      </div>
+      <p class="bw-reassure">No upload, no account, no server-side transaction storage.</p>
+    </section>
+  `;
+}
+
+export function renderAppbarLoadAction(): string {
+  return `<button class="bw-appbar-load" data-bw-action="import-file" type="button">Load new file</button>`;
+}
 
 export function renderTransactionTable(
   records: TransactionRecord[],
@@ -145,7 +208,14 @@ export function renderTopHeads(heads: HeadSummary[], formatMoney: MoneyFormatter
                 <strong>${escapeHtml(head.head)}</strong>
                 <span>${head.count} transaction${head.count === 1 ? "" : "s"}</span>
               </div>
-              <span class="pill ${head.flow}">${escapeHtml(formatMoney(head.amount))}</span>
+              <button
+                class="drilldown-button"
+                data-drilldown-flow="${escapeHtml(head.flow)}"
+                data-drilldown-head="${escapeHtml(head.head)}"
+                type="button"
+              >
+                <span class="pill ${head.flow}">${escapeHtml(formatMoney(head.amount))}</span>
+              </button>
             </li>
           `
         )
@@ -167,7 +237,13 @@ export function renderAccountBalances(accounts: AccountBalance[], formatMoney: M
                 <strong>${escapeHtml(account.account)}</strong>
                 <span>${account.source === "runningBalance" ? "imported balance" : "net activity"}</span>
               </div>
-              <strong>${escapeHtml(formatMoney(account.balance))}</strong>
+              <button
+                class="drilldown-button"
+                data-drilldown-account="${escapeHtml(account.account)}"
+                type="button"
+              >
+                <strong>${escapeHtml(formatMoney(account.balance))}</strong>
+              </button>
             </li>
           `
         )
@@ -194,7 +270,15 @@ export function renderSubcategories(
                   item.count === 1 ? "" : "s"
                 }</span>
               </div>
-              <span class="pill ${item.flow}">${escapeHtml(formatMoney(item.amount))}</span>
+              <button
+                class="drilldown-button"
+                data-drilldown-flow="${escapeHtml(item.flow)}"
+                data-drilldown-head="${escapeHtml(item.head)}"
+                data-drilldown-subcategory="${escapeHtml(item.subcategory)}"
+                type="button"
+              >
+                <span class="pill ${item.flow}">${escapeHtml(formatMoney(item.amount))}</span>
+              </button>
             </li>
           `
         )
@@ -220,18 +304,29 @@ export function renderDiagnostics(summary: FinanceSummary, formatMoney: MoneyFor
     .slice(0, 4)
     .map((group) => {
       const record = group.records[0];
-      return `<li><strong>${escapeHtml(record.dateISO)} ${escapeHtml(record.account)}</strong><span>${escapeHtml(
-        record.description
-      )} · ${escapeHtml(formatMoney(record.amount))} · ${group.records.length} matches</span></li>`;
+      return `<li>
+        <div>
+          <strong>${escapeHtml(record.dateISO)} ${escapeHtml(record.account)}</strong>
+          <span>${escapeHtml(record.description)} · ${escapeHtml(formatMoney(record.amount))} · ${group.records.length} matches</span>
+        </div>
+        <button class="row-action" data-transaction-id="${escapeHtml(record.id)}" type="button">Review</button>
+      </li>`;
     })
     .join("");
   const transferItems = summary.diagnostics.transferCandidates
     .slice(0, 4)
     .map(
       (transfer) =>
-        `<li><strong>${escapeHtml(transfer.dateISO)} ${escapeHtml(formatMoney(transfer.amount))}</strong><span>${escapeHtml(
-          transfer.fromAccount
-        )} to ${escapeHtml(transfer.toAccount)}</span></li>`
+        `<li>
+          <div>
+            <strong>${escapeHtml(transfer.dateISO)} ${escapeHtml(formatMoney(transfer.amount))}</strong>
+            <span>${escapeHtml(transfer.fromAccount)} to ${escapeHtml(transfer.toAccount)}</span>
+          </div>
+          <div class="diagnostic-actions">
+            <button class="row-action" data-transaction-id="${escapeHtml(transfer.outflowId)}" type="button">Outflow</button>
+            <button class="row-action" data-transaction-id="${escapeHtml(transfer.revenueId)}" type="button">Revenue</button>
+          </div>
+        </li>`
     )
     .join("");
 
@@ -290,6 +385,16 @@ export function renderReportTransactionTable(
         </tbody>
       </table>
     </div>
+  `;
+}
+
+function renderPreImportChoice(choice: PreImportChoice): string {
+  return `
+    <button class="bw-choice" data-bw-action="${choice.action}" type="button">
+      <span class="bw-choice__label">${escapeHtml(choice.label)}</span>
+      <span class="bw-choice__desc">${escapeHtml(choice.desc)}</span>
+      <span class="bw-choice__meta">${escapeHtml(choice.meta)}</span>
+    </button>
   `;
 }
 

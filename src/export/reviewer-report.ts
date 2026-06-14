@@ -13,6 +13,7 @@ export interface ReviewerReport {
     rejectedRows: number;
     dateFormat: string;
     mapping: CsvImportResult["mapping"];
+    sourceSheets: Array<{ name: string; acceptedRows: number }>;
   };
   summary: {
     revenue: number;
@@ -23,6 +24,12 @@ export interface ReviewerReport {
     revenueConcentration: number;
   };
   qualitySignals: string[];
+  diagnosticSummary: {
+    duplicateGroups: number;
+    duplicateRecords: number;
+    transferCandidates: number;
+    transferRecords: number;
+  };
   accountBalances: FinanceSummary["accountBalances"];
   topSubcategories: FinanceSummary["topSubcategories"];
   diagnostics: FinanceSummary["diagnostics"];
@@ -52,7 +59,8 @@ export function buildReviewerReport(
       acceptedRows: result.records.length,
       rejectedRows: result.rejectedRows.length,
       dateFormat: result.dateFormat,
-      mapping: result.mapping
+      mapping: result.mapping,
+      sourceSheets: summarizeSourceSheets(result.records)
     },
     summary: {
       revenue: summary.revenue,
@@ -63,6 +71,7 @@ export function buildReviewerReport(
       revenueConcentration: summary.cashHealth.revenueConcentration
     },
     qualitySignals: summary.warnings.map((warning) => warning.message),
+    diagnosticSummary: summarizeDiagnostics(summary.diagnostics),
     accountBalances: summary.accountBalances,
     topSubcategories: summary.topSubcategories,
     diagnostics: summary.diagnostics,
@@ -74,6 +83,41 @@ export function buildReviewerReport(
       rejectedManualEvents: forecast.rejectedEvents,
       weeks: forecast.weeks
     }
+  };
+}
+
+function summarizeSourceSheets(
+  records: CsvImportResult["records"]
+): Array<{ name: string; acceptedRows: number }> {
+  const counts = new Map<string, number>();
+
+  for (const record of records) {
+    const sourceSheet = record.sourceSheet?.trim();
+    if (!sourceSheet) continue;
+    counts.set(sourceSheet, (counts.get(sourceSheet) ?? 0) + 1);
+  }
+
+  return Array.from(counts, ([name, acceptedRows]) => ({ name, acceptedRows }));
+}
+
+function summarizeDiagnostics(
+  diagnostics: FinanceSummary["diagnostics"]
+): ReviewerReport["diagnosticSummary"] {
+  const duplicateRecordIds = new Set(
+    diagnostics.duplicateGroups.flatMap((group) => group.records.map((record) => record.id))
+  );
+  const transferRecordIds = new Set(
+    diagnostics.transferCandidates.flatMap((candidate) => [
+      candidate.outflowId,
+      candidate.revenueId
+    ])
+  );
+
+  return {
+    duplicateGroups: diagnostics.duplicateGroups.length,
+    duplicateRecords: duplicateRecordIds.size,
+    transferCandidates: diagnostics.transferCandidates.length,
+    transferRecords: transferRecordIds.size
   };
 }
 

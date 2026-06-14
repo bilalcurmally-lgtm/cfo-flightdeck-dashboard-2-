@@ -1,0 +1,113 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`deriveAuditedCockpit > builds stable audit lineage for 'Agency' sample 1`] = `
+{
+  "averageMonthlyOutflow": 14800,
+  "label": "Agency",
+  "netCash": 11300,
+  "outflow": 14800,
+  "outflowRowIds": [
+    "2026-03-04T19:00:00.000Z-2",
+    "2026-03-06T19:00:00.000Z-3",
+    "2026-03-07T19:00:00.000Z-4",
+    "2026-03-08T19:00:00.000Z-5",
+    "2026-03-14T19:00:00.000Z-7",
+    "2026-03-19T19:00:00.000Z-8",
+    "2026-03-21T19:00:00.000Z-9",
+    "2026-03-24T19:00:00.000Z-10",
+  ],
+  "revenue": 26100,
+  "revenueRowIds": [
+    "2026-02-28T19:00:00.000Z-0",
+    "2026-03-02T19:00:00.000Z-1",
+    "2026-03-11T19:00:00.000Z-6",
+    "2026-03-24T19:00:00.000Z-11",
+  ],
+  "runwayAssumptions": [
+    {
+      "label": "Cash on hand",
+      "source": "user-entered",
+      "value": 50000,
+    },
+  ],
+  "runwayFormula": "Runway = cash on hand / average monthly outflow",
+  "runwayMonths": 3.3783783783783785,
+  "runwayTreeLabels": [
+    "Cash on hand",
+    "Average monthly outflow",
+  ],
+}
+`;
+
+exports[`deriveAuditedCockpit > builds stable audit lineage for 'Founder' sample 1`] = `
+{
+  "averageMonthlyOutflow": 20650,
+  "label": "Founder",
+  "netCash": 13650,
+  "outflow": 20650,
+  "outflowRowIds": [
+    "2026-03-04T19:00:00.000Z-2",
+    "2026-03-05T19:00:00.000Z-3",
+    "2026-03-06T19:00:00.000Z-4",
+    "2026-03-09T19:00:00.000Z-5",
+    "2026-03-15T19:00:00.000Z-7",
+    "2026-03-19T19:00:00.000Z-8",
+    "2026-03-23T19:00:00.000Z-9",
+  ],
+  "revenue": 34300,
+  "revenueRowIds": [
+    "2026-02-28T19:00:00.000Z-0",
+    "2026-03-01T19:00:00.000Z-1",
+    "2026-03-11T19:00:00.000Z-6",
+  ],
+  "runwayAssumptions": [
+    {
+      "label": "Cash on hand",
+      "source": "user-entered",
+      "value": 50000,
+    },
+  ],
+  "runwayFormula": "Runway = cash on hand / average monthly outflow",
+  "runwayMonths": 2.4213075060532687,
+  "runwayTreeLabels": [
+    "Cash on hand",
+    "Average monthly outflow",
+  ],
+}
+`;
+
+exports[`deriveAuditedCockpit > builds stable audit lineage for 'Freelancer' sample 1`] = `
+{
+  "averageMonthlyOutflow": 1129,
+  "label": "Freelancer",
+  "netCash": 4371,
+  "outflow": 1129,
+  "outflowRowIds": [
+    "2026-03-03T19:00:00.000Z-1",
+    "2026-03-05T19:00:00.000Z-2",
+    "2026-03-07T19:00:00.000Z-3",
+    "2026-03-14T19:00:00.000Z-5",
+    "2026-03-17T19:00:00.000Z-6",
+    "2026-03-25T19:00:00.000Z-8",
+  ],
+  "revenue": 5500,
+  "revenueRowIds": [
+    "2026-02-28T19:00:00.000Z-0",
+    "2026-03-11T19:00:00.000Z-4",
+    "2026-03-21T19:00:00.000Z-7",
+  ],
+  "runwayAssumptions": [
+    {
+      "label": "Cash on hand",
+      "source": "user-entered",
+      "value": 50000,
+    },
+  ],
+  "runwayFormula": "Runway = cash on hand / average monthly outflow",
+  "runwayMonths": 44.28697962798937,
+  "runwayTreeLabels": [
+    "Cash on hand",
+    "Average monthly outflow",
+  ],
+}
+`;

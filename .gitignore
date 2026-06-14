@@ -3,3 +3,18 @@ dist/
 .vite/
 coverage/
 *.log
+
+# agent / tooling scratch
+.agent-bridge/
+.playwright-mcp/
+.superpowers/
+
+# playwright
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+e2e/__artifacts__/
+
+# local reference checkouts
+.reference/

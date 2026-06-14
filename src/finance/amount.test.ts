@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyFlow, parseAmount } from "./amount";
+import { classifyFlow, parseAmount, parseSplitDebitCreditAmount } from "./amount";
 
 describe("parseAmount", () => {
   it("parses numbers, currencies, commas, decimals, and parenthesized negatives", () => {
@@ -11,6 +11,22 @@ describe("parseAmount", () => {
     expect(parseAmount("(500)")).toBe(-500);
   });
 
+  it("parses bank export currency labels and debit or credit suffixes", () => {
+    expect(parseAmount("PKR 1,250.50")).toBe(1250.5);
+    expect(parseAmount("PKR1,250.50")).toBe(1250.5);
+    expect(parseAmount("Rs. 750")).toBe(750);
+    expect(parseAmount("Rs750")).toBe(750);
+    expect(parseAmount("1,200 DR")).toBe(-1200);
+    expect(parseAmount("3,000 CR")).toBe(3000);
+  });
+
+  it("parses trailing and unicode minus signs from spreadsheet exports", () => {
+    expect(parseAmount("1,200-")).toBe(-1200);
+    expect(parseAmount("−1,200")).toBe(-1200);
+    expect(parseAmount("1,200−")).toBe(-1200);
+    expect(parseAmount("PKR 1,200.50-")).toBe(-1200.5);
+  });
+
   it("returns null for missing or non-numeric input", () => {
     expect(parseAmount(null)).toBeNull();
     expect(parseAmount(undefined)).toBeNull();
@@ -20,6 +36,13 @@ describe("parseAmount", () => {
 
   it("keeps zero as a valid amount", () => {
     expect(parseAmount("0")).toBe(0);
+  });
+});
+
+describe("parseSplitDebitCreditAmount", () => {
+  it("treats debit and credit columns as directional even when cells include DR or CR suffixes", () => {
+    expect(parseSplitDebitCreditAmount("1,200 DR", "")).toBe(-1200);
+    expect(parseSplitDebitCreditAmount("", "3,000 CR")).toBe(3000);
   });
 });
 

@@ -1,3 +1,4 @@
+import { placeholderCashHealthLineage, placeholderSummaryLineage } from "../finance/audit-fixtures";
 import { describe, expect, it } from "vitest";
 import type { FinanceSummary } from "../finance/summary";
 import type { CsvImportResult, TransactionRecord } from "../finance/types";
@@ -5,6 +6,7 @@ import {
   buildFilteredTransactionsCsvExport,
   buildReviewerExportReport,
   buildTransactionsCsvExport,
+  buildTransactionsWorkbookExport,
   buildTrendCsvExport,
   buildTrendSvgExport
 } from "./dashboard-export-payloads";
@@ -53,11 +55,15 @@ describe("dashboard text export builders", () => {
     expect(buildTransactionsCsvExport("Sample Finance.csv", result.records, generatedAt)).toMatchObject({
       filename: "sample-finance-normalized-transactions-2026-04-26.csv",
       mediaType: "text/csv;charset=utf-8",
-      contents: expect.stringContaining("date,flow,account,head")
+      contents: expect.stringContaining("date,sourceSheet,flow,account,head")
     });
     expect(buildFilteredTransactionsCsvExport("Sample Finance.csv", result.records, generatedAt)).toMatchObject({
       filename: "sample-finance-2026-04-26-filtered-transactions.csv",
       mediaType: "text/csv;charset=utf-8"
+    });
+    expect(buildTransactionsWorkbookExport("Sample Finance.csv", result.records, generatedAt)).toMatchObject({
+      filename: "sample-finance-normalized-transactions-2026-04-26.xlsx",
+      mediaType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     });
   });
 
@@ -108,7 +114,9 @@ function summary(): FinanceSummary {
     topSubcategories: [],
     accountBalances: [],
     warnings: [],
+    lineage: placeholderSummaryLineage(),
     cashHealth: {
+      lineage: placeholderCashHealthLineage(),
       averageMonthlyOutflow: 250,
       runwayMonths: 8,
       largestTransaction: null,

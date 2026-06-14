@@ -21,6 +21,14 @@ describe("parseDate", () => {
     expect(parseDate("")).toBeNull();
     expect(parseDate("not-a-date")).toBeNull();
   });
+
+  it("rejects impossible numeric calendar dates instead of rolling them forward", () => {
+    expect(parseDate("2024-02-31", "ymd")).toBeNull();
+    expect(parseDate("2024-02-31T10:30:00", "ymd")).toBeNull();
+    expect(parseDate("31/02/2024", "dmy")).toBeNull();
+    expect(parseDate("02/31/2024", "mdy")).toBeNull();
+    expect(parseDate("2024-13-01", "ymd")).toBeNull();
+  });
 });
 
 describe("period helpers", () => {

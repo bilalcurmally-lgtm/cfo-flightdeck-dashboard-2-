@@ -1,3 +1,4 @@
+import type { MetricLineage, RowRef } from "./audit";
 import type { ImportIssue, PeriodGrain, TransactionRecord } from "./types";
 import { calculateCashHealth, type CashHealth } from "./cash-health";
 import { analyzeImportDiagnostics, type ImportDiagnostics } from "./diagnostics";
@@ -48,6 +49,11 @@ export interface FinanceSummary {
   diagnostics: ImportDiagnostics;
   warnings: QualityWarning[];
   cashHealth: CashHealth;
+  lineage: {
+    revenue: MetricLineage;
+    outflow: MetricLineage;
+    netCash: MetricLineage;
+  };
 }
 
 export function summarizeTransactions(
@@ -56,15 +62,17 @@ export function summarizeTransactions(
   cashOnHand = 0,
   trendGrain: PeriodGrain = "monthly"
 ): FinanceSummary {
-  const revenue = sumByFlow(records, "revenue");
-  const outflow = sumByFlow(records, "outflow");
+  const flowTotals = summarizeFlowTotals(records);
+  const revenue = flowTotals.revenue.total;
+  const outflow = flowTotals.outflow.total;
+  const netCash = revenue - outflow;
   const cashHealth = calculateCashHealth(records, cashOnHand);
   const diagnostics = analyzeImportDiagnostics(records);
 
   return {
     revenue,
     outflow,
-    netCash: revenue - outflow,
+    netCash,
     transactionCount: records.length,
     periodTrend: summarizeByPeriod(records, trendGrain),
     topHeads: summarizeTopHeads(records),
@@ -72,14 +80,83 @@ export function summarizeTransactions(
     accountBalances: summarizeAccountBalances(records),
     diagnostics,
     warnings: buildQualityWarnings(records, rejectedRows, cashHealth, diagnostics),
-    cashHealth
+    cashHealth,
+    lineage: {
+      revenue: {
+        metric: "revenue",
+        value: revenue,
+        formulaText: "Revenue = sum of revenue rows",
+        plainEnglish: `Revenue is the sum of ${flowTotals.revenue.rows.length} imported revenue row${
+          flowTotals.revenue.rows.length === 1 ? "" : "s"
+        }.`,
+        direct: flowTotals.revenue.rows,
+        assumptions: [],
+        excluded: []
+      },
+      outflow: {
+        metric: "outflow",
+        value: outflow,
+        formulaText: "Outflow = sum of outflow rows",
+        plainEnglish: `Outflow is the sum of ${flowTotals.outflow.rows.length} imported outflow row${
+          flowTotals.outflow.rows.length === 1 ? "" : "s"
+        }.`,
+        direct: flowTotals.outflow.rows,
+        assumptions: [],
+        excluded: []
+      },
+      netCash: {
+        metric: "netCash",
+        value: netCash,
+        formulaText: "Net cash = revenue - outflow",
+        plainEnglish: "Net cash subtracts imported outflow from imported revenue.",
+        direct: flowTotals.allRows,
+        derived: {
+          label: "Net cash",
+          value: netCash,
+          op: "subtract",
+          children: [
+            {
+              label: "Revenue",
+              value: revenue,
+              op: "sum",
+              rows: flowTotals.revenue.rows
+            },
+            {
+              label: "Outflow",
+              value: outflow,
+              op: "sum",
+              rows: flowTotals.outflow.rows
+            }
+          ]
+        },
+        assumptions: [],
+        excluded: []
+      }
+    }
   };
 }
 
-function sumByFlow(records: TransactionRecord[], flow: TransactionRecord["flow"]): number {
-  return records
-    .filter((record) => record.flow === flow)
-    .reduce((total, record) => total + record.amount, 0);
+interface FlowTotals {
+  revenue: { total: number; rows: RowRef[] };
+  outflow: { total: number; rows: RowRef[] };
+  allRows: RowRef[];
+}
+
+function summarizeFlowTotals(records: TransactionRecord[]): FlowTotals {
+  const totals = {
+    revenue: { total: 0, rows: [] as RowRef[] },
+    outflow: { total: 0, rows: [] as RowRef[] },
+    allRows: [] as RowRef[]
+  };
+
+  for (const record of records) {
+    const row = toRowRef(record);
+    totals[record.flow].total += record.amount;
+    totals[record.flow].rows.push(row);
+    totals.allRows.push(row);
+  }
+
+  return totals;
 }
 
 function summarizeByPeriod(records: TransactionRecord[], grain: PeriodGrain): PeriodSummary[] {
@@ -281,4 +358,14 @@ function buildQualityWarnings(
   }
 
   return warnings;
+}
+
+function toRowRef(record: TransactionRecord): RowRef {
+  return {
+    id: record.id,
+    dateISO: record.dateISO,
+    amount: record.amount,
+    head: record.head,
+    flow: record.flow
+  };
 }

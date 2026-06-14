@@ -1,0 +1,225 @@
+import { describe, it, expect } from "vitest";
+import {
+  WORKSPACE_SNAPSHOT_VERSION,
+  createInMemoryWorkspaceStore,
+  type WorkspaceSnapshot,
+} from "./workspace-store";
+import type { ImportSnapshot } from "./import-history";
+
+const SIG_A = "txn_aaaaaaaaaaaaaaaa";
+const SIG_B = "txn_bbbbbbbbbbbbbbbb";
+
+describe("createInMemoryWorkspaceStore", () => {
+  it("round-trips category overrides and returns undefined for unknown signatures", () => {
+    const store = createInMemoryWorkspaceStore();
+    expect(store.getCategoryOverride(SIG_A)).toBeUndefined();
+
+    store.setCategoryOverride(SIG_A, { parent: "Financing", flow: "revenue" });
+    expect(store.getCategoryOverride(SIG_A)).toEqual({ parent: "Financing", flow: "revenue" });
+
+    store.clearCategoryOverride(SIG_A);
+    expect(store.getCategoryOverride(SIG_A)).toBeUndefined();
+    expect(store.getCategoryOverride(SIG_B)).toBeUndefined();
+  });
+
+  it("round-trips exclusion decisions and returns undefined for unknown signatures", () => {
+    const store = createInMemoryWorkspaceStore();
+    expect(store.getDecision(SIG_B)).toBeUndefined();
+
+    store.setDecision(SIG_B, { excluded: true });
+    expect(store.getDecision(SIG_B)).toEqual({ excluded: true });
+
+    store.clearDecision(SIG_B);
+    expect(store.getDecision(SIG_B)).toBeUndefined();
+  });
+
+  it("restores full state via snapshot and load on a fresh store", () => {
+    const store = createInMemoryWorkspaceStore();
+    store.setCategoryOverride(SIG_A, { parent: "Operating Costs" });
+    store.setDecision(SIG_B, { excluded: false });
+
+    const snap = store.snapshot();
+    const fresh = createInMemoryWorkspaceStore();
+    fresh.load(snap);
+
+    expect(fresh.getCategoryOverride(SIG_A)).toEqual({ parent: "Operating Costs" });
+    expect(fresh.getDecision(SIG_B)).toEqual({ excluded: false });
+    expect(fresh.snapshot()).toEqual(snap);
+  });
+
+  it("deep-copies on snapshot and load so caller mutations do not affect the store", () => {
+    const store = createInMemoryWorkspaceStore();
+    store.setCategoryOverride(SIG_A, { parent: "Food" });
+    store.setDecision(SIG_B, { excluded: true });
+
+    const snap = store.snapshot();
+    snap.categoryOverrides[SIG_A] = { parent: "Mutated" };
+    snap.decisions[SIG_B] = { excluded: false };
+    expect(store.getCategoryOverride(SIG_A)).toEqual({ parent: "Food" });
+    expect(store.getDecision(SIG_B)).toEqual({ excluded: true });
+
+    const incoming: WorkspaceSnapshot = {
+      version: WORKSPACE_SNAPSHOT_VERSION,
+      categoryOverrides: { [SIG_A]: { flow: "outflow" } },
+      decisions: { [SIG_B]: { excluded: false } },
+      imports: [],
+      rules: [],
+    };
+    store.load(incoming);
+    incoming.categoryOverrides[SIG_A] = { parent: "After load" };
+    incoming.decisions[SIG_B] = { excluded: true };
+    expect(store.getCategoryOverride(SIG_A)).toEqual({ flow: "outflow" });
+    expect(store.getDecision(SIG_B)).toEqual({ excluded: false });
+  });
+
+  it("isolates nested mutations on getCategoryOverride results from stored state", () => {
+    const store = createInMemoryWorkspaceStore();
+    store.setCategoryOverride(SIG_A, { parent: "Food", flow: "outflow" });
+
+    const override = store.getCategoryOverride(SIG_A);
+    expect(override).toBeDefined();
+    override!.parent = "Mutated parent";
+    override!.flow = "revenue";
+
+    expect(store.getCategoryOverride(SIG_A)).toEqual({ parent: "Food", flow: "outflow" });
+  });
+
+  it("isolates nested mutations on snapshot fields from stored state", () => {
+    const store = createInMemoryWorkspaceStore();
+    store.setCategoryOverride(SIG_A, { parent: "Food", flow: "outflow" });
+    store.setDecision(SIG_B, { excluded: true });
+
+    const snap = store.snapshot();
+    snap.categoryOverrides[SIG_A]!.parent = "Mutated parent";
+    snap.categoryOverrides[SIG_A]!.flow = "revenue";
+    snap.decisions[SIG_B]!.excluded = false;
+
+    expect(store.getCategoryOverride(SIG_A)).toEqual({ parent: "Food", flow: "outflow" });
+    expect(store.getDecision(SIG_B)).toEqual({ excluded: true });
+  });
+
+  it("seeds from initial snapshot", () => {
+    const initial: WorkspaceSnapshot = {
+      version: WORKSPACE_SNAPSHOT_VERSION,
+      categoryOverrides: { [SIG_A]: { parent: "Seed" } },
+      decisions: { [SIG_B]: { excluded: true } },
+      imports: [],
+      rules: [],
+    };
+    const store = createInMemoryWorkspaceStore(initial);
+    expect(store.getCategoryOverride(SIG_A)).toEqual({ parent: "Seed" });
+    expect(store.getDecision(SIG_B)).toEqual({ excluded: true });
+
+    initial.categoryOverrides[SIG_A] = { parent: "Mutated seed" };
+    expect(store.getCategoryOverride(SIG_A)).toEqual({ parent: "Seed" });
+  });
+});
+
+describe("workspace-store v2 migration", () => {
+  it("creates v2 snapshots with an empty imports array", () => {
+    const store = createInMemoryWorkspaceStore();
+    const snap = store.snapshot();
+    expect(snap.version).toBe(WORKSPACE_SNAPSHOT_VERSION);
+    expect(snap.imports).toEqual([]);
+    expect(snap.rules).toEqual([]);
+  });
+
+  it("migrates a v1 snapshot (no imports or rules, version 1) on load", () => {
+    const store = createInMemoryWorkspaceStore();
+    store.load({ version: 1, categoryOverrides: {}, decisions: {} } as never);
+    const snap = store.snapshot();
+    expect(snap.version).toBe(WORKSPACE_SNAPSHOT_VERSION);
+    expect(snap.imports).toEqual([]);
+    expect(snap.rules).toEqual([]);
+  });
+
+  it("preserves an existing imports array on load", () => {
+    const store = createInMemoryWorkspaceStore();
+    const imp = {
+      importedAt: "2026-01-01T00:00:00.000Z",
+      sourceName: "x.csv",
+      signatureSet: ["txn_a"],
+      kpiSnapshot: { runwayMonths: 5 },
+      reviewItemSignatures: [],
+    };
+    store.load({ version: 2, categoryOverrides: {}, decisions: {}, imports: [imp], rules: [] });
+    expect(store.snapshot().imports).toEqual([imp]);
+  });
+
+  it("round-trips saved classification rules", () => {
+    const store = createInMemoryWorkspaceStore();
+    store.setRules([
+      {
+        id: "stripe-revenue",
+        field: "counterparty",
+        contains: "stripe",
+        override: { flow: "revenue", parent: "Sales" },
+        enabled: true,
+        label: "Stripe revenue",
+      },
+    ]);
+
+    expect(store.getRules()).toEqual([
+      {
+        id: "stripe-revenue",
+        field: "counterparty",
+        contains: "stripe",
+        override: { flow: "revenue", parent: "Sales" },
+        enabled: true,
+        label: "Stripe revenue",
+      },
+    ]);
+    expect(store.snapshot().rules).toHaveLength(1);
+  });
+
+  it("isolates rule mutations from stored state", () => {
+    const store = createInMemoryWorkspaceStore();
+    store.setRules([
+      {
+        id: "stripe-revenue",
+        field: "counterparty",
+        contains: "stripe",
+        override: { flow: "revenue", parent: "Sales" },
+        enabled: true,
+      },
+    ]);
+
+    const rules = store.getRules();
+    rules[0].contains = "mutated";
+    rules[0].override.parent = "Mutated";
+
+    expect(store.getRules()[0]).toMatchObject({
+      contains: "stripe",
+      override: { parent: "Sales" },
+    });
+  });
+});
+describe("workspace-store addImport", () => {
+  const imp = (sig: string): ImportSnapshot => ({
+    importedAt: "2026-01-01T00:00:00.000Z",
+    sourceName: "x.csv",
+    signatureSet: [sig],
+    kpiSnapshot: { runwayMonths: 5 },
+    reviewItemSignatures: [],
+  });
+
+  it("appends an import to the snapshot", () => {
+    const store = createInMemoryWorkspaceStore();
+    store.addImport(imp("a"));
+    expect(store.snapshot().imports).toHaveLength(1);
+  });
+
+  it("dedups an identical-to-most-recent re-import", () => {
+    const store = createInMemoryWorkspaceStore();
+    store.addImport(imp("a"));
+    store.addImport(imp("a"));
+    expect(store.snapshot().imports).toHaveLength(1);
+  });
+
+  it("caps history via the cap option", () => {
+    const store = createInMemoryWorkspaceStore();
+    for (let i = 0; i < 5; i++) store.addImport(imp(`sig-${i}`), { cap: 3 });
+    expect(store.snapshot().imports).toHaveLength(3);
+    expect(store.snapshot().imports[0].signatureSet).toEqual(["sig-2"]);
+  });
+});

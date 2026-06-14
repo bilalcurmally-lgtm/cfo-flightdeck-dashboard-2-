@@ -1,3 +1,4 @@
+import { placeholderCashHealthLineage, placeholderSummaryLineage } from "../finance/audit-fixtures";
 import { describe, expect, it } from "vitest";
 import type { ForecastResult } from "../finance/forecast";
 import type { FinanceSummary } from "../finance/summary";
@@ -45,6 +46,66 @@ describe("buildReviewerReport", () => {
       }
     });
   });
+
+  it("summarizes accepted rows by source worksheet when provenance is available", () => {
+    const result = importResult();
+    result.records = [
+      { ...record(), id: "jan-1", sourceSheet: "Jan 2026" },
+      { ...record(), id: "jan-2", sourceSheet: "Jan 2026" },
+      { ...record(), id: "feb-1", sourceSheet: "Feb 2026" },
+      { ...record(), id: "csv-1", sourceSheet: undefined }
+    ];
+
+    const report = buildReviewerReport(
+      "northstar.xlsx",
+      result,
+      summary(),
+      forecast(),
+      new Date("2026-04-26T12:00:00Z")
+    );
+
+    expect(report.import.sourceSheets).toEqual([
+      { name: "Jan 2026", acceptedRows: 2 },
+      { name: "Feb 2026", acceptedRows: 1 }
+    ]);
+  });
+
+  it("adds a compact diagnostic summary for reviewer triage", () => {
+    const duplicateA = { ...record(), id: "dup-a" };
+    const duplicateB = { ...record(), id: "dup-b" };
+    const transferOut = { ...record(), id: "transfer-out", flow: "outflow" as const, signedNet: -1000 };
+    const transferIn = { ...record(), id: "transfer-in" };
+
+    const report = buildReviewerReport(
+      "sample-finance.csv",
+      importResult(),
+      {
+        ...summary(),
+        diagnostics: {
+          duplicateGroups: [{ key: "same-row", records: [duplicateA, duplicateB] }],
+          transferCandidates: [
+            {
+              dateISO: "2026-03-01",
+              amount: 1000,
+              fromAccount: "Operating",
+              toAccount: "Savings",
+              outflowId: transferOut.id,
+              revenueId: transferIn.id
+            }
+          ]
+        }
+      },
+      forecast(),
+      new Date("2026-04-26T12:00:00Z")
+    );
+
+    expect(report.diagnosticSummary).toEqual({
+      duplicateGroups: 1,
+      duplicateRecords: 2,
+      transferCandidates: 1,
+      transferRecords: 2
+    });
+  });
 });
 
 describe("reviewerReportFilename", () => {
@@ -76,7 +137,9 @@ function summary(): FinanceSummary {
     topSubcategories: [{ head: "Client A", subcategory: "Retainer", flow: "revenue", amount: 1000, count: 1 }],
     accountBalances: [{ account: "Operating", balance: 750, source: "netActivity" }],
     warnings: [{ level: "warning", message: "100% of revenue comes from one head." }],
+    lineage: placeholderSummaryLineage(),
     cashHealth: {
+      lineage: placeholderCashHealthLineage(),
       averageMonthlyOutflow: 250,
       runwayMonths: 4,
       largestTransaction: record(),

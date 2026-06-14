@@ -8,6 +8,7 @@ Date,Amount,Type,Account,Running Balance,Category,Subcategory,Group,Counterparty
 2026-03-12,5000,revenue,Operating,49500,Project Work,Milestone,Income,Atlas Consulting,Launch milestone
 2026-03-15,-1900,outflow,Operating,47600,Marketing,Lead Generation,Operating Costs,Sponsor Desk,Newsletter sponsorship
 2026-03-20,-1100,outflow,Operating,46500,Office,Workspace,Operating Costs,Studio Loft,Workspace rent
+2026-03-22,-4000,outflow,Operating,42500,Owner Draw,Distribution,Operating Costs,Owner,Owner draw distribution
 2026-03-25,-600,outflow,Operating,45900,Transfer,Tax Reserve,Internal,Tax Savings,Move to tax reserve
 2026-03-25,600,revenue,Tax Savings,8600,Transfer,Tax Reserve,Internal,Operating,Move from operating
 2026-03-28,not-posted,outflow,Operating,45900,Travel,Flights,Operating Costs,Airline,Unreadable agency export row

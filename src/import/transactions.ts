@@ -1,4 +1,4 @@
-import { parseAmount } from "../finance/amount";
+import { parseAmount, parseSplitDebitCreditAmount } from "../finance/amount";
 import { detectDateFormat, parseDate } from "../finance/date";
 import type { CsvImportResult, DateFormat, ImportMapping, ImportedRow } from "../finance/types";
 import { parseCsv } from "./csv";
@@ -18,23 +18,35 @@ const DEFAULT_OUTFLOW_TOKENS = [
 export function detectImportMapping(rows: ImportedRow[]): ImportMapping {
   const columns = Object.keys(rows[0] || {});
   const lowerColumns = columns.map((column) => column.toLowerCase());
+  const debit = matchColumn(columns, lowerColumns, [
+    "debit",
+    "withdrawal",
+    "paid",
+    "amount paid",
+    "debit amount"
+  ]);
+  const credit = matchColumn(columns, lowerColumns, [
+    "credit",
+    "deposit",
+    "received",
+    "amount received",
+    "credit amount"
+  ]);
+  const amount = matchGenericAmountColumn(columns, lowerColumns, debit, credit);
 
   return {
     date: matchColumn(columns, lowerColumns, [
       "date",
+      "txn date",
+      "tx date",
       "transaction date",
       "posting date",
       "posted date",
       "value date"
     ]),
-    amount: matchColumn(columns, lowerColumns, [
-      "amount",
-      "net amount",
-      "value",
-      "transaction amount",
-      "paid",
-      "received"
-    ]),
+    amount,
+    debit,
+    credit,
     type: matchColumn(columns, lowerColumns, ["type", "flow", "direction", "transaction type"]),
     head: matchColumn(columns, lowerColumns, [
       "head",
@@ -58,11 +70,16 @@ export function detectImportMapping(rows: ImportedRow[]): ImportMapping {
       "description",
       "memo",
       "details",
-      "narration"
+      "narration",
+      "particulars",
+      "remarks",
+      "note"
     ]),
     counterparty: matchColumn(columns, lowerColumns, [
       "vendor",
       "payee",
+      "beneficiary",
+      "recipient",
       "customer",
       "client",
       "merchant",
@@ -82,6 +99,28 @@ export function detectImportMapping(rows: ImportedRow[]): ImportMapping {
       "account balance"
     ])
   };
+}
+
+function matchGenericAmountColumn(
+  columns: string[],
+  lowerColumns: string[],
+  debit: string,
+  credit: string
+): string {
+  const exact = matchColumn(columns, lowerColumns, [
+    "amount",
+    "net amount",
+    "value",
+    "transaction amount"
+  ]);
+
+  if (!exact || exact === debit || exact === credit) return "";
+  if (isDirectionalAmountColumn(exact)) return "";
+  return exact;
+}
+
+function isDirectionalAmountColumn(column: string): boolean {
+  return /\b(debit|credit|withdrawal|deposit|paid|received)\b/i.test(column);
 }
 
 export function importTransactionsFromCsv(
@@ -141,8 +180,13 @@ function validateImportRow(
   dateFormat: DateFormat
 ): string | null {
   if (!mapping.date) return "No date column detected";
-  if (!mapping.amount) return "No amount column detected";
+  if (!mapping.amount && !mapping.debit && !mapping.credit) return "No amount column detected";
   if (!parseDate(row[mapping.date], dateFormat)) return "Invalid date";
-  if (parseAmount(row[mapping.amount]) === null) return "Invalid amount";
+  const amount =
+    mapping.amount ? parseAmount(row[mapping.amount]) : parseSplitDebitCreditAmount(
+      mapping.debit ? row[mapping.debit] : "",
+      mapping.credit ? row[mapping.credit] : ""
+    );
+  if (amount === null) return "Invalid amount";
   return null;
 }

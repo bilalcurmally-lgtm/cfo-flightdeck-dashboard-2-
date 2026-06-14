@@ -3,6 +3,7 @@ import type { ForecastResult } from "../finance/forecast";
 import { reviewPresetLabel, type ReviewPreset } from "../finance/review-presets";
 import type { FinanceSummary } from "../finance/summary";
 import type { CsvImportResult, PeriodGrain, TransactionRecord } from "../finance/types";
+import type { ClassificationRule } from "../finance/classification-rules";
 import { currencyOptions } from "../finance/currencies";
 import { escapeHtml } from "./html";
 import { filterSelect, metricCard, reviewPresetButton, trendGrainLabel, trendGrainOption } from "./controls";
@@ -75,6 +76,7 @@ export function renderDashboardFilterPanel(options: DashboardFilterPanelOptions)
         } shown${options.activeReviewPreset === "all" ? "" : ` · ${escapeHtml(reviewPresetLabel(options.activeReviewPreset))}`}</span>
         <button id="reset-filters" type="button">Reset</button>
       </div>
+      ${renderActiveFilterSummary(options.activeFilters)}
       <div class="preset-chips" aria-label="Common review views">
         ${reviewPresetButton("all", "All", options.activeReviewPreset)}
         ${reviewPresetButton("revenue", "Revenue", options.activeReviewPreset)}
@@ -96,15 +98,38 @@ export function renderDashboardFilterPanel(options: DashboardFilterPanelOptions)
   `;
 }
 
+function renderActiveFilterSummary(filters: DashboardFilters): string {
+  const items = [
+    filterSummaryItem("Flow", filters.flow),
+    filterSummaryItem("Account", filters.account),
+    filterSummaryItem("Head", filters.head),
+    filterSummaryItem("Subcategory", filters.subcategory),
+    filterSummaryItem("Counterparty", filters.counterparty),
+    filters.dateFrom ? `From ${filters.dateFrom}` : "",
+    filters.dateTo ? `To ${filters.dateTo}` : ""
+  ].filter(Boolean);
+
+  return `
+    <p class="active-filter-summary">
+      ${items.length ? items.map(escapeHtml).join(" · ") : "No filters active"}
+    </p>
+  `;
+}
+
+function filterSummaryItem(label: string, value: string): string {
+  return value && value !== "all" ? `${label}: ${value}` : "";
+}
+
 export function renderExportPanel(): string {
   return `
     <section class="export-panel" aria-labelledby="export-title">
       <div>
         <h2 id="export-title">Exports</h2>
-        <p>Use transaction CSV for spreadsheet review, JSON for the full audit state, or trend CSV for the visible filtered chart data.</p>
+        <p>Use transaction CSV or Excel for spreadsheet review, JSON for the full audit state, or trend CSV for the visible filtered chart data.</p>
       </div>
       <div class="export-actions">
         <button id="export-transactions" type="button">Transactions CSV</button>
+        <button id="export-transactions-xlsx" type="button">Transactions Excel</button>
         <button id="export-visible-transactions" type="button">Filtered CSV</button>
         <button id="export-reviewer" type="button">Reviewer JSON</button>
         <button id="export-trend" type="button">Trend CSV</button>
@@ -152,7 +177,10 @@ export function renderCashHealthPanel(
   `;
 }
 
-export function renderSettingsPanel(currencyOptionsHtml: string): string {
+export function renderSettingsPanel(
+  currencyOptionsHtml: string,
+  rules: readonly ClassificationRule[] = []
+): string {
   return `
     <section class="settings-panel" aria-labelledby="settings-title">
       <div>
@@ -168,7 +196,50 @@ export function renderSettingsPanel(currencyOptionsHtml: string): string {
         </label>
         <button id="reset-settings" type="button">Reset Settings</button>
       </div>
+      ${renderSavedRules(rules)}
     </section>
+  `;
+}
+
+function renderSavedRules(rules: readonly ClassificationRule[]): string {
+  if (rules.length === 0) {
+    return `
+      <div class="saved-rules" aria-label="Saved classification rules">
+        <h3>Saved Rules</h3>
+        <p class="saved-rules__empty">No saved rules yet.</p>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="saved-rules" aria-label="Saved classification rules">
+      <h3>Saved Rules</h3>
+      <ul class="saved-rules__list">
+        ${rules.map((rule) => renderSavedRule(rule)).join("")}
+      </ul>
+    </div>
+  `;
+}
+
+function renderSavedRule(rule: ClassificationRule): string {
+  const action = [
+    rule.override.flow ? `Type: ${rule.override.flow}` : "",
+    rule.override.parent ? `Group: ${rule.override.parent}` : ""
+  ].filter(Boolean).join(" · ");
+  const description = `${rule.field} contains "${rule.contains}" · ${action || "No action"}`;
+  return `
+    <li class="saved-rules__item" data-rule-id="${escapeHtml(rule.id)}">
+      <div>
+        <strong>${escapeHtml(rule.label ?? `${rule.field} contains ${rule.contains}`)}</strong>
+        <span>${escapeHtml(description)}</span>
+      </div>
+      <div class="saved-rules__actions">
+        <button type="button" data-rule-toggle="${escapeHtml(rule.id)}" aria-pressed="${rule.enabled}">
+          ${rule.enabled ? "Enabled" : "Disabled"}
+        </button>
+        <button type="button" data-rule-delete="${escapeHtml(rule.id)}">Delete</button>
+      </div>
+    </li>
   `;
 }
 

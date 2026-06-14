@@ -18,11 +18,55 @@ describe("calculateCashHealth", () => {
     });
   });
 
+  it("emits runway lineage with cash assumption and monthly outflow buckets", () => {
+    const records = [
+      record("2026-03-01", "outflow", "Software", 300),
+      record("2026-03-05", "outflow", "Rent", 700),
+      record("2026-04-01", "outflow", "Software", 500),
+      record("2026-04-05", "revenue", "Client A", 2000)
+    ];
+
+    const health = calculateCashHealth(records, 3000);
+
+    expect(health.lineage!.averageMonthlyOutflow).toMatchObject({
+      metric: "averageMonthlyOutflow",
+      value: 750,
+      formulaText: "Average monthly outflow = monthly outflow total / month count"
+    });
+    expect(health.lineage!.runwayMonths).toMatchObject({
+      metric: "runwayMonths",
+      value: 4,
+      formulaText: "Runway = cash on hand / average monthly outflow",
+      assumptions: [
+        {
+          label: "Cash on hand",
+          value: 3000,
+          source: "user-entered"
+        }
+      ]
+    });
+    expect(health.lineage!.runwayMonths.derived?.children?.map((child) => child.label)).toEqual([
+      "Cash on hand",
+      "Average monthly outflow"
+    ]);
+    expect(health.lineage!.runwayMonths.derived?.children?.[1].children?.map((child) => child.label)).toEqual([
+      "2026-03 outflow",
+      "2026-04 outflow"
+    ]);
+  });
+
   it("returns null runway when there is no cash or burn", () => {
-    expect(calculateCashHealth([record("2026-03-01", "revenue", "Client A", 1000)], 0)).toMatchObject({
+    const health = calculateCashHealth([record("2026-03-01", "revenue", "Client A", 1000)], 0);
+
+    expect(health).toMatchObject({
       averageMonthlyOutflow: 0,
       runwayMonths: null
     });
+    expect(health.lineage!.runwayMonths).toMatchObject({
+      metric: "runwayMonths",
+      value: null
+    });
+    expect(health.lineage!.runwayMonths.derived).toBeDefined();
   });
 
   it("calculates revenue concentration by head", () => {

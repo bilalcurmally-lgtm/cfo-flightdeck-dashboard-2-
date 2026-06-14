@@ -11,6 +11,8 @@ export interface ImportedRow {
 export interface ImportMapping {
   date: string;
   amount: string;
+  debit?: string;
+  credit?: string;
   type?: string;
   head?: string;
   parent?: string;
@@ -28,6 +30,7 @@ export interface TransactionRecord {
   periodDaily: string;
   periodWeekly: string;
   periodMonthly: string;
+  sourceSheet?: string;
   head: string;
   parent: string;
   subcategory: string;
