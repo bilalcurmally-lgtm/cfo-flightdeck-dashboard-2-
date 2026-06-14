@@ -1612,22 +1612,42 @@ button.bw-kpi--review {
   font-size: 0.78rem;
 }
 
+/* The metric contract's decision question — what call this number informs.
+   Calm and legible, slightly stronger than body copy, above the formula. */
+.bw-lineage__question {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: 0.92rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
 .bw-lineage__assumptions,
 .bw-lineage__tree-wrap,
 .bw-lineage__rows-wrap,
-.bw-lineage__excluded {
+.bw-lineage__excluded,
+.bw-lineage__caveats {
   display: grid;
   gap: 8px;
 }
 
 .bw-lineage__assumption-list,
 .bw-lineage__excluded-list,
+.bw-lineage__caveat-list,
 .bw-lineage__tree {
   display: grid;
   gap: 6px;
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+.bw-lineage__caveat {
+  padding: 6px 0 6px 10px;
+  border-left: 2px solid var(--color-line);
+  color: var(--color-ink-soft);
+  font-size: 0.82rem;
+  line-height: 1.4;
 }
 
 .bw-lineage__assumption,

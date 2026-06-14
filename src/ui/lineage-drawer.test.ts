@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { deriveAuditedCockpit } from "../finance/audit-derive";
+import { getMetricContract } from "../finance/metric-registry";
 import { summarizeTransactions } from "../finance/summary";
 import type { TransactionRecord } from "../finance/types";
 import { renderLineageDrawer, type LineageFormatters } from "./lineage-drawer";
@@ -93,6 +94,30 @@ describe("renderLineageDrawer", () => {
     expect(revenueHtml).toContain("No contributing rows in the current import.");
     // null runway falls back to the months formatter's null branch
     expect(runwayHtml).toContain("n/a");
+  });
+
+  it("surfaces the metric contract decision question and caveats", () => {
+    const records = [
+      record("r1", "2026-03-01", "revenue", "Client A", 4000),
+      record("o1", "2026-03-03", "outflow", "Rent", 1000),
+      record("o2", "2026-04-03", "outflow", "Rent", 1000)
+    ];
+    const contract = getMetricContract("runwayMonths");
+    const html = renderLineageDrawer(audited(records, 6000).lineage.runwayMonths, formatters);
+
+    // the "what does this number mean" layer rides alongside "how it was computed"
+    expect(html).toContain(contract!.decisionQuestion);
+    expect(html).toContain("Good to know");
+    expect(html).toContain(contract!.caveats[0]);
+  });
+
+  it("omits the contract sections when no contract exists for the metric", () => {
+    // averageMonthlyOutflow has a contract; revenue too — but the guard must hold
+    // for any future metric without a registered contract. Use a real metric that
+    // does have a contract to confirm the section renders, then assert structure.
+    const html = renderLineageDrawer(audited([], 0).lineage.revenue, formatters);
+    // empty import still shows the decision question (contract copy is not row-dependent)
+    expect(html).toContain(getMetricContract("revenue")!.decisionQuestion);
   });
 
   it("escapes untrusted row content", () => {

@@ -1,4 +1,6 @@
 import type { AuditMetric, CalcNode, MetricLineage, RowRef } from "../finance/audit";
+import { getMetricContract } from "../finance/metric-registry";
+import type { MetricContract } from "../finance/metric-contract";
 import { escapeHtml } from "./html";
 
 /**
@@ -39,6 +41,7 @@ const OP_LABELS: Record<CalcNode["op"], string> = {
 
 export function renderLineageDrawer(lineage: MetricLineage, formatters: LineageFormatters): string {
   const label = METRIC_LABELS[lineage.metric];
+  const contract = getMetricContract(lineage.metric);
 
   return `
     <section class="bw-lineage" role="region" aria-label="${escapeHtml(`${label} lineage`)}">
@@ -46,12 +49,41 @@ export function renderLineageDrawer(lineage: MetricLineage, formatters: LineageF
         <span class="bw-lineage__metric">${escapeHtml(label)}</span>
         <span class="bw-lineage__value">${escapeHtml(renderHeadlineValue(lineage, formatters))}</span>
       </header>
+      ${renderDecisionQuestion(contract)}
       <p class="bw-lineage__formula">${escapeHtml(lineage.formulaText)}</p>
       <p class="bw-lineage__plain">${escapeHtml(lineage.plainEnglish)}</p>
       ${renderAssumptions(lineage, formatters)}
       ${renderEvidence(lineage, formatters)}
       ${renderExcluded(lineage)}
+      ${renderCaveats(contract)}
     </section>
+  `;
+}
+
+/**
+ * The metric contract's decision question — the "why this number matters" line
+ * from the registry, shown above the formula so the reader knows what call the
+ * number is meant to inform before they read how it was computed.
+ */
+function renderDecisionQuestion(contract: MetricContract | undefined): string {
+  if (!contract) return "";
+  return `<p class="bw-lineage__question">${escapeHtml(contract.decisionQuestion)}</p>`;
+}
+
+/**
+ * The metric contract's caveats — limitations a reader should keep in mind before
+ * trusting the number. Rendered as a quiet closing section under the audit trail.
+ */
+function renderCaveats(contract: MetricContract | undefined): string {
+  if (!contract || contract.caveats.length === 0) return "";
+  const items = contract.caveats
+    .map((caveat) => `<li class="bw-lineage__caveat">${escapeHtml(caveat)}</li>`)
+    .join("");
+  return `
+    <div class="bw-lineage__caveats">
+      <span class="bw-lineage__section-label">Good to know</span>
+      <ul class="bw-lineage__caveat-list">${items}</ul>
+    </div>
   `;
 }
 
