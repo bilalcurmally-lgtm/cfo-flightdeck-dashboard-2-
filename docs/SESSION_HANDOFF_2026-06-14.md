@@ -116,9 +116,33 @@ The updated order is:
 - `npx playwright test --workers=1` -> 16 passed
 - `npm run build` -> green
 
+## Continuation (Claude, same day)
+
+Reviewed Codex's uncommitted day of work, verified it green, committed it, and took the
+next slice (metric contracts registry).
+
+- Verified the working tree: `tsc` 0, `vitest` 377, `build` green, `playwright` 16 — matched
+  the handoff claims exactly.
+- Committed Codex's blob as two logical commits (shared `main.ts`/`styles.css` rode with D3
+  since a clean by-file split was impossible):
+  - `8b1d6ac` feat(ui): import history browser panel [D2 S5]
+  - `033bb7d` feat: D3 saved classification rules foundation
+- Shipped P1 Metric Contracts Registry foundation (`793e447`):
+  - `src/finance/metric-contract.ts` + `src/finance/metric-registry.ts` (+ tests).
+  - Typed "what does this number mean" layer (decision question, formula, role, format,
+    inputs, caveats, readiness) for the core cockpit metrics; ids align with
+    `CockpitViewModel` / cash-health for later wiring.
+  - 15 new tests; full suite now `tsc` 0, `vitest` 392 passing.
+- `mcps/` left untouched (still untracked, pre-existing).
+
+Branch `codex/a1-audit-model` tip is now `793e447`. Still not pushed.
+
 ## Next Session Priorities
 
-1. Tune the rule-learning copy now that the auto-apply and carry-forward behavior is proven end-to-end.
-2. Decide whether the compact "rules applied" signal needs a drilldown/audit drawer.
-3. Move to the analytics-inspired metric contracts registry.
-4. Keep `mcps/` untouched unless the user explicitly asks to work on it.
+1. Extend the metric registry to detail-role metrics and wire contracts into the cockpit UI
+   (decision question + caveats on KPI hover/drilldown).
+2. Build the Dashboard Readiness / Trust Center on top of the contracts (P1).
+3. Tune the rule-learning copy now that the auto-apply and carry-forward behavior is proven.
+4. Decide whether the compact "rules applied" signal needs a drilldown/audit drawer.
+5. Consider opening the PR for `codex/a1-audit-model` (C1/C2 + D1 + D2 + D3 + metric registry).
+6. Keep `mcps/` untouched unless the user explicitly asks to work on it.
