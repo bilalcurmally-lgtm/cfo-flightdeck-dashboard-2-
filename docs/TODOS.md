@@ -131,6 +131,27 @@ Analytics-plugin alignment:
 
 Source: `docs/data-analytics-plugin-study.md`.
 
+Status: foundation shipped on 2026-06-14.
+
+Shipped:
+
+- `src/finance/metric-contract.ts`: `MetricContract` type (id, label, role, decision
+  question, formula, format, required inputs, caveats, readiness), `MetricRole` /
+  `MetricFormat` unions, `isMetricRole`, and `validateMetricContract` structural check.
+- `src/finance/metric-registry.ts`: seeded contracts for the core cockpit metrics
+  (netCash, runwayMonths, revenue, outflow, averageMonthlyOutflow,
+  revenueConcentration, rejectedRows, duplicates, transfers) with `getMetricContract`
+  and `getMetricsByRole` lookups. Ids align with `CockpitViewModel` / cash-health
+  fields so values can be joined later.
+- Tests beside both files (15 cases): role map, unique ids, structural validity.
+
+Remaining:
+
+- Extend the registry to detail-role metrics (Top Heads/Subcategories, Transaction
+  Preview, Raw Row, Import Quality) once those become first-class scalars.
+- Wire contracts into the cockpit UI (decision question + caveats on KPI hover/drilldown).
+- Feed contracts into the readiness/trust center below.
+
 What:
 
 - Create a typed registry for finance KPIs.
