@@ -171,6 +171,20 @@ full cash/burn-driven scenario is unit-covered (live repro is blocked by capture
 
 Branch `codex/a1-audit-model` tip is now at the diagnostics commit. Still not pushed.
 
+## Merged to main + next slice on a fresh branch
+
+- Pushed `codex/a1-audit-model` and opened **PR #1** against `main`, then merged it (merge
+  commit `f7caa94`). `main` now carries the full arc (C1/C2 → diagnostics). Local `main` in
+  sync with `origin/main`.
+- Started a new branch **`codex/diagnostics-netcash`** off `main` for the next diagnostics
+  explainer: **net-cash contributors**. `topNetCashContributors(records)` (pure, in
+  `metric-diagnostics.ts`) + `src/ui/net-cash-contributors.ts` renderer, wired through
+  `CockpitExtras` into the netCash lineage drawer template. Shows "Biggest inflows / Biggest
+  outflows" grouped by head. Full suite: `tsc` 0, `vitest` 427, `playwright` 20/20, build.
+  Verified via real-browser e2e (desktop + mobile); the Preview MCP was stuck reporting
+  `viewport: 0` this session so I relied on Playwright + a live content check rather than a
+  screenshot. NOT yet pushed/PR'd.
+
 ## Next Session Priorities
 
 1. Extend the metric registry to detail-role metrics and wire contracts into the cockpit UI
