@@ -46,6 +46,38 @@ describe("renderWelcomeBackStrip", () => {
     expect(html).not.toContain("new");
   });
 
+  it("explains why runway changed when cash and burn deltas are available", () => {
+    const html = renderWelcomeBackStrip(
+      comparison({
+        kpiDeltas: [
+          { key: "runwayMonths", previous: 10, current: 5, delta: -5, direction: "down" },
+          { key: "cashOnHand", previous: 10000, current: 10000, delta: 0, direction: "flat" },
+          {
+            key: "averageMonthlyOutflow",
+            previous: 1000,
+            current: 2000,
+            delta: 1000,
+            direction: "up"
+          }
+        ],
+        review: { added: 0, resolved: 0 }
+      }),
+      { formatMoney: fmtMoney, formatRunway: fmtRunway }
+    );
+    expect(html).toContain("bw-welcome__why");
+    expect(html).toContain("mainly because");
+    expect(html.toLowerCase()).toContain("monthly burn");
+  });
+
+  it("omits the why line for legacy baselines without cash/burn deltas", () => {
+    // default comparison() only carries a runwayMonths delta -> no drivers to explain
+    const html = renderWelcomeBackStrip(comparison(), {
+      formatMoney: fmtMoney,
+      formatRunway: fmtRunway
+    });
+    expect(html).not.toContain("bw-welcome__why");
+  });
+
   it("marks runway-down as attention (coral) and runway-up as positive (olive)", () => {
     const down = renderWelcomeBackStrip(comparison(), { formatMoney: fmtMoney, formatRunway: fmtRunway });
     expect(down).toContain("bw-welcome--attention");

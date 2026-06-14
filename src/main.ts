@@ -575,7 +575,10 @@ function captureImport(result: CsvImportResult, sourceName: string): void {
       revenue: view.summary.revenue,
       outflow: view.summary.outflow,
       netCash: view.summary.netCash,
-      transactionCount: view.summary.transactionCount
+      transactionCount: view.summary.transactionCount,
+      // captured for the runway-change diagnostics decomposition (cash vs burn)
+      cashOnHand: readCashOnHand(),
+      averageMonthlyOutflow: view.summary.cashHealth.averageMonthlyOutflow
     },
     reviewItemSignatures
   };

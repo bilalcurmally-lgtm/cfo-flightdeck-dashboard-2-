@@ -2099,9 +2099,21 @@ th.bw-lineage__cell {
   border: 1px solid transparent;
 }
 
+.bw-welcome__body {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
 .bw-welcome__text {
   margin: 0;
   font-size: 0.9rem;
+}
+
+.bw-welcome__why {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--color-ink-soft);
 }
 
 .bw-welcome__dismiss {
