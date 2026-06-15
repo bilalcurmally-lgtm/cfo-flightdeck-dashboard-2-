@@ -1,5 +1,6 @@
 import { optionValues, type DashboardFilters } from "../finance/filters";
 import type { ForecastResult } from "../finance/forecast";
+import type { RunwayConfidenceReport } from "../finance/runway-confidence";
 import { reviewPresetLabel, type ReviewPreset } from "../finance/review-presets";
 import type { FinanceSummary } from "../finance/summary";
 import type { CsvImportResult, PeriodGrain, TransactionRecord } from "../finance/types";
@@ -158,13 +159,19 @@ export function renderCashHealthPanel(
   summary: FinanceSummary,
   cashOnHand: number,
   formatMoney: (value: number) => string,
-  formatRunway: (runwayMonths: number | null) => string
+  formatRunway: (runwayMonths: number | null) => string,
+  runwayConfidence?: RunwayConfidenceReport
 ): string {
+  const confidenceLine = runwayConfidence
+    ? `<p class="cash-confidence">Runway confidence: ${escapeHtml(runwayConfidence.headline)}</p>`
+    : "";
+
   return `
     <section class="cash-panel" aria-labelledby="cash-title">
       <div>
         <h2 id="cash-title">Cash Health</h2>
         <p>Enter cash on hand to estimate runway from imported outflows.</p>
+        ${confidenceLine}
       </div>
       <label>
         Cash on hand

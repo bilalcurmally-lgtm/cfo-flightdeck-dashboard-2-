@@ -122,7 +122,7 @@ describe("bindDashboardCockpitActions", () => {
     const title = element();
     const activeBody = element();
     const categoryTemplate = element(
-      '<section><button data-role="save-rule" data-category-id="cat-a">Remember rule</button></section>'
+      '<section><button data-role="save-rule" data-category-id="cat-a">Remember for future imports</button></section>'
     );
     const saved: string[] = [];
 

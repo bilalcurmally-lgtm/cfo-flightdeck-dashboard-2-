@@ -10,7 +10,7 @@ import type { DashboardFilters } from "../finance/filters";
 import { filterTransactions } from "../finance/filters";
 import type { FinanceSummary } from "../finance/summary";
 import type { MetricContract } from "../finance/metric-contract";
-import { metricContracts } from "../finance/metric-registry";
+import { getScalarMetricContracts } from "../finance/metric-registry";
 import {
   filterExclusionImpact,
   largestTransactionInfluence,
@@ -21,6 +21,7 @@ import {
 import { isOperating } from "../finance/operating-groups";
 import { reviewPresetLabel, type ReviewPreset } from "../finance/review-presets";
 import type { ReadinessReport } from "../finance/readiness";
+import { assessRunwayConfidence, buildRunwayConfidenceInput } from "../finance/runway-confidence";
 import type { CsvImportResult, ImportIssue, PeriodGrain, TransactionRecord } from "../finance/types";
 import { buildReviewDrawerItems } from "../ui/review-queue";
 import type { ReviewDrawerItem } from "../ui/review-drawer";
@@ -95,6 +96,20 @@ function buildSummaryRows(input: AccountantWorkbookInput): WorkbookCellValue[][]
     ["Readiness Headline", input.readiness.headline]
   ];
 
+  const runwayConfidence = assessRunwayConfidence(
+    buildRunwayConfidenceInput({
+      view: input.view,
+      cashOnHand: input.cashOnHand,
+      readiness: input.readiness,
+      rejectedRowCount: input.result.rejectedRows.length
+    })
+  );
+  rows.push(
+    ["Runway Confidence Level", runwayConfidence.level],
+    ["Runway Confidence Score", runwayConfidence.score],
+    ["Runway Confidence Headline", runwayConfidence.headline]
+  );
+
   if (input.appliedRuleFeedback && input.appliedRuleFeedback.rowCount > 0) {
     rows.push([
       "Saved Rules Applied",
@@ -138,7 +153,12 @@ function buildKpiAuditRows(input: AccountantWorkbookInput): WorkbookCellValue[][
     "Assumptions"
   ];
 
-  return [header, ...metricContracts.map((contract) => kpiAuditRow(contract, cockpit, input.view.summary))];
+  return [
+    header,
+    ...getScalarMetricContracts().map((contract) =>
+      kpiAuditRow(contract, cockpit, input.view.summary)
+    )
+  ];
 }
 
 function kpiAuditRow(

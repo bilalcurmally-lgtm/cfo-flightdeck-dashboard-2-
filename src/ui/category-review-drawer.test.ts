@@ -24,7 +24,7 @@ describe("renderCategoryReviewDrawer", () => {
     el.innerHTML = renderCategoryReviewDrawer([item({ acted: true })]);
     expect(el.querySelector('[data-role="reset"]')).not.toBeNull();
   });
-  it("shows Remember rule only for acted rows", () => {
+  it("shows Remember for future imports only for acted rows", () => {
     const acted = document.createElement("div");
     acted.innerHTML = renderCategoryReviewDrawer([item({ acted: true })]);
     expect(acted.querySelector('[data-role="save-rule"]')).not.toBeNull();

@@ -2,6 +2,7 @@ import type { AuditMetric, AuditedCockpit } from "../finance/audit";
 import type { CockpitViewModel, ReviewBreakdown } from "../finance/cockpit-kpis";
 import type { NonOperatingSummary } from "../finance/non-operating";
 import type { ReadinessReport } from "../finance/readiness";
+import type { RunwayConfidenceReport } from "../finance/runway-confidence";
 import type {
   BurnContributors,
   FilterExclusionImpact,
@@ -36,6 +37,7 @@ export interface CockpitExtras {
   revenueConcentration?: RevenueConcentration;
   largestTransactionInfluence?: LargestTransactionInfluence | null;
   filterExclusionImpact?: FilterExclusionImpact | null;
+  runwayConfidence?: RunwayConfidenceReport;
 }
 
 interface CockpitTile {
@@ -94,7 +96,7 @@ export function renderCockpitStrip(
     renderTile({
       label: "Runway",
       value: empty ? dash : formatters.formatRunway(viewModel.runwayMonths),
-      meta: empty ? "" : runwayMeta(viewModel, formatters),
+      meta: empty ? "" : runwayMeta(viewModel, formatters, extras.runwayConfidence),
       modifier: runwayModifier,
       metric: "runwayMonths",
       kpi: "runway"
@@ -316,14 +318,23 @@ function signedMoney(value: number, formatMoney: (value: number) => string): str
   return value > 0 ? `+${formatMoney(value)}` : formatMoney(value);
 }
 
-function runwayMeta(viewModel: CockpitViewModel, formatters: CockpitFormatters): string {
+function runwayMeta(
+  viewModel: CockpitViewModel,
+  formatters: CockpitFormatters,
+  confidence?: RunwayConfidenceReport
+): string {
+  const confidencePrefix =
+    confidence && viewModel.runwayMonths !== null ? `${confidence.level} confidence · ` : "";
+
   if (viewModel.averageMonthlyOutflow > 0) {
     if (viewModel.runwayTone === "unknown") {
-      return `set cash on hand · burn ${formatters.formatMoney(viewModel.averageMonthlyOutflow)}/mo`;
+      return `${confidencePrefix}set cash on hand · burn ${formatters.formatMoney(viewModel.averageMonthlyOutflow)}/mo`;
     }
-    return `${viewModel.runwayTone} · burn ${formatters.formatMoney(viewModel.averageMonthlyOutflow)}/mo`;
+    return `${confidencePrefix}${viewModel.runwayTone} · burn ${formatters.formatMoney(viewModel.averageMonthlyOutflow)}/mo`;
   }
-  return viewModel.runwayTone === "unknown" ? "runway unavailable" : "no recorded burn";
+  return viewModel.runwayTone === "unknown"
+    ? `${confidencePrefix}runway unavailable`
+    : `${confidencePrefix}no recorded burn`;
 }
 
 function reviewMeta(review: ReviewBreakdown): string {

@@ -9,7 +9,11 @@ import {
   dashboardManifestFilename,
   type DashboardManifestInput
 } from "./dashboard-manifest";
-import { metricContracts } from "../finance/metric-registry";
+import {
+  getDetailMetricContracts,
+  getScalarMetricContracts,
+  metricContracts
+} from "../finance/metric-registry";
 
 describe("buildDashboardManifest", () => {
   it("builds the top-level manifest shape", () => {
@@ -32,10 +36,12 @@ describe("buildDashboardManifest", () => {
       visibleKpiRowCount: 1
     });
     expect(manifest.readiness.status).toBeTruthy();
-    expect(manifest.kpis).toHaveLength(metricContracts.length);
+    expect(manifest.kpis).toHaveLength(getScalarMetricContracts().length);
+    expect(manifest.detailContracts).toHaveLength(getDetailMetricContracts().length);
     expect(manifest.charts).toHaveLength(5);
     expect(manifest.tables).toHaveLength(4);
-    expect(manifest.diagnostics).toHaveLength(5);
+    expect(manifest.diagnostics).toHaveLength(6);
+    expect(manifest.context.runwayConfidence.level).toMatch(/high|medium|low/);
     expect(manifest.sources.length).toBeGreaterThanOrEqual(5);
     expect(manifest.caveats[0]).toContain("Generated locally");
   });
@@ -119,6 +125,22 @@ describe("buildDashboardManifest", () => {
       topItems: expect.any(Array)
     });
     expect(JSON.stringify(manifest)).not.toContain('"dateISO":"2026-05-04"');
+  });
+
+  it("includes detail contracts with context values instead of cockpit KPI values", () => {
+    const manifest = buildDashboardManifest(fixture());
+
+    expect(manifest.detailContracts.find((contract) => contract.id === "topHeads")).toMatchObject({
+      role: "detail",
+      contextValue: 1
+    });
+    expect(manifest.detailContracts.find((contract) => contract.id === "importQuality")).toMatchObject({
+      contextValue: 1
+    });
+    expect(manifest.kpis.some((kpi) => kpi.id === "topHeads")).toBe(false);
+    expect(metricContracts.length).toBe(
+      getScalarMetricContracts().length + getDetailMetricContracts().length
+    );
   });
 
   it("reflects rejected row counts in source and table specs", () => {

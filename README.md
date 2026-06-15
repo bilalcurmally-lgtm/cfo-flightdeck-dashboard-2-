@@ -1,38 +1,47 @@
 # Billu.Works Finance Dashboard V2
 
-This repo is the new dashboard workspace for the Billu.Works privacy-first finance tool.
+A local-first cash cockpit for freelancers, consultants, solo founders, and small operators.
+Import a ledger, trust the numbers, re-import every week, and hand an accountant a traceable
+package — without uploading transaction data to a server.
 
-## Product Direction
+## What It Does Today
 
-Build a useful local-first finance dashboard for freelancers, consultants, solo founders, small agencies, and small companies.
+- **Auditable cash truth** — Cockpit KPIs show lineage: every number explains how it was computed and which rows fed it.
+- **Repeat re-import workflow** — Import history, welcome-back deltas, and signature-based review carry-forward survive reloads and re-imports.
+- **Local-first privacy** — CSV/Excel parsing, classification, KPI math, and exports run in the browser by default. No account required.
+- **Readiness / Trust Center** — A compact readiness widget folds rejected rows, duplicates, transfers, category review, and concentration into one answer: can I trust this dashboard right now?
+- **Saved classification rules** — Recategorize once, remember for future imports, and auto-apply rules on the next ledger upload.
+- **Accountant Workbook export** — Six-sheet `.xlsx` with summary, KPI audit, normalized ledger, exclusions, rejected rows, and diagnostics.
+- **Dashboard Manifest export** — Structured `.json` describing KPIs, chart specs, table specs, readiness, and diagnostic summaries for testing and future reporting.
+- **Local metric diagnostics** — Deterministic explainers for net-cash contributors, burn drivers, revenue concentration, largest-transaction influence, and filter/exclusion impact.
 
-Core promise:
+AI is not the hero workflow. The product leads with formulas, review decisions, and exports you can inspect.
 
-- Import CSV and Excel files locally.
-- Keep transaction data in the browser by default.
-- No AI pushed into the main workflow.
-- No account required for the free tool.
-- Clear formulas and auditable calculations.
-- Practical enough for a solo pro, credible enough for accountant review.
+## Core Workflow
+
+1. Import CSV or Excel locally and map columns.
+2. Review duplicates, transfers, non-operating rows, and category suggestions.
+3. Set cash on hand and scan cockpit KPIs with lineage drawers.
+4. Check readiness and runway confidence before making decisions.
+5. Export a workbook or manifest for accountant handoff or regression testing.
+6. Re-import next week — saved rules and confirmed review decisions carry forward.
+
+## Tech Notes
+
+- TypeScript + Vite, Vitest unit tests, Playwright e2e.
+- Workspace persistence via IndexedDB and optional `.billu.json` project files.
+- See `docs/TODOS.md` for the live backlog and `docs/BILLU_WORKS_V2_ROADMAP.md` for phase history.
 
 ## Relationship To V1
 
-V1 lives in `cfo-flightdeck-dashboard` and remains the stable dashboard that can update the current Vercel deployment.
+V1 lives in `cfo-flightdeck-dashboard` and remains the stable deployment path. V2 borrows proven parsing, runway, forecast, and export patterns from V1 while building the auditable cockpit, trust workflow, and portable exports described above.
 
-V2 should borrow proven ideas from V1 intentionally:
+## Development
 
-- CSV/Excel parsing and mapping approach
-- finance calculation tests
-- cash runway model
-- 13-week forecast concept
-- data-quality warnings
-- privacy copy
-- export/reviewer workflow
-
-V2 can also learn from `Sagargupta16/Financial-Dashboard`, but should not merge that repo history or copy large code blocks blindly.
-
-## First Build Rule
-
-Do not start by merging apps. Start by defining the finance model, import model, and privacy promise, then bring over working modules one by one with tests.
-
-See `docs/BILLU_WORKS_V2_ROADMAP.md`.
+```bash
+npm install
+npm run dev
+npx vitest run
+npx playwright test --workers=1
+npm run build
+```

@@ -18,7 +18,7 @@ Current Data Analytics plugin alignment:
 
 - Shipped locally: metric contracts, KPI roles, readiness/validation UX, deterministic
   metric diagnostics, saved rules, and persisted review context.
-- Still pending: detail-role metric contracts and forecast/runway confidence mechanics.
+- Still pending: budget vs actual and expected-income forecast tagging (P3).
 - Shipped on 2026-06-15: accountant workbook export, dashboard manifest export, and chart
   specs foundation (embedded in manifest).
 - Deferred intentionally: enterprise connectors, notebook workflows, MCP artifact widgets,
@@ -113,9 +113,12 @@ What:
 - Carry only genuinely unresolved review items forward.
 - Keep all rules local and exportable in `.billu.json`.
 
+Copy polish shipped on 2026-06-15:
+
+- Category review button copy is now `Remember for future imports`.
+
 Remaining:
 
-- Decide rule learning copy: "Remember rule" vs "Remember for future imports".
 - Decide whether rule-applied rows need a drilldown/audit drawer beyond the compact import
   signal and Local Settings controls.
 
@@ -155,11 +158,18 @@ Shipped:
   fields so values can be joined later.
 - Tests beside both files (15 cases): role map, unique ids, structural validity.
 
+Detail contracts shipped on 2026-06-15:
+
+- Added detail-role contracts: `topHeads`, `topSubcategories`, `transactionPreview`,
+  `rawRow`, `importQuality`, `accountBalances`.
+- `getScalarMetricContracts()` / `getDetailMetricContracts()` helpers for export parity.
+- Dashboard Manifest exports scalar KPIs plus `detailContracts` with context values.
+- Accountant Workbook KPI Audit stays scalar-only to avoid blank-value confusion.
+
 Remaining:
 
-- Extend the registry to detail-role metrics (Top Heads/Subcategories, Transaction
-  Preview, Raw Row, Import Quality) once those become first-class scalars.
-- Feed contracts into the readiness/trust center below.
+- Wire detail contracts into lineage drawers only when a surface needs explicit contract
+  copy beyond existing UI.
 
 Wired (2026-06-14):
 
@@ -463,6 +473,8 @@ Remaining:
 
 ## P2 - Forecast / Runway Confidence Mechanics
 
+Status: shipped on 2026-06-15.
+
 Source: master plan Phase F and Data Analytics validation standards.
 
 What:
@@ -480,7 +492,23 @@ Why:
 - "7.2 months runway" is stronger when the app can say whether that number is high,
   medium, or low confidence and why.
 
+Shipped:
+
+- `src/finance/runway-confidence.ts`: pure `assessRunwayConfidence()` model with score
+  0–100 and high/medium/low levels.
+- Cockpit runway tile meta and Cash Health panel show compact confidence.
+- Dashboard Manifest `context.runwayConfidence` plus diagnostic summary.
+- Accountant Workbook Summary includes confidence level/score/headline.
+
+Verification on 2026-06-15:
+
+- `npx tsc --noEmit`
+- `npx vitest run`
+- `npm run build`
+
 ## P2 - README / Positioning Refresh
+
+Status: shipped on 2026-06-15.
 
 Source: roadmap and master plan Phase F.
 
@@ -490,11 +518,11 @@ What:
 - Lead with auditable cash truth and repeat re-import workflow.
 - Keep privacy as a supporting trust promise, not the whole positioning.
 
-Do after:
+Shipped:
 
-- D2 complete.
-- D3 at least planned or partially shipped.
-- Metric/readiness language is stable.
+- `README.md` refreshed around auditable cash truth, repeat re-import workflow,
+  local-first trust, readiness, workbook/manifest exports, saved rules, and diagnostics.
+- AI explicitly not positioned as the hero workflow.
 
 ## P3 - Budget Vs Actual
 

@@ -5,6 +5,7 @@ import type { ClassificationRule } from "../finance/classification-rules";
 import type { CsvImportResult, PeriodGrain } from "../finance/types";
 import { deriveAuditedCockpit } from "../finance/audit-derive";
 import { assessReadiness, buildReadinessInput } from "../finance/readiness";
+import { assessRunwayConfidence, buildRunwayConfidenceInput } from "../finance/runway-confidence";
 import {
   filterExclusionImpact,
   largestTransactionInfluence,
@@ -67,6 +68,14 @@ export function renderDashboardResults(input: DashboardResultsRenderInput): stri
       hasImportHistory: input.hasImportHistory ?? false
     })
   );
+  const runwayConfidence = assessRunwayConfidence(
+    buildRunwayConfidenceInput({
+      view: input.view,
+      cashOnHand: input.cashOnHand,
+      readiness,
+      rejectedRowCount: input.result.rejectedRows.length
+    })
+  );
 
   return `
     ${renderCockpitStrip(cockpit, {
@@ -76,6 +85,7 @@ export function renderDashboardResults(input: DashboardResultsRenderInput): stri
       nonOperating: input.view.nonOperating,
       categoryItems: input.view.categoryReview.items,
       readiness,
+      runwayConfidence,
       netCashContributors: topNetCashContributors(input.view.filteredRecords),
       burnContributors: topBurnContributors(input.view.filteredRecords),
       revenueConcentration: revenueConcentration(input.view.filteredRecords),
@@ -97,7 +107,8 @@ export function renderDashboardResults(input: DashboardResultsRenderInput): stri
       input.view.summary,
       input.cashOnHand,
       input.formatMoney,
-      input.formatRunway
+      input.formatRunway,
+      runwayConfidence
     )}
     ${renderExportPanel()}
     ${renderPrintableReport({

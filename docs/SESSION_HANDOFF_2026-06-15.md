@@ -2,53 +2,72 @@
 
 ## Summary
 
-Earlier session: Grok Composer 2.5 implemented Accountant Workbook Export V1; Codex reviewed
-and landed it.
+This session completed the backlog batch from
+`docs/GROK_COMPOSER_2_5_BACKLOG_BATCH_2026-06-15.md` as four separate reviewable slices.
+Earlier in the day: Dashboard Manifest Export V1 was shipped and Codex-reviewed. Codex
+reviewed this batch, tightened the Cash Health confidence copy, verified the full gate,
+and prepared the next Grok handoff in `docs/GROK_COMPOSER_2_5_P3_BATCH_2026-06-15.md`.
 
-This session: Grok Composer 2.5 implemented **Dashboard Manifest Export V1 + Chart Specs
-Foundation** per `docs/GROK_COMPOSER_2_5_DASHBOARD_MANIFEST_BRIEF.md`. A structured JSON
-export now describes the current analytical surface (KPIs, readiness, chart/table specs,
-diagnostics) without scraping HTML. Codex reviewed it, verified the full gate, spot-checked
-the browser download, and landed it.
+## Slices Completed
+
+| Slice | Topic | Review doc |
+|-------|-------|------------|
+| A | Detail-role metric contracts | `docs/CODEX_REVIEW_DETAIL_METRIC_CONTRACTS_2026-06-15.md` |
+| B | Runway confidence mechanics | `docs/CODEX_REVIEW_RUNWAY_CONFIDENCE_2026-06-15.md` |
+| C | README / positioning refresh | `docs/CODEX_REVIEW_POSITIONING_REFRESH_2026-06-15.md` |
+| D | Saved-rules copy polish | `docs/CODEX_REVIEW_SAVED_RULES_POLISH_2026-06-15.md` |
+
+## Files Changed Per Slice
+
+### Slice A — Detail contracts
+
+- `src/finance/metric-registry.ts`, `metric-registry.test.ts`
+- `src/export/dashboard-manifest.ts`, `dashboard-manifest.test.ts`
+- `src/export/accountant-workbook.ts`
+
+### Slice B — Runway confidence
+
+- `src/finance/runway-confidence.ts`, `runway-confidence.test.ts`
+- `src/ui/dashboard-results.ts`, `dashboard-cockpit.ts`, `dashboard-sections.ts`
+- `src/export/dashboard-manifest.ts`, `accountant-workbook.ts`, `dashboard-manifest.test.ts`
+
+### Slice C — Positioning
+
+- `README.md`, `docs/TODOS.md`
+
+### Slice D — Saved rules copy
+
+- `src/ui/category-review-drawer.ts`, `category-review-drawer.test.ts`
+- `src/ui/dashboard-cockpit-actions.test.ts`, `docs/TODOS.md`
 
 ## Git State
 
 - Branch: `main` (uncommitted working tree)
-- New implementation files:
-  - `src/export/dashboard-manifest.ts`
-  - `src/export/dashboard-manifest.test.ts`
-- Modified: `dashboard-export-payloads.ts`, `dashboard-export-actions.ts`,
-  `dashboard-sections.ts`, related tests, `docs/TODOS.md`
-- New docs:
-  - `docs/GROK_COMPOSER_2_5_DASHBOARD_MANIFEST_BRIEF.md` (handoff brief)
-  - `docs/CODEX_REVIEW_DASHBOARD_MANIFEST_2026-06-15.md`
-  - `docs/SESSION_HANDOFF_2026-06-15.md` (this file, updated)
-- Pre-existing dirty/untracked noise: `.claude/`, `mcps/`, audit snapshot line endings
-
-## What Changed
-
-1. **Dashboard Manifest export** — `#export-dashboard-manifest` downloads
-   `{stem}-dashboard-manifest-{date}.json` with source, context, readiness, KPI
-   contracts/values, chart specs, table specs, diagnostic summaries, source refs, caveats.
-2. **Chart specs foundation** — Five lightweight chart specs embedded in manifest:
-   cashTrend, forecast13Week, topHeads, topSubcategories, accountBalances.
-3. **Pure builder + tests** — `buildDashboardManifest()` with filename, shape, KPI mapping,
-   readiness parity, chart spec, and diagnostic coverage tests.
-4. **Codex review doc** — `docs/CODEX_REVIEW_DASHBOARD_MANIFEST_2026-06-15.md` for landing
-   review.
+- New untracked brief: `docs/GROK_COMPOSER_2_5_BACKLOG_BATCH_2026-06-15.md`
+- New next-task brief: `docs/GROK_COMPOSER_2_5_P3_BATCH_2026-06-15.md`
+- Leave alone: `.claude/`, `mcps/`, audit snapshot line-ending noise
 
 ## Verification
 
 - `npx tsc --noEmit` — 0 errors
-- `npx vitest run` — 486 passed
+- `npx vitest run` — 499 passed
 - `npx playwright test --workers=1` — 24 passed
 - `npm run build` — green
 - `git diff --check` — clean
-- Browser spot-check: sample import -> apply mapping -> `Dashboard Manifest` downloaded
-  valid JSON (`version: 1`, 9 KPIs, five chart specs).
+- Browser smoke: sample import -> apply mapping -> Cash Health confidence rendered;
+  Dashboard Manifest contains `context.runwayConfidence`, six detail contracts, and
+  `runwayConfidence` diagnostic.
+
+## Landing Note
+
+The slices are conceptually separate, but `dashboard-manifest.ts` and
+`accountant-workbook.ts` are touched by both detail contracts and runway confidence. A
+single reviewed backlog-batch commit is acceptable if partial staging would make review
+harder.
 
 ## First Next-Session Priorities
 
-1. Detail-role metric contracts (Top Heads, Transaction Preview, Import Quality).
-2. Forecast / runway confidence mechanics (Phase F).
-3. Optional manifest schema versioning doc if external consumers appear.
+1. Give Grok `docs/GROK_COMPOSER_2_5_P3_BATCH_2026-06-15.md`.
+2. P3: Budget vs actual.
+3. P3: Expected-income forecast tagging.
+4. Optional: rule-applied row drilldown decision (still deferred).

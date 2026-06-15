@@ -5,7 +5,10 @@ import type { DashboardViewData } from "../finance/dashboard-view";
 import type { DashboardFilters } from "../finance/filters";
 import type { FinanceSummary } from "../finance/summary";
 import type { MetricContract } from "../finance/metric-contract";
-import { metricContracts } from "../finance/metric-registry";
+import {
+  getDetailMetricContracts,
+  getScalarMetricContracts
+} from "../finance/metric-registry";
 import {
   filterExclusionImpact,
   largestTransactionInfluence,
@@ -15,6 +18,11 @@ import {
 } from "../finance/metric-diagnostics";
 import { reviewPresetLabel, type ReviewPreset } from "../finance/review-presets";
 import type { ReadinessReport } from "../finance/readiness";
+import {
+  assessRunwayConfidence,
+  buildRunwayConfidenceInput,
+  type RunwayConfidenceReport
+} from "../finance/runway-confidence";
 import type { CsvImportResult, PeriodGrain } from "../finance/types";
 import { exportDateStamp, safeExportStem } from "./filenames";
 
@@ -42,6 +50,19 @@ export interface ManifestKpi {
   role: string;
   format: string;
   value: number | null;
+  decisionQuestion: string;
+  formula: string;
+  requiredInputs: string[];
+  caveats: string[];
+  readiness: string;
+}
+
+export interface ManifestDetailContract {
+  id: string;
+  label: string;
+  role: string;
+  format: string;
+  contextValue: number | null;
   decisionQuestion: string;
   formula: string;
   requiredInputs: string[];
@@ -123,6 +144,11 @@ export interface FinanceDashboardManifest {
     hasImportHistory: boolean;
     visibleKpiRowCount: number;
     nonOperatingRowCount: number;
+    runwayConfidence: {
+      level: RunwayConfidenceReport["level"];
+      score: number;
+      headline: string;
+    };
   };
   readiness: {
     status: string;
@@ -130,6 +156,7 @@ export interface FinanceDashboardManifest {
     signals: Array<{ id: string; severity: string; label: string; detail: string }>;
   };
   kpis: ManifestKpi[];
+  detailContracts: ManifestDetailContract[];
   charts: ManifestChartSpec[];
   tables: ManifestTableSpec[];
   diagnostics: ManifestDiagnostic[];
@@ -147,6 +174,14 @@ export function buildDashboardManifest(input: DashboardManifestInput): FinanceDa
     rejectedRows: input.result.rejectedRows
   });
   const excludedFromKpi = input.result.records.length - records.length;
+  const runwayConfidence = assessRunwayConfidence(
+    buildRunwayConfidenceInput({
+      view: input.view,
+      cashOnHand: input.cashOnHand,
+      readiness: input.readiness,
+      rejectedRowCount: input.result.rejectedRows.length
+    })
+  );
 
   return {
     version: 1,
@@ -166,7 +201,12 @@ export function buildDashboardManifest(input: DashboardManifestInput): FinanceDa
       filters: input.filters,
       hasImportHistory: input.hasImportHistory ?? false,
       visibleKpiRowCount: records.length,
-      nonOperatingRowCount: input.view.nonOperating.rows.length
+      nonOperatingRowCount: input.view.nonOperating.rows.length,
+      runwayConfidence: {
+        level: runwayConfidence.level,
+        score: runwayConfidence.score,
+        headline: runwayConfidence.headline
+      }
     },
     readiness: {
       status: input.readiness.status,
@@ -178,10 +218,16 @@ export function buildDashboardManifest(input: DashboardManifestInput): FinanceDa
         detail: signal.detail
       }))
     },
-    kpis: metricContracts.map((contract) => manifestKpi(contract, cockpit, summary)),
+    kpis: getScalarMetricContracts().map((contract) => manifestKpi(contract, cockpit, summary)),
+    detailContracts: getDetailMetricContracts().map((contract) =>
+      manifestDetailContract(contract, input)
+    ),
     charts: buildChartSpecs(input),
     tables: buildTableSpecs(input, excludedFromKpi),
-    diagnostics: buildDiagnosticSummaries(input),
+    diagnostics: [
+      ...buildDiagnosticSummaries(input),
+      buildRunwayConfidenceDiagnostic(runwayConfidence)
+    ],
     sources: buildSourceRefs(input),
     caveats: buildCaveats(input, excludedFromKpi)
   };
@@ -208,6 +254,47 @@ function manifestKpi(
     caveats: [...contract.caveats],
     readiness: contract.readiness
   };
+}
+
+function manifestDetailContract(
+  contract: MetricContract,
+  input: DashboardManifestInput
+): ManifestDetailContract {
+  return {
+    id: contract.id,
+    label: contract.label,
+    role: contract.role,
+    format: contract.format,
+    contextValue: detailContextValue(contract.id, input),
+    decisionQuestion: contract.decisionQuestion,
+    formula: contract.formula,
+    requiredInputs: [...contract.requiredInputs],
+    caveats: [...contract.caveats],
+    readiness: contract.readiness
+  };
+}
+
+function detailContextValue(id: string, input: DashboardManifestInput): number | null {
+  const summary = input.view.summary;
+  const accepted = input.result.records.length;
+  const rejected = input.result.rejectedRows.length;
+
+  switch (id) {
+    case "topHeads":
+      return summary.topHeads.length;
+    case "topSubcategories":
+      return summary.topSubcategories.length;
+    case "transactionPreview":
+      return input.view.selectedRecord ? 1 : 0;
+    case "rawRow":
+      return input.view.selectedRecord ? 1 : 0;
+    case "importQuality":
+      return accepted + rejected === 0 ? null : accepted / (accepted + rejected);
+    case "accountBalances":
+      return summary.accountBalances.length;
+    default:
+      return null;
+  }
 }
 
 function contractValue(
@@ -408,11 +495,27 @@ function buildTableSpecs(input: DashboardManifestInput, excludedFromKpi: number)
         "caveats",
         "readiness"
       ],
-      rowCount: metricContracts.length,
+      rowCount: getScalarMetricContracts().length,
       emptyState: "Metric contracts unavailable.",
       caveats: ["Values mirror the visible cockpit scope, not the full import."]
     }
   ];
+}
+
+function buildRunwayConfidenceDiagnostic(
+  report: RunwayConfidenceReport
+): ManifestDiagnostic {
+  return {
+    id: "runwayConfidence",
+    title: "Runway Confidence",
+    datasetId: "filteredRecords",
+    summary: report.headline,
+    topItems: report.reasons.slice(0, 4).map((reason) => ({
+      label: reason.label,
+      direction: reason.severity
+    })),
+    available: true
+  };
 }
 
 function buildDiagnosticSummaries(input: DashboardManifestInput): ManifestDiagnostic[] {
