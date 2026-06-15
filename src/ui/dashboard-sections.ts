@@ -131,6 +131,7 @@ export function renderExportPanel(): string {
         <button id="export-transactions" type="button">Transactions CSV</button>
         <button id="export-transactions-xlsx" type="button">Transactions Excel</button>
         <button id="export-accountant-workbook" type="button">Accountant Workbook</button>
+        <button id="export-dashboard-manifest" type="button">Dashboard Manifest</button>
         <button id="export-visible-transactions" type="button">Filtered CSV</button>
         <button id="export-reviewer" type="button">Reviewer JSON</button>
         <button id="export-trend" type="button">Trend CSV</button>

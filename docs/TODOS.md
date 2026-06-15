@@ -1,6 +1,6 @@
 # TODOS - Billu.Works Finance Dashboard V2
 
-Last updated: 2026-06-14
+Last updated: 2026-06-15
 
 This is the unified working backlog. It reconciles the original roadmap, the auditable
 cash cockpit master plan, the latest D2 handoff, and the Data Analytics plugin study in
@@ -18,8 +18,9 @@ Current Data Analytics plugin alignment:
 
 - Shipped locally: metric contracts, KPI roles, readiness/validation UX, deterministic
   metric diagnostics, saved rules, and persisted review context.
-- Still pending: accountant-ready KPI reporting/export, dashboard manifest export, chart
-  contracts/specs, and detail-role metric contracts.
+- Still pending: detail-role metric contracts and forecast/runway confidence mechanics.
+- Shipped on 2026-06-15: accountant workbook export, dashboard manifest export, and chart
+  specs foundation (embedded in manifest).
 - Deferred intentionally: enterprise connectors, notebook workflows, MCP artifact widgets,
   and React/Recharts migration.
 
@@ -393,6 +394,8 @@ Verification on 2026-06-15:
 
 ## P2 - Dashboard Manifest Export
 
+Status: shipped and Codex-reviewed on 2026-06-15.
+
 Source: Data Analytics plugin `DashboardManifest`.
 
 What:
@@ -413,11 +416,27 @@ Why:
   testing, and possible plugin-like artifacts.
 - Lets us test dashboard composition without scraping rendered HTML.
 
-Do before:
+Shipped:
 
-- Any major chart-library migration.
+- `src/export/dashboard-manifest.ts`: pure `FinanceDashboardManifest` builder.
+- `buildDashboardManifestExport(...)` in `src/export/dashboard-export-payloads.ts`.
+- `Dashboard Manifest` export button (`#export-dashboard-manifest`) in the Exports panel.
+- Filename: `{stem}-dashboard-manifest-{YYYY-MM-DD}.json`.
+- Manifest sections: source, context, readiness, KPI contracts/values, chart specs, table
+  specs, diagnostic summaries, source refs, caveats.
+- Chart specs foundation embedded for: cashTrend, forecast13Week, topHeads,
+  topSubcategories, accountBalances.
+
+Verification on 2026-06-15:
+
+- `npx tsc --noEmit`
+- `npx vitest run` - 486 passed
+- `npx playwright test --workers=1` - 24 passed
+- `npm run build`
 
 ## P2 - Chart Specs Before Chart Library
+
+Status: foundation shipped inside Dashboard Manifest Export V1 on 2026-06-15.
 
 Source: Data Analytics plugin `visualize-data`.
 
@@ -435,6 +454,12 @@ Why:
 
 - Chart choice should follow the analytical question, not the other way around.
 - Existing CSS bars are fine until specs prove a richer chart renderer is worth it.
+
+Remaining:
+
+- Optional standalone chart-spec module if manifest export consumers need it without the
+  full manifest envelope.
+- Chart-library migration still deferred until specs prove a richer renderer is worth it.
 
 ## P2 - Forecast / Runway Confidence Mechanics
 

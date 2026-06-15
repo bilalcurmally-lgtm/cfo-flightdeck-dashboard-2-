@@ -13,6 +13,12 @@ import {
   type AccountantWorkbookInput
 } from "./accountant-workbook";
 import {
+  buildDashboardManifest,
+  dashboardManifestFilename,
+  type DashboardManifestInput,
+  type FinanceDashboardManifest
+} from "./dashboard-manifest";
+import {
   buildTransactionsWorkbook,
   transactionsWorkbookFilename
 } from "./transactions-workbook";
@@ -39,6 +45,11 @@ export interface BlobExportDescriptor {
   filename: string;
   blob: Blob;
   mediaType: string;
+}
+
+export interface JsonExportDescriptor<T = unknown> {
+  filename: string;
+  payload: T;
 }
 
 export interface TrendSvgExportInput {
@@ -85,6 +96,16 @@ export function buildTransactionsCsvExport(
     filename: transactionsCsvFilename(sourceName, generatedAt),
     contents: buildTransactionsCsv(records),
     mediaType: "text/csv;charset=utf-8"
+  };
+}
+
+export function buildDashboardManifestExport(
+  input: DashboardManifestInput
+): JsonExportDescriptor<FinanceDashboardManifest> {
+  const generatedAt = input.generatedAt ?? new Date();
+  return {
+    filename: dashboardManifestFilename(input.sourceName, generatedAt),
+    payload: buildDashboardManifest({ ...input, generatedAt })
   };
 }
 

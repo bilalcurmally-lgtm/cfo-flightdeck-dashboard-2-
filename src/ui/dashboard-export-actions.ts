@@ -6,6 +6,7 @@ import type { FinanceSummary } from "../finance/summary";
 import type { CsvImportResult, PeriodGrain, TransactionRecord } from "../finance/types";
 import {
   buildAccountantWorkbookExport,
+  buildDashboardManifestExport,
   buildFilteredTransactionsCsvExport,
   buildReviewerExportReport,
   buildTransactionsCsvExport,
@@ -165,6 +166,47 @@ export function bindDashboardExportActions({
         appliedRuleFeedback: getAppliedRuleFeedback?.() ?? null
       });
       downloads.blob(workbook.filename, workbook.blob);
+    });
+
+  root
+    .querySelector<HTMLButtonElement>("#export-dashboard-manifest")
+    ?.addEventListener("click", () => {
+      const activeImport = getActiveImport();
+      const view = getDashboardView?.();
+      if (!activeImport || !view) return;
+
+      const generatedAt = now();
+      const cashOnHand = getCashOnHand();
+      const manifest = buildDashboardManifestExport({
+        sourceName: activeImport.sourceName,
+        generatedAt,
+        currency: getCurrency(),
+        cashOnHand,
+        trendGrain: getTrendGrain(),
+        reviewPreset: getReviewPreset(),
+        filters: getActiveFilters?.() ?? {
+          flow: "all",
+          account: "all",
+          head: "all",
+          subcategory: "all",
+          counterparty: "all",
+          dateFrom: "",
+          dateTo: ""
+        },
+        result: activeImport.result,
+        view,
+        readiness: assessReadiness(
+          buildReadinessInput({
+            view,
+            rejectedRowCount: activeImport.result.rejectedRows.length,
+            cashOnHand,
+            hasImportHistory: getHasImportHistory?.() ?? false
+          })
+        ),
+        hasImportHistory: getHasImportHistory?.() ?? false,
+        appliedRuleFeedback: getAppliedRuleFeedback?.() ?? null
+      });
+      downloads.json(manifest.filename, manifest.payload);
     });
 
   root

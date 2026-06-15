@@ -2,7 +2,11 @@ import { placeholderCashHealthLineage, placeholderSummaryLineage } from "../fina
 import { describe, expect, it } from "vitest";
 import type { FinanceSummary } from "../finance/summary";
 import type { CsvImportResult, TransactionRecord } from "../finance/types";
+import { buildDashboardView } from "../finance/dashboard-view";
+import { DEFAULT_FILTERS } from "../finance/filters";
+import { assessReadiness, buildReadinessInput } from "../finance/readiness";
 import {
+  buildDashboardManifestExport,
   buildFilteredTransactionsCsvExport,
   buildReviewerExportReport,
   buildTransactionsCsvExport,
@@ -64,6 +68,47 @@ describe("dashboard text export builders", () => {
     expect(buildTransactionsWorkbookExport("Sample Finance.csv", result.records, generatedAt)).toMatchObject({
       filename: "sample-finance-normalized-transactions-2026-04-26.xlsx",
       mediaType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    });
+  });
+
+  it("builds dashboard manifest export descriptors", () => {
+    const result = importResult();
+    const view = buildDashboardView({
+      result,
+      filters: DEFAULT_FILTERS,
+      trendGrain: "weekly",
+      reviewPreset: "all",
+      selectedTransactionId: "",
+      cashOnHand: 2000,
+      futureEventsText: ""
+    });
+    const exportDescriptor = buildDashboardManifestExport({
+      sourceName: "Sample Finance.csv",
+      generatedAt,
+      currency: "USD",
+      cashOnHand: 2000,
+      trendGrain: "weekly",
+      reviewPreset: "all",
+      filters: DEFAULT_FILTERS,
+      result,
+      view,
+      readiness: assessReadiness(
+        buildReadinessInput({
+          view,
+          rejectedRowCount: result.rejectedRows.length,
+          cashOnHand: 2000
+        })
+      )
+    });
+
+    expect(exportDescriptor).toMatchObject({
+      filename: "sample-finance-dashboard-manifest-2026-04-26.json",
+      payload: {
+        version: 1,
+        source: { name: "Sample Finance.csv", acceptedRows: 2 },
+        charts: expect.arrayContaining([expect.objectContaining({ id: "cashTrend" })]),
+        tables: expect.arrayContaining([expect.objectContaining({ id: "kpiAudit" })])
+      }
     });
   });
 

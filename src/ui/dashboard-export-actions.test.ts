@@ -17,6 +17,7 @@ describe("bindDashboardExportActions", () => {
       "#export-transactions": button(),
       "#export-transactions-xlsx": button(),
       "#export-accountant-workbook": button(),
+      "#export-dashboard-manifest": button(),
       "#export-visible-transactions": button(),
       "#export-trend": button(),
       "#export-trend-svg": button(),
@@ -71,12 +72,16 @@ describe("bindDashboardExportActions", () => {
     buttons["#export-transactions"].fire("click");
     buttons["#export-transactions-xlsx"].fire("click");
     buttons["#export-accountant-workbook"].fire("click");
+    buttons["#export-dashboard-manifest"].fire("click");
     buttons["#export-visible-transactions"].fire("click");
     buttons["#export-trend"].fire("click");
     buttons["#export-trend-svg"].fire("click");
     buttons["#print-report"].fire("click");
 
-    expect(jsonDownloads).toEqual(["sample-review-summary-2026-05-04.json"]);
+    expect(jsonDownloads).toEqual([
+      "sample-review-summary-2026-05-04.json",
+      "sample-dashboard-manifest-2026-05-04.json"
+    ]);
     expect(blobDownloads).toEqual([
       "sample-normalized-transactions-2026-05-04.xlsx",
       "sample-accountant-workbook-2026-05-04.xlsx"
@@ -124,6 +129,35 @@ describe("bindDashboardExportActions", () => {
     expect(captured).toHaveLength(1);
     expect(captured[0]).toContain("Internal");
     expect(captured[0]).not.toContain("Income");
+  });
+
+  it("no-ops dashboard manifest export without an active import or view", () => {
+    const manifestButton = button();
+    const jsonDownloads: string[] = [];
+
+    bindDashboardExportActions({
+      root: root({ "#export-dashboard-manifest": manifestButton }),
+      status: { textContent: "" },
+      visibleSummary: summary(),
+      visibleRecords: [record()],
+      getActiveImport: () => null,
+      getDashboardView: () => null,
+      getCashOnHand: () => 5000,
+      getFutureEventsText: () => "",
+      getTrendGrain: () => "monthly",
+      getReviewPreset: () => "all",
+      getCurrency: () => "USD",
+      downloads: {
+        blob: () => undefined,
+        json: (filename) => {
+          jsonDownloads.push(filename);
+        },
+        text: () => undefined
+      }
+    });
+
+    manifestButton.fire("click");
+    expect(jsonDownloads).toEqual([]);
   });
 
   it("uses reviewed records for reviewer JSON when review exclusions are active", () => {
