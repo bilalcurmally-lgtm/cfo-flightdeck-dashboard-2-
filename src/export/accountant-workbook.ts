@@ -1,4 +1,6 @@
 import type { MetricLineage } from "../finance/audit";
+import { compareBudgetToActual, type BudgetEntry } from "../finance/budget";
+import type { ExpectedIncomeEvent } from "../finance/expected-income";
 import type { CockpitViewModel } from "../finance/cockpit-kpis";
 import { deriveAuditedCockpit } from "../finance/audit-derive";
 import {
@@ -47,6 +49,8 @@ export interface AccountantWorkbookInput {
   excludedReviewItemIds: ReadonlySet<string>;
   formatMoney: (value: number) => string;
   appliedRuleFeedback?: { rowCount: number; ruleCount: number } | null;
+  budgets?: readonly BudgetEntry[];
+  expectedIncomeEvents?: readonly ExpectedIncomeEvent[];
 }
 
 export function buildAccountantWorkbook(input: AccountantWorkbookInput): Blob {
@@ -56,7 +60,8 @@ export function buildAccountantWorkbook(input: AccountantWorkbookInput): Blob {
     { name: "Normalized Ledger", rows: buildNormalizedLedgerRows(input) },
     { name: "Exclusions And Review", rows: buildExclusionsRows(input) },
     { name: "Rejected Rows", rows: buildRejectedRows(input.result.rejectedRows) },
-    { name: "Diagnostics", rows: buildDiagnosticsRows(input) }
+    { name: "Diagnostics", rows: buildDiagnosticsRows(input) },
+    { name: "Planning", rows: buildPlanningRows(input) }
   ];
   return makeWorkbookBlob(sheets);
 }
@@ -101,7 +106,8 @@ function buildSummaryRows(input: AccountantWorkbookInput): WorkbookCellValue[][]
       view: input.view,
       cashOnHand: input.cashOnHand,
       readiness: input.readiness,
-      rejectedRowCount: input.result.rejectedRows.length
+      rejectedRowCount: input.result.rejectedRows.length,
+      expectedIncomeEvents: input.expectedIncomeEvents ?? []
     })
   );
   rows.push(
@@ -453,6 +459,67 @@ function buildDiagnosticsRows(input: AccountantWorkbookInput): WorkbookCellValue
   }
 
   return rows.length > 0 ? rows : [["Diagnostics", "No diagnostics available"]];
+}
+
+function buildPlanningRows(input: AccountantWorkbookInput): WorkbookCellValue[][] {
+  const rows: WorkbookCellValue[][] = [];
+  const budgets = input.budgets ?? [];
+  const expectedIncomeEvents = input.expectedIncomeEvents ?? [];
+  const varianceRows = compareBudgetToActual(budgets, input.view.filteredRecords);
+
+  if (budgets.length > 0) {
+    appendSection(
+      rows,
+      "Budget Vs Actual",
+      [
+        "Month",
+        "Scope",
+        "Key",
+        "Flow",
+        "Budgeted",
+        "Actual",
+        "Variance",
+        "Variance Percent",
+        "Status",
+        "Note"
+      ],
+      () =>
+        varianceRows.map((row) => [
+          row.month,
+          row.scope,
+          row.key,
+          row.flow,
+          row.budgeted ?? "",
+          row.actual,
+          row.variance,
+          row.variancePercent ?? "",
+          row.status,
+          row.note ?? ""
+        ])
+    );
+  }
+
+  if (expectedIncomeEvents.length > 0) {
+    appendSection(
+      rows,
+      "Expected Income Events",
+      ["Due Date", "Amount", "Label", "Status", "Included In Forecast"],
+      () =>
+        expectedIncomeEvents.map((event) => [
+          event.dueDate,
+          event.amount,
+          event.label,
+          event.status,
+          event.status === "received" ? "no" : "yes"
+        ])
+    );
+  }
+
+  if (rows.length === 0) {
+    return [["Planning", "No budgets or expected income events defined in workspace"]];
+  }
+
+  return rows;
 }
 
 function appendSection(

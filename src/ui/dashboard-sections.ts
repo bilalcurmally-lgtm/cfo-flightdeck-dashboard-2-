@@ -128,7 +128,7 @@ export function renderExportPanel(): string {
     <section class="export-panel" aria-labelledby="export-title">
       <div>
         <h2 id="export-title">Exports</h2>
-        <p>Use transaction CSV or Excel for spreadsheet review, JSON for the full audit state, or trend CSV for the visible filtered chart data.</p>
+        <p>Use Transactions CSV or Excel for row review, Accountant Workbook for accountant handoff, Dashboard Manifest for analytical metadata, or trend exports for the visible chart.</p>
       </div>
       <div class="export-actions">
         <button id="export-transactions" type="button">Transactions CSV</button>
@@ -270,8 +270,8 @@ export function renderBudgetVsActualPanel(
   if (rows.length === 0) {
     return `
       <section class="budget-panel" aria-labelledby="budget-title">
-        <h2 id="budget-title">Budget Vs Actual</h2>
-        <p>Add monthly budgets in Local Settings to compare plan against imported actuals.</p>
+        <h2 id="budget-title">Budget vs Actual</h2>
+        <p>Add monthly budgets in Local Settings to compare your plan against imported actuals.</p>
       </section>
     `;
   }
@@ -279,7 +279,7 @@ export function renderBudgetVsActualPanel(
   return `
     <section class="budget-panel" aria-labelledby="budget-title">
       <div class="panel-heading">
-        <h2 id="budget-title">Budget Vs Actual</h2>
+        <h2 id="budget-title">Budget vs Actual</h2>
         <span>${rows.length} row${rows.length === 1 ? "" : "s"}</span>
       </div>
       <table class="budget-table">
@@ -380,7 +380,7 @@ export function renderForecastPanel(
       <div class="panel-heading">
         <div>
           <h2 id="forecast-title">13-Week Forecast</h2>
-          <p>Tag expected income below or keep one manual event per line: YYYY-MM-DD, amount, label</p>
+          <p>Tag expected income below, or keep one manual event per line: YYYY-MM-DD, amount, label.</p>
         </div>
         <span>${escapeHtml(formatMoney(forecast.averageWeeklyNet))} avg weekly net</span>
       </div>
@@ -400,7 +400,7 @@ function renderExpectedIncomeSettings(
   return `
     <div class="expected-income" aria-label="Expected income events">
       <h3>Expected Income</h3>
-      <p>Forecast input only — not invoicing or receivables tracking.</p>
+      <p>Forecast input only. Not invoicing or receivables tracking.</p>
       <div class="expected-income__form">
         <label>Due date <input id="expected-income-date" type="date" /></label>
         <label>Amount <input id="expected-income-amount" type="number" min="0" step="50" /></label>

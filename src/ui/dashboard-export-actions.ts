@@ -169,7 +169,9 @@ export function bindDashboardExportActions({
         overrides: getOverrides?.() ?? new Map(),
         excludedReviewItemIds: getExcludedReviewItemIds?.() ?? new Set(),
         formatMoney,
-        appliedRuleFeedback: getAppliedRuleFeedback?.() ?? null
+        appliedRuleFeedback: getAppliedRuleFeedback?.() ?? null,
+        budgets: getBudgets?.() ?? [],
+        expectedIncomeEvents: getExpectedIncomeEvents?.() ?? []
       });
       downloads.blob(workbook.filename, workbook.blob);
     });

@@ -1,5 +1,7 @@
 import { DOMParser } from "@xmldom/xmldom";
 import { beforeAll, describe, expect, it } from "vitest";
+import { createBudgetEntry } from "../finance/budget";
+import { createExpectedIncomeEvent } from "../finance/expected-income";
 import { DEFAULT_FILTERS } from "../finance/filters";
 import { buildDashboardView } from "../finance/dashboard-view";
 import { rec } from "../finance/classification-overrides.test";
@@ -20,7 +22,7 @@ beforeAll(() => {
 });
 
 describe("buildAccountantWorkbook", () => {
-  it("exports all six accountant workbook sheets", async () => {
+  it("exports all seven accountant workbook sheets", async () => {
     const workbook = buildAccountantWorkbook(fixture());
     const sheets = await parseExcelWorkbook(workbook);
 
@@ -30,7 +32,8 @@ describe("buildAccountantWorkbook", () => {
       "Normalized Ledger",
       "Exclusions And Review",
       "Rejected Rows",
-      "Diagnostics"
+      "Diagnostics",
+      "Planning"
     ]);
     expect(sheets[1].rows.length).toBeGreaterThanOrEqual(6);
     expect(JSON.stringify(sheets[1].rows)).toContain("Rejected Rows");
@@ -103,6 +106,45 @@ describe("buildAccountantWorkbook", () => {
     const exclusion = sheets[3].rows.find((row) => row.Head === "Owner Draw");
 
     expect(exclusion?.["Exclusion Reason"]).toBe("non-operating");
+  });
+
+  it("exports planning rows for budgets and expected income", async () => {
+    const input = fixture({
+      budgets: [
+        createBudgetEntry({
+          month: "2026-05",
+          scope: "head",
+          key: "Client",
+          flow: "revenue",
+          amount: 5000,
+          note: "Retainer plan"
+        })
+      ],
+      expectedIncomeEvents: [
+        createExpectedIncomeEvent({
+          dueDate: "2026-06-15",
+          amount: 3000,
+          label: "Client retainer",
+          status: "tentative"
+        }),
+        createExpectedIncomeEvent({
+          dueDate: "2026-05-20",
+          amount: 1200,
+          label: "Paid invoice",
+          status: "received"
+        })
+      ]
+    });
+    const sheets = await parseExcelWorkbook(buildAccountantWorkbook(input));
+    const planning = JSON.stringify(sheets[6].rows);
+
+    expect(planning).toContain("Client");
+    expect(planning).toContain("Retainer plan");
+    expect(planning).toContain("Expected Income Events");
+    expect(planning).toContain("Client retainer");
+    expect(planning).toContain("tentative");
+    expect(planning).toContain("Paid invoice");
+    expect(planning).toContain("no");
   });
 
   it("lists review exclusions and review-preset rows", async () => {

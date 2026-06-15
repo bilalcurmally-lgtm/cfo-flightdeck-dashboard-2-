@@ -562,6 +562,24 @@ Status: decision doc only on 2026-06-15 — defer dedicated drawer.
 
 Review: `docs/CODEX_REVIEW_RULE_APPLIED_DRILLDOWN_DECISION_2026-06-15.md`
 
+## Hardening Batch (2026-06-15)
+
+Status: shipped on working tree.
+
+Shipped:
+
+- Accountant Workbook **Planning** sheet (budget vs actual + expected income).
+- E2E: planning persistence via `.billu.json` (`e2e/planning-persistence.spec.ts`).
+- `docs/DASHBOARD_MANIFEST_SCHEMA_V1.md` consumer reference.
+- UI microcopy audit for planning/export surfaces.
+
+Review docs:
+
+- `docs/CODEX_REVIEW_ACCOUNTANT_WORKBOOK_PLANNING_SHEET_2026-06-15.md`
+- `docs/CODEX_REVIEW_PLANNING_PERSISTENCE_E2E_2026-06-15.md`
+- `docs/CODEX_REVIEW_MANIFEST_SCHEMA_DOC_2026-06-15.md`
+- `docs/CODEX_REVIEW_MICROCOPY_AUDIT_2026-06-15.md`
+
 ## Explicitly Out Of Scope
 
 - Admin panel.
