@@ -2,72 +2,65 @@
 
 ## Summary
 
-This session completed the backlog batch from
-`docs/GROK_COMPOSER_2_5_BACKLOG_BATCH_2026-06-15.md` as four separate reviewable slices.
-Earlier in the day: Dashboard Manifest Export V1 was shipped and Codex-reviewed. Codex
-reviewed this batch, tightened the Cash Health confidence copy, verified the full gate,
-and prepared the next Grok handoff in `docs/GROK_COMPOSER_2_5_P3_BATCH_2026-06-15.md`.
+Completed the P3 batch from `docs/GROK_COMPOSER_2_5_P3_BATCH_2026-06-15.md`:
 
-## Slices Completed
+- **Slice A:** Budget vs Actual V1
+- **Slice B:** Expected-Income Forecast Tagging V1
+- **Slice C:** Rule-applied drilldown decision (doc only — defer drawer)
+
+Codex reviewed it, fixed two behavior edges (budget no-budget scope duplication and
+expected-income text dedupe without status suffixes), tightened project-file semantic
+validation for planning entries, verified the full gate, and prepared the next hardening
+handoff in `docs/GROK_COMPOSER_2_5_HARDENING_BATCH_2026-06-15.md`.
+
+Earlier the same day: backlog batch (detail contracts, runway confidence, README,
+saved-rules copy) and Dashboard Manifest Export V1.
+
+## Slices Completed (P3)
 
 | Slice | Topic | Review doc |
 |-------|-------|------------|
-| A | Detail-role metric contracts | `docs/CODEX_REVIEW_DETAIL_METRIC_CONTRACTS_2026-06-15.md` |
-| B | Runway confidence mechanics | `docs/CODEX_REVIEW_RUNWAY_CONFIDENCE_2026-06-15.md` |
-| C | README / positioning refresh | `docs/CODEX_REVIEW_POSITIONING_REFRESH_2026-06-15.md` |
-| D | Saved-rules copy polish | `docs/CODEX_REVIEW_SAVED_RULES_POLISH_2026-06-15.md` |
+| A | Budget vs actual V1 | `docs/CODEX_REVIEW_BUDGET_VS_ACTUAL_2026-06-15.md` |
+| B | Expected-income forecast tagging V1 | `docs/CODEX_REVIEW_EXPECTED_INCOME_FORECAST_TAGGING_2026-06-15.md` |
+| C | Rule-applied drilldown decision | `docs/CODEX_REVIEW_RULE_APPLIED_DRILLDOWN_DECISION_2026-06-15.md` |
 
-## Files Changed Per Slice
+## Key Changes
 
-### Slice A — Detail contracts
+- Workspace snapshot **v4**: `budgets[]`, `expectedIncomeEvents[]` (v3 migrates with empty arrays)
+- Finance: `budget.ts`, `expected-income.ts`, forecast merge in `dashboard-view.ts`
+- UI: Local Settings forms, Budget vs Actual panel, expected-income block in forecast
+- `main.ts`: persistence wiring + re-render on budget/income changes
+- Manifest: `context.planning` + `budgetVsActual` table spec
+- Runway confidence: tentative expected-income caution reason
 
-- `src/finance/metric-registry.ts`, `metric-registry.test.ts`
-- `src/export/dashboard-manifest.ts`, `dashboard-manifest.test.ts`
-- `src/export/accountant-workbook.ts`
+## Deferred
 
-### Slice B — Runway confidence
-
-- `src/finance/runway-confidence.ts`, `runway-confidence.test.ts`
-- `src/ui/dashboard-results.ts`, `dashboard-cockpit.ts`, `dashboard-sections.ts`
-- `src/export/dashboard-manifest.ts`, `accountant-workbook.ts`, `dashboard-manifest.test.ts`
-
-### Slice C — Positioning
-
-- `README.md`, `docs/TODOS.md`
-
-### Slice D — Saved rules copy
-
-- `src/ui/category-review-drawer.ts`, `category-review-drawer.test.ts`
-- `src/ui/dashboard-cockpit-actions.test.ts`, `docs/TODOS.md`
+- Accountant workbook budget sheet
+- Rule-applied drilldown drawer (see Slice C decision doc)
 
 ## Git State
 
-- Branch: `main` (uncommitted working tree)
-- New untracked brief: `docs/GROK_COMPOSER_2_5_BACKLOG_BATCH_2026-06-15.md`
-- New next-task brief: `docs/GROK_COMPOSER_2_5_P3_BATCH_2026-06-15.md`
+- Branch: `main`
 - Leave alone: `.claude/`, `mcps/`, audit snapshot line-ending noise
 
 ## Verification
 
-- `npx tsc --noEmit` — 0 errors
-- `npx vitest run` — 499 passed
-- `npx playwright test --workers=1` — 24 passed
-- `npm run build` — green
-- `git diff --check` — clean
-- Browser smoke: sample import -> apply mapping -> Cash Health confidence rendered;
-  Dashboard Manifest contains `context.runwayConfidence`, six detail contracts, and
-  `runwayConfidence` diagnostic.
+```bash
+npx tsc --noEmit          # 0 errors
+npx vitest run            # 519 passed
+npx playwright test --workers=1  # 24 passed
+npm run build             # green
+git diff --check          # clean (CRLF warnings only)
+```
 
 ## Landing Note
 
-The slices are conceptually separate, but `dashboard-manifest.ts` and
-`accountant-workbook.ts` are touched by both detail contracts and runway confidence. A
-single reviewed backlog-batch commit is acceptable if partial staging would make review
-harder.
+Budget and expected-income share WorkspaceSnapshot v4 and project-file migration, so one
+reviewed P3 commit is acceptable.
 
 ## First Next-Session Priorities
 
-1. Give Grok `docs/GROK_COMPOSER_2_5_P3_BATCH_2026-06-15.md`.
-2. P3: Budget vs actual.
-3. P3: Expected-income forecast tagging.
-4. Optional: rule-applied row drilldown decision (still deferred).
+1. Give Grok `docs/GROK_COMPOSER_2_5_HARDENING_BATCH_2026-06-15.md`.
+2. Optional: accountant workbook planning sheet.
+3. Optional: planning persistence e2e.
+4. Optional: manifest schema doc and microcopy audit.

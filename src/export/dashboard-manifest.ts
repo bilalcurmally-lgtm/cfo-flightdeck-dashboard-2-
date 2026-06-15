@@ -1,4 +1,6 @@
 import type { MetricLineage } from "../finance/audit";
+import { compareBudgetToActual, type BudgetEntry } from "../finance/budget";
+import type { ExpectedIncomeEvent } from "../finance/expected-income";
 import { deriveAuditedCockpit } from "../finance/audit-derive";
 import type { CockpitViewModel } from "../finance/cockpit-kpis";
 import type { DashboardViewData } from "../finance/dashboard-view";
@@ -42,6 +44,8 @@ export interface DashboardManifestInput {
   readiness: ReadinessReport;
   hasImportHistory?: boolean;
   appliedRuleFeedback?: { rowCount: number; ruleCount: number } | null;
+  budgets?: readonly BudgetEntry[];
+  expectedIncomeEvents?: readonly ExpectedIncomeEvent[];
 }
 
 export interface ManifestKpi {
@@ -149,6 +153,18 @@ export interface FinanceDashboardManifest {
       score: number;
       headline: string;
     };
+    planning: {
+      budgetCount: number;
+      budgetVariance: {
+        under: number;
+        onTrack: number;
+        over: number;
+        noBudget: number;
+      };
+      expectedIncomeCount: number;
+      expectedIncomeTentativeCount: number;
+      expectedIncomeReceivedCount: number;
+    };
   };
   readiness: {
     status: string;
@@ -174,12 +190,16 @@ export function buildDashboardManifest(input: DashboardManifestInput): FinanceDa
     rejectedRows: input.result.rejectedRows
   });
   const excludedFromKpi = input.result.records.length - records.length;
+  const budgets = input.budgets ?? [];
+  const expectedIncomeEvents = input.expectedIncomeEvents ?? [];
+  const budgetVarianceRows = compareBudgetToActual(budgets, records);
   const runwayConfidence = assessRunwayConfidence(
     buildRunwayConfidenceInput({
       view: input.view,
       cashOnHand: input.cashOnHand,
       readiness: input.readiness,
-      rejectedRowCount: input.result.rejectedRows.length
+      rejectedRowCount: input.result.rejectedRows.length,
+      expectedIncomeEvents
     })
   );
 
@@ -206,6 +226,17 @@ export function buildDashboardManifest(input: DashboardManifestInput): FinanceDa
         level: runwayConfidence.level,
         score: runwayConfidence.score,
         headline: runwayConfidence.headline
+      },
+      planning: {
+        budgetCount: budgets.length,
+        budgetVariance: summarizeBudgetVariance(budgetVarianceRows),
+        expectedIncomeCount: expectedIncomeEvents.length,
+        expectedIncomeTentativeCount: expectedIncomeEvents.filter(
+          (event) => event.status === "tentative"
+        ).length,
+        expectedIncomeReceivedCount: expectedIncomeEvents.filter(
+          (event) => event.status === "received"
+        ).length
       }
     },
     readiness: {
@@ -223,7 +254,7 @@ export function buildDashboardManifest(input: DashboardManifestInput): FinanceDa
       manifestDetailContract(contract, input)
     ),
     charts: buildChartSpecs(input),
-    tables: buildTableSpecs(input, excludedFromKpi),
+    tables: buildTableSpecs(input, excludedFromKpi, budgetVarianceRows),
     diagnostics: [
       ...buildDiagnosticSummaries(input),
       buildRunwayConfidenceDiagnostic(runwayConfidence)
@@ -424,7 +455,36 @@ function buildChartSpecs(input: DashboardManifestInput): ManifestChartSpec[] {
   ];
 }
 
-function buildTableSpecs(input: DashboardManifestInput, excludedFromKpi: number): ManifestTableSpec[] {
+function summarizeBudgetVariance(
+  rows: ReturnType<typeof compareBudgetToActual>
+): { under: number; onTrack: number; over: number; noBudget: number } {
+  return rows.reduce(
+    (counts, row) => {
+      switch (row.status) {
+        case "under":
+          counts.under += 1;
+          break;
+        case "on-track":
+          counts.onTrack += 1;
+          break;
+        case "over":
+          counts.over += 1;
+          break;
+        case "no-budget":
+          counts.noBudget += 1;
+          break;
+      }
+      return counts;
+    },
+    { under: 0, onTrack: 0, over: 0, noBudget: 0 }
+  );
+}
+
+function buildTableSpecs(
+  input: DashboardManifestInput,
+  excludedFromKpi: number,
+  budgetVarianceRows: ReturnType<typeof compareBudgetToActual>
+): ManifestTableSpec[] {
   const visibleCount = input.view.filteredRecords.length;
   const rejectedCount = input.result.rejectedRows.length;
   const categoryReviewPending = input.view.categoryReview.items.filter((item) => !item.acted).length;
@@ -498,6 +558,29 @@ function buildTableSpecs(input: DashboardManifestInput, excludedFromKpi: number)
       rowCount: getScalarMetricContracts().length,
       emptyState: "Metric contracts unavailable.",
       caveats: ["Values mirror the visible cockpit scope, not the full import."]
+    },
+    {
+      id: "budgetVsActual",
+      title: "Budget Vs Actual",
+      analyticalQuestion: "How do monthly budgets compare with imported actuals?",
+      datasetId: "budgetVariance",
+      columns: [
+        "month",
+        "scope",
+        "key",
+        "flow",
+        "budgeted",
+        "actual",
+        "variance",
+        "variancePercent",
+        "status"
+      ],
+      rowCount: budgetVarianceRows.length,
+      emptyState: "No budgets defined; add rows in Local Settings.",
+      caveats: [
+        "Compares manual workspace budgets against KPI-visible transactions.",
+        "Unbudgeted actuals in budgeted months appear with status no-budget."
+      ]
     }
   ];
 }
@@ -674,6 +757,21 @@ function buildCaveats(input: DashboardManifestInput, excludedFromKpi: number): s
   if (input.appliedRuleFeedback && input.appliedRuleFeedback.rowCount > 0) {
     caveats.push(
       `Saved rules applied to ${input.appliedRuleFeedback.rowCount} rows via ${input.appliedRuleFeedback.ruleCount} rules.`
+    );
+  }
+
+  const budgetCount = input.budgets?.length ?? 0;
+  if (budgetCount > 0) {
+    caveats.push(`${budgetCount} manual budget row${budgetCount === 1 ? "" : "s"} in workspace.`);
+  }
+
+  const expectedIncomeCount = input.expectedIncomeEvents?.length ?? 0;
+  if (expectedIncomeCount > 0) {
+    const tentative = (input.expectedIncomeEvents ?? []).filter(
+      (event) => event.status === "tentative"
+    ).length;
+    caveats.push(
+      `${expectedIncomeCount} structured expected-income event${expectedIncomeCount === 1 ? "" : "s"}; ${tentative} tentative.`
     );
   }
 

@@ -64,6 +64,8 @@ describe("createInMemoryWorkspaceStore", () => {
       decisions: { [SIG_B]: { excluded: false } },
       imports: [],
       rules: [],
+      budgets: [],
+      expectedIncomeEvents: [],
     };
     store.load(incoming);
     incoming.categoryOverrides[SIG_A] = { parent: "After load" };
@@ -105,6 +107,8 @@ describe("createInMemoryWorkspaceStore", () => {
       decisions: { [SIG_B]: { excluded: true } },
       imports: [],
       rules: [],
+      budgets: [],
+      expectedIncomeEvents: [],
     };
     const store = createInMemoryWorkspaceStore(initial);
     expect(store.getCategoryOverride(SIG_A)).toEqual({ parent: "Seed" });
@@ -142,7 +146,15 @@ describe("workspace-store v2 migration", () => {
       kpiSnapshot: { runwayMonths: 5 },
       reviewItemSignatures: [],
     };
-    store.load({ version: 2, categoryOverrides: {}, decisions: {}, imports: [imp], rules: [] });
+    store.load({
+      version: 2,
+      categoryOverrides: {},
+      decisions: {},
+      imports: [imp],
+      rules: [],
+      budgets: [],
+      expectedIncomeEvents: []
+    });
     expect(store.snapshot().imports).toEqual([imp]);
   });
 
@@ -170,6 +182,33 @@ describe("workspace-store v2 migration", () => {
       },
     ]);
     expect(store.snapshot().rules).toHaveLength(1);
+  });
+
+  it("round-trips budgets and expected income events", () => {
+    const store = createInMemoryWorkspaceStore();
+    store.setBudgets([
+      {
+        id: "budget-rent",
+        month: "2026-05",
+        scope: "head",
+        key: "Rent",
+        flow: "outflow",
+        amount: 500
+      }
+    ]);
+    store.setExpectedIncomeEvents([
+      {
+        id: "income-1",
+        dueDate: "2026-06-15",
+        amount: 1200,
+        label: "Client invoice",
+        status: "expected"
+      }
+    ]);
+
+    expect(store.getBudgets()).toHaveLength(1);
+    expect(store.getExpectedIncomeEvents()).toHaveLength(1);
+    expect(store.snapshot().version).toBe(WORKSPACE_SNAPSHOT_VERSION);
   });
 
   it("isolates rule mutations from stored state", () => {

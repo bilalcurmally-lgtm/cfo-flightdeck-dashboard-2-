@@ -270,6 +270,8 @@ describe("createIndexedDbWorkspaceStore", () => {
       decisions: { [SIG_B]: { excluded: true } },
       imports: [],
       rules: [],
+      budgets: [],
+      expectedIncomeEvents: [],
     };
     const snapshotB = {
       version: WORKSPACE_SNAPSHOT_VERSION,
@@ -277,6 +279,8 @@ describe("createIndexedDbWorkspaceStore", () => {
       decisions: {},
       imports: [],
       rules: [],
+      budgets: [],
+      expectedIncomeEvents: [],
     };
 
     const first = await createIndexedDbWorkspaceStore({ factory, dbName });

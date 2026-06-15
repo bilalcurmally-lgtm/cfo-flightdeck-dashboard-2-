@@ -62,6 +62,8 @@ import {
 } from "./ui/dashboard-settings-form";
 import { bindDashboardSettingsActions } from "./ui/dashboard-settings-actions";
 import { bindSavedRulesActions } from "./ui/saved-rules-actions";
+import { bindBudgetActions } from "./ui/budget-actions";
+import { bindExpectedIncomeActions } from "./ui/expected-income-actions";
 import { bindDashboardFilterActions } from "./ui/dashboard-filter-actions";
 import { bindDashboardExportActions } from "./ui/dashboard-export-actions";
 import { bindDashboardCockpitActions } from "./ui/dashboard-cockpit-actions";
@@ -343,6 +345,7 @@ function renderImportResult(
     selectedTransactionId: viewState.selectedTransactionId,
     cashOnHand: readCashOnHand(),
     futureEventsText: readFutureEventsText(),
+    expectedIncomeEvents: workspaceStore.getExpectedIncomeEvents(),
     overrides: classificationOverrides,
     deriveExcludedTransactionIds: (reviewSummary) =>
       deriveExcludedTransactionIdsFromQueue({
@@ -386,6 +389,8 @@ function renderImportResult(
     reviewPresetLabel: reviewPresetLabel(viewState.reviewPreset),
     currencyOptionsHtml: renderCurrencyOptions(settings.currency),
     savedRules: workspaceStore.getRules(),
+    budgets: workspaceStore.getBudgets(),
+    expectedIncomeEvents: workspaceStore.getExpectedIncomeEvents(),
     appliedRuleFeedback,
     cashOnHand: readCashOnHand(),
     hasImportHistory: workspaceStore.snapshot().imports.length > 1,
@@ -444,6 +449,16 @@ function renderImportResult(
   });
   bindLiveInputs();
   bindSavedRules(result, sourceName);
+  bindBudgetActions({
+    getBudgets: () => workspaceStore.getBudgets(),
+    setBudgets: (budgets) => workspaceStore.setBudgets(budgets),
+    onBudgetsChanged: () => renderImportResult(result, sourceName)
+  });
+  bindExpectedIncomeActions({
+    getEvents: () => workspaceStore.getExpectedIncomeEvents(),
+    setEvents: (events) => workspaceStore.setExpectedIncomeEvents(events),
+    onEventsChanged: () => renderImportResult(result, sourceName)
+  });
   // Export reflects in-session Type/Group edits (overridden records); non-operating
   // rows stay because they are not in excludedTransactionIds. The full-ledger
   // export gets every row with overrides applied (no removal); the reviewer report
@@ -666,6 +681,8 @@ function bindExportButton(context: ExportBindingContext): void {
     formatMoney,
     getCashOnHand: readCashOnHand,
     getFutureEventsText: readFutureEventsText,
+    getBudgets: () => workspaceStore.getBudgets(),
+    getExpectedIncomeEvents: () => workspaceStore.getExpectedIncomeEvents(),
     getTrendGrain: () => viewState.trendGrain,
     getReviewPreset: () => viewState.reviewPreset,
     getCurrency: () => settings.currency

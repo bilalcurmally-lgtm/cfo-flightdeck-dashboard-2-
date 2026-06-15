@@ -4,10 +4,12 @@ import {
   type WorkspaceSnapshot,
 } from "./workspace-store";
 import type { ImportSnapshot } from "./import-history";
+import { validateBudgetEntry, type BudgetEntry } from "../finance/budget";
 import type { ClassificationOverride } from "../finance/classification-overrides";
 import type { ClassificationRule } from "../finance/classification-rules";
+import { validateExpectedIncomeEvent, type ExpectedIncomeEvent } from "../finance/expected-income";
 
-const SUPPORTED_VERSIONS = [1, 2, 3];
+const SUPPORTED_VERSIONS = [1, 2, 3, 4];
 const CLASSIFICATION_RULE_FIELDS = new Set([
   "account",
   "counterparty",
@@ -53,6 +55,8 @@ function cloneSnapshot(snapshot: WorkspaceSnapshot): WorkspaceSnapshot {
       ...rule,
       override: { ...rule.override },
     })),
+    budgets: (snapshot.budgets ?? []).map((entry) => ({ ...entry })),
+    expectedIncomeEvents: (snapshot.expectedIncomeEvents ?? []).map((event) => ({ ...event })),
   };
 }
 
@@ -96,6 +100,45 @@ function isImportSnapshot(value: unknown): value is ImportSnapshot {
     Array.isArray(value.reviewItemSignatures) &&
     value.reviewItemSignatures.every((s) => typeof s === "string")
   );
+}
+
+function isBudgetEntry(value: unknown): value is BudgetEntry {
+  if (!isPlainObject(value)) return false;
+  if (typeof value.id !== "string") return false;
+  if (typeof value.month !== "string") return false;
+  if (value.scope !== "head" && value.scope !== "subcategory") return false;
+  if (typeof value.key !== "string") return false;
+  if (value.flow !== "revenue" && value.flow !== "outflow") return false;
+  if (typeof value.amount !== "number" || !Number.isFinite(value.amount)) return false;
+  if ("note" in value && value.note !== undefined && typeof value.note !== "string") return false;
+  return validateBudgetEntry({
+    id: value.id,
+    month: value.month,
+    scope: value.scope,
+    key: value.key,
+    flow: value.flow,
+    amount: value.amount,
+    note: typeof value.note === "string" ? value.note : undefined
+  }).length === 0;
+}
+
+function isExpectedIncomeEvent(value: unknown): value is ExpectedIncomeEvent {
+  if (!isPlainObject(value)) return false;
+  if (typeof value.id !== "string") return false;
+  if (typeof value.dueDate !== "string") return false;
+  if (typeof value.amount !== "number" || !Number.isFinite(value.amount)) return false;
+  if (typeof value.label !== "string") return false;
+  return (
+    value.status === "expected" ||
+    value.status === "tentative" ||
+    value.status === "received"
+  ) && validateExpectedIncomeEvent({
+    id: value.id,
+    dueDate: value.dueDate,
+    amount: value.amount,
+    label: value.label,
+    status: value.status
+  }).length === 0;
 }
 
 function isClassificationRule(value: unknown): value is ClassificationRule {
@@ -157,7 +200,34 @@ function parseSnapshot(value: unknown): WorkspaceSnapshot | string {
     rules = value.rules as ClassificationRule[];
   }
 
-  return { version: WORKSPACE_SNAPSHOT_VERSION, categoryOverrides, decisions, imports, rules };
+  let budgets: BudgetEntry[] = [];
+  if ("budgets" in value && value.budgets !== undefined) {
+    if (!Array.isArray(value.budgets) || !value.budgets.every(isBudgetEntry)) {
+      return "snapshot.budgets must be an array of budget entries";
+    }
+    budgets = value.budgets as BudgetEntry[];
+  }
+
+  let expectedIncomeEvents: ExpectedIncomeEvent[] = [];
+  if ("expectedIncomeEvents" in value && value.expectedIncomeEvents !== undefined) {
+    if (
+      !Array.isArray(value.expectedIncomeEvents) ||
+      !value.expectedIncomeEvents.every(isExpectedIncomeEvent)
+    ) {
+      return "snapshot.expectedIncomeEvents must be an array of expected income events";
+    }
+    expectedIncomeEvents = value.expectedIncomeEvents as ExpectedIncomeEvent[];
+  }
+
+  return {
+    version: WORKSPACE_SNAPSHOT_VERSION,
+    categoryOverrides,
+    decisions,
+    imports,
+    rules,
+    budgets,
+    expectedIncomeEvents
+  };
 }
 
 export function serializeProjectFile(snapshot: WorkspaceSnapshot): string {

@@ -1,3 +1,4 @@
+import type { ExpectedIncomeEvent } from "./expected-income";
 import type { ForecastResult } from "./forecast";
 import type { ReadinessReport } from "./readiness";
 import type { TransactionRecord } from "./types";
@@ -26,6 +27,7 @@ export interface RunwayConfidenceInput {
   rejectedRowCount: number;
   categoryReviewPendingCount: number;
   revenueConcentration: number;
+  expectedIncomeTentativeCount: number;
 }
 
 export interface BuildRunwayConfidenceInput {
@@ -38,6 +40,7 @@ export interface BuildRunwayConfidenceInput {
   cashOnHand: number;
   readiness: ReadinessReport;
   rejectedRowCount: number;
+  expectedIncomeEvents?: readonly ExpectedIncomeEvent[];
 }
 
 export function buildRunwayConfidenceInput(
@@ -51,7 +54,10 @@ export function buildRunwayConfidenceInput(
     rejectedRowCount: options.rejectedRowCount,
     categoryReviewPendingCount: options.view.categoryReview.items.filter((item) => !item.acted)
       .length,
-    revenueConcentration: options.view.summary.cashHealth.revenueConcentration
+    revenueConcentration: options.view.summary.cashHealth.revenueConcentration,
+    expectedIncomeTentativeCount: (options.expectedIncomeEvents ?? []).filter(
+      (event) => event.status === "tentative"
+    ).length
   };
 }
 
@@ -210,6 +216,17 @@ export function assessRunwayConfidence(input: RunwayConfidenceInput): RunwayConf
       severity: "caution",
       label: "Rejected manual events",
       detail: `${input.forecast.rejectedEvents.length} future-event line${input.forecast.rejectedEvents.length === 1 ? "" : "s"} were ignored.`
+    });
+  }
+
+  if (input.expectedIncomeTentativeCount > 0) {
+    const penalty = Math.min(8, input.expectedIncomeTentativeCount * 4);
+    score -= penalty;
+    reasons.push({
+      id: "expected-income-tentative",
+      severity: "caution",
+      label: "Tentative expected income",
+      detail: `${input.expectedIncomeTentativeCount} tagged income event${input.expectedIncomeTentativeCount === 1 ? "" : "s"} are tentative, not confirmed.`
     });
   }
 

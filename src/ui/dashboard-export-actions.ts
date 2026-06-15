@@ -1,4 +1,6 @@
+import type { BudgetEntry } from "../finance/budget";
 import type { ClassificationOverride } from "../finance/classification-overrides";
+import type { ExpectedIncomeEvent } from "../finance/expected-income";
 import type { DashboardViewData } from "../finance/dashboard-view";
 import type { DashboardFilters } from "../finance/filters";
 import { assessReadiness, buildReadinessInput } from "../finance/readiness";
@@ -53,6 +55,8 @@ export interface DashboardExportActionBindings {
   formatMoney?: (value: number) => string;
   getCashOnHand: () => number;
   getFutureEventsText: () => string;
+  getBudgets?: () => readonly BudgetEntry[];
+  getExpectedIncomeEvents?: () => readonly ExpectedIncomeEvent[];
   getTrendGrain: () => PeriodGrain;
   getReviewPreset: () => ReviewPreset;
   getCurrency: () => string;
@@ -78,6 +82,8 @@ export function bindDashboardExportActions({
   formatMoney = (value) => String(value),
   getCashOnHand,
   getFutureEventsText,
+  getBudgets,
+  getExpectedIncomeEvents,
   getTrendGrain,
   getReviewPreset,
   getCurrency,
@@ -204,7 +210,9 @@ export function bindDashboardExportActions({
           })
         ),
         hasImportHistory: getHasImportHistory?.() ?? false,
-        appliedRuleFeedback: getAppliedRuleFeedback?.() ?? null
+        appliedRuleFeedback: getAppliedRuleFeedback?.() ?? null,
+        budgets: getBudgets?.() ?? [],
+        expectedIncomeEvents: getExpectedIncomeEvents?.() ?? []
       });
       downloads.json(manifest.filename, manifest.payload);
     });

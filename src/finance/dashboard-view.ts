@@ -1,4 +1,6 @@
-import { build13WeekForecast, parseFutureCashEvents, type ForecastResult } from "./forecast";
+import type { ExpectedIncomeEvent } from "./expected-income";
+import { resolveForecastEvents } from "./expected-income";
+import { build13WeekForecast, type ForecastResult } from "./forecast";
 import { filterTransactions, type DashboardFilters } from "./filters";
 import { applyReviewPreset, type ReviewPreset } from "./review-presets";
 import type { ExclusionRef, MetricLineage } from "./audit";
@@ -23,6 +25,7 @@ export interface DashboardViewInput {
   selectedTransactionId: string;
   cashOnHand: number;
   futureEventsText: string;
+  expectedIncomeEvents?: readonly ExpectedIncomeEvent[];
   deriveExcludedTransactionIds?: (reviewSummary: FinanceSummary) => readonly string[];
   overrides?: Map<string, ClassificationOverride>;
 }
@@ -99,10 +102,13 @@ export function buildDashboardView(input: DashboardViewInput): DashboardViewData
     : filteredRecords[0]?.id ?? "";
   const selectedRecord =
     filteredRecords.find((record) => record.id === selectedTransactionId) ?? null;
-  const parsedEvents = parseFutureCashEvents(input.futureEventsText);
+  const resolvedEvents = resolveForecastEvents(
+    input.expectedIncomeEvents ?? [],
+    input.futureEventsText
+  );
   const forecast = {
-    ...build13WeekForecast(filteredRecords, input.cashOnHand, parsedEvents.events),
-    rejectedEvents: parsedEvents.rejectedEvents
+    ...build13WeekForecast(filteredRecords, input.cashOnHand, resolvedEvents.events),
+    rejectedEvents: resolvedEvents.rejectedEvents
   };
 
   return {

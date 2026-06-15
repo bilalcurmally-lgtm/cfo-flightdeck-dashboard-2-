@@ -18,7 +18,7 @@ Current Data Analytics plugin alignment:
 
 - Shipped locally: metric contracts, KPI roles, readiness/validation UX, deterministic
   metric diagnostics, saved rules, and persisted review context.
-- Still pending: budget vs actual and expected-income forecast tagging (P3).
+- Shipped on 2026-06-15: budget vs actual V1 and expected-income forecast tagging V1 (P3).
 - Shipped on 2026-06-15: accountant workbook export, dashboard manifest export, and chart
   specs foundation (embedded in manifest).
 - Deferred intentionally: enterprise connectors, notebook workflows, MCP artifact widgets,
@@ -526,41 +526,41 @@ Shipped:
 
 ## P3 - Budget Vs Actual
 
-Source: original TODO P1.
+Status: shipped on 2026-06-15.
 
-What:
+Shipped:
 
-- Manual monthly/per-category budgets compared against imported actuals.
-- First-class cockpit lens, likely within Overview / P&L / Runway / Transactions.
+- `BudgetEntry` model + `compareBudgetToActual` variance statuses.
+- Workspace v4 persistence (`budgets[]`) with v3 migration.
+- Local Settings form + dashboard Budget vs Actual panel.
+- Dashboard manifest `planning` metadata + `budgetVsActual` table spec.
 
-Why:
+Deferred:
 
-- Moves the tool from "what happened?" to "are we on track?"
+- Accountant workbook budget sheet.
 
-Depends on:
-
-- Actuals must be trusted first: auditability, persistence, review workflow, and readiness
-  should feel solid before adding plan/budget semantics.
+Review: `docs/CODEX_REVIEW_BUDGET_VS_ACTUAL_2026-06-15.md`
 
 ## P3 - Expected-Income Forecast Tagging
 
-Source: original TODO P2.
+Status: shipped on 2026-06-15.
 
-What:
+Shipped:
 
-- Let users tag expected future income with due date, amount, and optional label as manual
-  forecast events.
+- `ExpectedIncomeEvent` model with expected/tentative/received status.
+- `resolveForecastEvents` merges structured events with legacy text parser.
+- Workspace v4 persistence (`expectedIncomeEvents[]`).
+- Forecast panel UI + runway confidence tentative caution.
 
-Scope guard:
+Scope guard held: forecast input only, not invoicing.
 
-- Forecast input only.
-- Not invoicing.
-- Not receivables management.
-- No client records, invoice creation/sending, or third-party data storage.
+Review: `docs/CODEX_REVIEW_EXPECTED_INCOME_FORECAST_TAGGING_2026-06-15.md`
 
-Why:
+## P3 - Rule-Applied Drilldown
 
-- Helps freelancer Net-30 timing without turning the product into an invoicing app.
+Status: decision doc only on 2026-06-15 — defer dedicated drawer.
+
+Review: `docs/CODEX_REVIEW_RULE_APPLIED_DRILLDOWN_DECISION_2026-06-15.md`
 
 ## Explicitly Out Of Scope
 

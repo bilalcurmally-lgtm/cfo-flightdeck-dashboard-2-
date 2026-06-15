@@ -125,6 +125,8 @@ describe("bindProjectFileActions", () => {
       decisions: {},
       imports: [],
       rules: [],
+      budgets: [],
+      expectedIncomeEvents: [],
     });
 
     bindProjectFileActions({

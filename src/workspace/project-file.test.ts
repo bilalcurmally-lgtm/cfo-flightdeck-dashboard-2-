@@ -23,6 +23,8 @@ const sampleSnapshot: WorkspaceSnapshot = {
   },
   imports: [],
   rules: [],
+  budgets: [],
+  expectedIncomeEvents: [],
 };
 
 describe("project-file", () => {
@@ -140,6 +142,8 @@ describe("project-file", () => {
         decisions: { [SIG_B]: { excluded: true } },
         imports: [],
         rules: [],
+        budgets: [],
+        expectedIncomeEvents: [],
       },
     });
     if (result.ok) {
@@ -241,6 +245,78 @@ describe("project-file v1->v2 migration", () => {
     const result = parseProjectFile(v2);
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.snapshot.imports).toHaveLength(1);
+  });
+
+  it("migrates a v3 file without budgets or expected income to empty arrays", () => {
+    const v3 = JSON.stringify({
+      kind: BILLU_FILE_KIND,
+      snapshot: {
+        version: 3,
+        categoryOverrides: {},
+        decisions: {},
+        imports: [],
+        rules: []
+      }
+    });
+
+    const result = parseProjectFile(v3);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.snapshot.budgets).toEqual([]);
+      expect(result.snapshot.expectedIncomeEvents).toEqual([]);
+      expect(result.snapshot.version).toBe(WORKSPACE_SNAPSHOT_VERSION);
+    }
+  });
+
+  it("rejects invalid v4 budget and expected income entries", () => {
+    const invalidBudget = parseProjectFile(
+      JSON.stringify({
+        kind: BILLU_FILE_KIND,
+        snapshot: {
+          version: 4,
+          categoryOverrides: {},
+          decisions: {},
+          imports: [],
+          rules: [],
+          budgets: [
+            {
+              id: "bad-budget",
+              month: "soon",
+              scope: "head",
+              key: "Rent",
+              flow: "outflow",
+              amount: -1
+            }
+          ],
+          expectedIncomeEvents: []
+        }
+      })
+    );
+    expect(invalidBudget.ok).toBe(false);
+
+    const invalidIncome = parseProjectFile(
+      JSON.stringify({
+        kind: BILLU_FILE_KIND,
+        snapshot: {
+          version: 4,
+          categoryOverrides: {},
+          decisions: {},
+          imports: [],
+          rules: [],
+          budgets: [],
+          expectedIncomeEvents: [
+            {
+              id: "bad-income",
+              dueDate: "soon",
+              amount: 0,
+              label: "",
+              status: "expected"
+            }
+          ]
+        }
+      })
+    );
+    expect(invalidIncome.ok).toBe(false);
   });
 
   it("round-trips a v3 file with classification rules", () => {

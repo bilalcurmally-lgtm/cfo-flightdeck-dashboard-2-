@@ -1,7 +1,10 @@
 import type { DashboardViewData } from "../finance/dashboard-view";
 import type { DashboardFilters } from "../finance/filters";
 import type { ReviewPreset } from "../finance/review-presets";
+import { compareBudgetToActual } from "../finance/budget";
+import type { BudgetEntry } from "../finance/budget";
 import type { ClassificationRule } from "../finance/classification-rules";
+import type { ExpectedIncomeEvent } from "../finance/expected-income";
 import type { CsvImportResult, PeriodGrain } from "../finance/types";
 import { deriveAuditedCockpit } from "../finance/audit-derive";
 import { assessReadiness, buildReadinessInput } from "../finance/readiness";
@@ -18,6 +21,7 @@ import {
   renderDashboardFilterPanel,
   renderDetailGrid,
   renderDiagnosticsPanel,
+  renderBudgetVsActualPanel,
   renderExportPanel,
   renderForecastPanel,
   renderInsightGrid,
@@ -38,6 +42,8 @@ export interface DashboardResultsRenderInput {
   reviewPresetLabel: string;
   currencyOptionsHtml: string;
   savedRules?: readonly ClassificationRule[];
+  budgets?: readonly BudgetEntry[];
+  expectedIncomeEvents?: readonly ExpectedIncomeEvent[];
   appliedRuleFeedback?: { rowCount: number; ruleCount: number } | null;
   cashOnHand: number;
   /** Whether a prior import exists to compare against (feeds the readiness widget). */
@@ -73,7 +79,8 @@ export function renderDashboardResults(input: DashboardResultsRenderInput): stri
       view: input.view,
       cashOnHand: input.cashOnHand,
       readiness,
-      rejectedRowCount: input.result.rejectedRows.length
+      rejectedRowCount: input.result.rejectedRows.length,
+      expectedIncomeEvents: input.expectedIncomeEvents ?? []
     })
   );
 
@@ -103,6 +110,10 @@ export function renderDashboardResults(input: DashboardResultsRenderInput): stri
       transferCandidateCount: input.view.baseSummary.diagnostics.transferCandidates.length
     })}
     ${renderSummaryGrid(input.view.summary, input.formatMoney)}
+    ${renderBudgetVsActualPanel(
+      compareBudgetToActual(input.budgets ?? [], input.view.filteredRecords),
+      input.formatMoney
+    )}
     ${renderCashHealthPanel(
       input.view.summary,
       input.cashOnHand,
@@ -121,8 +132,13 @@ export function renderDashboardResults(input: DashboardResultsRenderInput): stri
       formatMoney: input.formatMoney,
       formatRunway: input.formatRunway
     })}
-    ${renderSettingsPanel(input.currencyOptionsHtml, input.savedRules)}
-    ${renderForecastPanel(input.view.forecast, input.view.futureEventsText, input.formatMoney)}
+    ${renderSettingsPanel(input.currencyOptionsHtml, input.savedRules, input.budgets)}
+    ${renderForecastPanel(
+      input.view.forecast,
+      input.view.futureEventsText,
+      input.formatMoney,
+      input.expectedIncomeEvents
+    )}
     ${renderInsightGrid(input.view.summary, input.activeTrendGrain, input.formatMoney)}
     ${renderDiagnosticsPanel(input.view.summary, input.formatMoney)}
     ${renderDetailGrid(

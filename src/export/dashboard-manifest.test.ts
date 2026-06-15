@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { rec } from "../finance/classification-overrides.test";
+import { createBudgetEntry } from "../finance/budget";
+import { createExpectedIncomeEvent } from "../finance/expected-income";
 import { buildDashboardView } from "../finance/dashboard-view";
 import { DEFAULT_FILTERS } from "../finance/filters";
 import { assessReadiness, buildReadinessInput } from "../finance/readiness";
@@ -39,7 +41,11 @@ describe("buildDashboardManifest", () => {
     expect(manifest.kpis).toHaveLength(getScalarMetricContracts().length);
     expect(manifest.detailContracts).toHaveLength(getDetailMetricContracts().length);
     expect(manifest.charts).toHaveLength(5);
-    expect(manifest.tables).toHaveLength(4);
+    expect(manifest.tables).toHaveLength(5);
+    expect(manifest.context.planning).toMatchObject({
+      budgetCount: 0,
+      expectedIncomeCount: 0
+    });
     expect(manifest.diagnostics).toHaveLength(6);
     expect(manifest.context.runwayConfidence.level).toMatch(/high|medium|low/);
     expect(manifest.sources.length).toBeGreaterThanOrEqual(5);
@@ -141,6 +147,40 @@ describe("buildDashboardManifest", () => {
     expect(metricContracts.length).toBe(
       getScalarMetricContracts().length + getDetailMetricContracts().length
     );
+  });
+
+  it("includes planning metadata and budget table specs", () => {
+    const manifest = buildDashboardManifest(
+      fixture({
+        budgets: [
+          createBudgetEntry({
+            month: "2026-05",
+            scope: "head",
+            key: "Rent",
+            flow: "outflow",
+            amount: 400
+          })
+        ],
+        expectedIncomeEvents: [
+          createExpectedIncomeEvent({
+            dueDate: "2026-06-15",
+            amount: 1200,
+            label: "Client invoice",
+            status: "tentative"
+          })
+        ]
+      })
+    );
+
+    expect(manifest.context.planning).toMatchObject({
+      budgetCount: 1,
+      expectedIncomeCount: 1,
+      expectedIncomeTentativeCount: 1
+    });
+    expect(manifest.tables.find((table) => table.id === "budgetVsActual")).toMatchObject({
+      rowCount: expect.any(Number)
+    });
+    expect(manifest.caveats.some((note) => note.includes("manual budget"))).toBe(true);
   });
 
   it("reflects rejected row counts in source and table specs", () => {

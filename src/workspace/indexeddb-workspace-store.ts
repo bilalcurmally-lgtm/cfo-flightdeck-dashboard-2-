@@ -27,6 +27,8 @@ function emptySnapshot(): WorkspaceSnapshot {
     decisions: {},
     imports: [],
     rules: [],
+    budgets: [],
+    expectedIncomeEvents: [],
   };
 }
 
@@ -188,6 +190,24 @@ function wrapWithWriteThrough(
 
     setRules(rules) {
       mirror.setRules(rules);
+      enqueuePersist();
+    },
+
+    getBudgets() {
+      return mirror.getBudgets();
+    },
+
+    setBudgets(budgets) {
+      mirror.setBudgets(budgets);
+      enqueuePersist();
+    },
+
+    getExpectedIncomeEvents() {
+      return mirror.getExpectedIncomeEvents();
+    },
+
+    setExpectedIncomeEvents(events) {
+      mirror.setExpectedIncomeEvents(events);
       enqueuePersist();
     },
   };

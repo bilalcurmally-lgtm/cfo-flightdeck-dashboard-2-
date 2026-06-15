@@ -1,5 +1,7 @@
 import { optionValues, type DashboardFilters } from "../finance/filters";
+import type { BudgetEntry, BudgetVarianceRow } from "../finance/budget";
 import type { ForecastResult } from "../finance/forecast";
+import type { ExpectedIncomeEvent } from "../finance/expected-income";
 import type { RunwayConfidenceReport } from "../finance/runway-confidence";
 import { reviewPresetLabel, type ReviewPreset } from "../finance/review-presets";
 import type { FinanceSummary } from "../finance/summary";
@@ -188,13 +190,14 @@ export function renderCashHealthPanel(
 
 export function renderSettingsPanel(
   currencyOptionsHtml: string,
-  rules: readonly ClassificationRule[] = []
+  rules: readonly ClassificationRule[] = [],
+  budgets: readonly BudgetEntry[] = []
 ): string {
   return `
     <section class="settings-panel" aria-labelledby="settings-title">
       <div>
         <h2 id="settings-title">Local Settings</h2>
-        <p>Saved in this browser only. Currency changes display formatting, not imported values.</p>
+        <p>Saved in this browser and exportable in your .billu.json project file.</p>
       </div>
       <div class="settings-controls">
         <label>
@@ -205,7 +208,110 @@ export function renderSettingsPanel(
         </label>
         <button id="reset-settings" type="button">Reset Settings</button>
       </div>
+      ${renderBudgetSettings(budgets)}
       ${renderSavedRules(rules)}
+    </section>
+  `;
+}
+
+function renderBudgetSettings(budgets: readonly BudgetEntry[]): string {
+  return `
+    <div class="budget-settings" aria-label="Monthly budgets">
+      <h3>Monthly Budgets</h3>
+      <p>Add simple head or subcategory budgets to compare against imported actuals.</p>
+      <div class="budget-settings__form">
+        <label>Month <input id="budget-month" type="month" /></label>
+        <label>Scope
+          <select id="budget-scope">
+            <option value="head">Head</option>
+            <option value="subcategory">Subcategory</option>
+          </select>
+        </label>
+        <label>Key <input id="budget-key" type="text" placeholder="Client or Client / Retainer" /></label>
+        <label>Flow
+          <select id="budget-flow">
+            <option value="revenue">Revenue</option>
+            <option value="outflow">Outflow</option>
+          </select>
+        </label>
+        <label>Amount <input id="budget-amount" type="number" min="0" step="50" /></label>
+        <label>Note <input id="budget-note" type="text" placeholder="Optional note" /></label>
+        <button id="budget-add" type="button">Add budget</button>
+      </div>
+      ${budgets.length === 0 ? `<p class="budget-settings__empty">No budgets yet.</p>` : renderBudgetList(budgets)}
+    </div>
+  `;
+}
+
+function renderBudgetList(budgets: readonly BudgetEntry[]): string {
+  return `
+    <ul class="budget-settings__list">
+      ${budgets
+        .map(
+          (entry) => `
+            <li class="budget-settings__item">
+              <div>
+                <strong>${escapeHtml(entry.month)} · ${escapeHtml(entry.key)}</strong>
+                <span>${escapeHtml(entry.flow)} · budget ${entry.amount}${entry.note ? ` · ${escapeHtml(entry.note)}` : ""}</span>
+              </div>
+              <button type="button" data-budget-delete="${escapeHtml(entry.id)}">Delete</button>
+            </li>
+          `
+        )
+        .join("")}
+    </ul>
+  `;
+}
+
+export function renderBudgetVsActualPanel(
+  rows: readonly BudgetVarianceRow[],
+  formatMoney: (value: number) => string
+): string {
+  if (rows.length === 0) {
+    return `
+      <section class="budget-panel" aria-labelledby="budget-title">
+        <h2 id="budget-title">Budget Vs Actual</h2>
+        <p>Add monthly budgets in Local Settings to compare plan against imported actuals.</p>
+      </section>
+    `;
+  }
+
+  return `
+    <section class="budget-panel" aria-labelledby="budget-title">
+      <div class="panel-heading">
+        <h2 id="budget-title">Budget Vs Actual</h2>
+        <span>${rows.length} row${rows.length === 1 ? "" : "s"}</span>
+      </div>
+      <table class="budget-table">
+        <thead>
+          <tr>
+            <th>Month</th>
+            <th>Key</th>
+            <th>Flow</th>
+            <th>Budgeted</th>
+            <th>Actual</th>
+            <th>Variance</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows
+            .map(
+              (row) => `
+                <tr data-budget-status="${escapeHtml(row.status)}">
+                  <td>${escapeHtml(row.month)}</td>
+                  <td>${escapeHtml(row.key)}</td>
+                  <td>${escapeHtml(row.flow)}</td>
+                  <td>${row.budgeted === null ? "—" : escapeHtml(formatMoney(row.budgeted))}</td>
+                  <td>${escapeHtml(formatMoney(row.actual))}</td>
+                  <td>${escapeHtml(formatMoney(row.variance))}</td>
+                  <td>${escapeHtml(row.status)}</td>
+                </tr>
+              `
+            )
+            .join("")}
+        </tbody>
+      </table>
     </section>
   `;
 }
@@ -266,22 +372,70 @@ export function renderCurrencyOptions(selectedCurrency: string): string {
 export function renderForecastPanel(
   forecast: ForecastResult,
   futureEventsText: string,
-  formatMoney: (value: number) => string
+  formatMoney: (value: number) => string,
+  expectedIncomeEvents: readonly ExpectedIncomeEvent[] = []
 ): string {
   return `
     <section class="forecast-panel" aria-labelledby="forecast-title">
       <div class="panel-heading">
         <div>
           <h2 id="forecast-title">13-Week Forecast</h2>
-          <p>One event per line: YYYY-MM-DD, amount, label</p>
+          <p>Tag expected income below or keep one manual event per line: YYYY-MM-DD, amount, label</p>
         </div>
         <span>${escapeHtml(formatMoney(forecast.averageWeeklyNet))} avg weekly net</span>
       </div>
+      ${renderExpectedIncomeSettings(expectedIncomeEvents, formatMoney)}
       <textarea id="future-events" rows="3" placeholder="2026-04-15, -1200, quarterly tax&#10;2026-05-01, 3000, client payment">${escapeHtml(
         futureEventsText
       )}</textarea>
       ${renderForecast(forecast, formatMoney)}
     </section>
+  `;
+}
+
+function renderExpectedIncomeSettings(
+  events: readonly ExpectedIncomeEvent[],
+  formatMoney: (value: number) => string
+): string {
+  return `
+    <div class="expected-income" aria-label="Expected income events">
+      <h3>Expected Income</h3>
+      <p>Forecast input only — not invoicing or receivables tracking.</p>
+      <div class="expected-income__form">
+        <label>Due date <input id="expected-income-date" type="date" /></label>
+        <label>Amount <input id="expected-income-amount" type="number" min="0" step="50" /></label>
+        <label>Label <input id="expected-income-label" type="text" placeholder="Client retainer" /></label>
+        <label>Status
+          <select id="expected-income-status">
+            <option value="expected">Expected</option>
+            <option value="tentative">Tentative</option>
+            <option value="received">Received</option>
+          </select>
+        </label>
+        <button id="expected-income-add" type="button">Add expected income</button>
+      </div>
+      ${
+        events.length === 0
+          ? `<p class="expected-income__empty">No tagged expected income yet.</p>`
+          : `
+            <ul class="expected-income__list">
+              ${events
+                .map(
+                  (event) => `
+                    <li>
+                      <div>
+                        <strong>${escapeHtml(event.dueDate)} · ${escapeHtml(formatMoney(event.amount))}</strong>
+                        <span>${escapeHtml(event.label)} · ${escapeHtml(event.status)}</span>
+                      </div>
+                      <button type="button" data-expected-income-delete="${escapeHtml(event.id)}">Delete</button>
+                    </li>
+                  `
+                )
+                .join("")}
+            </ul>
+          `
+      }
+    </div>
   `;
 }
 

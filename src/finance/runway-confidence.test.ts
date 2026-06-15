@@ -90,6 +90,16 @@ describe("assessRunwayConfidence", () => {
     );
   });
 
+  it("penalizes tentative expected-income events", () => {
+    const clean = assessRunwayConfidence(input({ expectedIncomeTentativeCount: 0 }));
+    const tentative = assessRunwayConfidence(input({ expectedIncomeTentativeCount: 2 }));
+
+    expect(tentative.score).toBeLessThan(clean.score);
+    expect(tentative.reasons.some((reason) => reason.id === "expected-income-tentative")).toBe(
+      true
+    );
+  });
+
   it("is deterministic for the same inputs", () => {
     const payload = input({
       records: moderateHistory(),
@@ -111,6 +121,7 @@ function input(
     rejectedRowCount: number;
     categoryReviewPendingCount: number;
     revenueConcentration: number;
+    expectedIncomeTentativeCount: number;
   }> = {}
 ) {
   return {
@@ -120,7 +131,8 @@ function input(
     readiness: overrides.readiness ?? readyReport(),
     rejectedRowCount: overrides.rejectedRowCount ?? 0,
     categoryReviewPendingCount: overrides.categoryReviewPendingCount ?? 0,
-    revenueConcentration: overrides.revenueConcentration ?? 0.3
+    revenueConcentration: overrides.revenueConcentration ?? 0.3,
+    expectedIncomeTentativeCount: overrides.expectedIncomeTentativeCount ?? 0
   };
 }
 
