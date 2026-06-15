@@ -1,5 +1,7 @@
 import { placeholderCashHealthLineage, placeholderSummaryLineage } from "../finance/audit-fixtures";
 import { describe, expect, it } from "vitest";
+import { DEFAULT_FILTERS } from "../finance/filters";
+import { buildDashboardView } from "../finance/dashboard-view";
 import type { FinanceSummary } from "../finance/summary";
 import type { CsvImportResult, TransactionRecord } from "../finance/types";
 import {
@@ -14,6 +16,7 @@ describe("bindDashboardExportActions", () => {
       "#export-reviewer": button(),
       "#export-transactions": button(),
       "#export-transactions-xlsx": button(),
+      "#export-accountant-workbook": button(),
       "#export-visible-transactions": button(),
       "#export-trend": button(),
       "#export-trend-svg": button(),
@@ -30,6 +33,18 @@ describe("bindDashboardExportActions", () => {
       visibleSummary: summary(),
       visibleRecords: [record()],
       getActiveImport: () => ({ result: importResult(), sourceName: "sample.csv" }),
+      getDashboardView: () =>
+        buildDashboardView({
+          result: importResult(),
+          filters: DEFAULT_FILTERS,
+          trendGrain: "monthly",
+          reviewPreset: "all",
+          selectedTransactionId: "",
+          cashOnHand: 5000,
+          futureEventsText: ""
+        }),
+      getActiveFilters: () => DEFAULT_FILTERS,
+      formatMoney: (value) => `$${value}`,
       getCashOnHand: () => 5000,
       getFutureEventsText: () => "2026-05-01, 100, Client",
       getTrendGrain: () => "monthly",
@@ -55,13 +70,17 @@ describe("bindDashboardExportActions", () => {
     buttons["#export-reviewer"].fire("click");
     buttons["#export-transactions"].fire("click");
     buttons["#export-transactions-xlsx"].fire("click");
+    buttons["#export-accountant-workbook"].fire("click");
     buttons["#export-visible-transactions"].fire("click");
     buttons["#export-trend"].fire("click");
     buttons["#export-trend-svg"].fire("click");
     buttons["#print-report"].fire("click");
 
     expect(jsonDownloads).toEqual(["sample-review-summary-2026-05-04.json"]);
-    expect(blobDownloads).toEqual(["sample-normalized-transactions-2026-05-04.xlsx"]);
+    expect(blobDownloads).toEqual([
+      "sample-normalized-transactions-2026-05-04.xlsx",
+      "sample-accountant-workbook-2026-05-04.xlsx"
+    ]);
     expect(textDownloads).toEqual([
       "sample-normalized-transactions-2026-05-04.csv",
       "sample-2026-05-04-filtered-transactions.csv",

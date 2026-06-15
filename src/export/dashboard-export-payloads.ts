@@ -8,6 +8,11 @@ import { buildMonthlyTrendCsv, monthlyTrendCsvFilename } from "./monthly-trend-c
 import { buildReviewerReport, type ReviewerReport } from "./reviewer-report";
 import { buildTransactionsCsv, transactionsCsvFilename } from "./transactions-csv";
 import {
+  buildAccountantWorkbook,
+  accountantWorkbookFilename,
+  type AccountantWorkbookInput
+} from "./accountant-workbook";
+import {
   buildTransactionsWorkbook,
   transactionsWorkbookFilename
 } from "./transactions-workbook";
@@ -80,6 +85,18 @@ export function buildTransactionsCsvExport(
     filename: transactionsCsvFilename(sourceName, generatedAt),
     contents: buildTransactionsCsv(records),
     mediaType: "text/csv;charset=utf-8"
+  };
+}
+
+export function buildAccountantWorkbookExport(
+  input: AccountantWorkbookInput
+): BlobExportDescriptor {
+  const generatedAt = input.generatedAt ?? new Date();
+  const mediaType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+  return {
+    filename: accountantWorkbookFilename(input.sourceName, generatedAt),
+    blob: buildAccountantWorkbook({ ...input, generatedAt }),
+    mediaType
   };
 }
 

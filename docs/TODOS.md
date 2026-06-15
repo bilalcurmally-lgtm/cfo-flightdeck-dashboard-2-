@@ -14,6 +14,15 @@ visible, and accountant handoff is traceable. The Data Analytics plugin study re
 the same direction: metric contracts, KPI roles, validation, readiness, diagnostics, and
 portable dashboard manifests matter more than decorative charts.
 
+Current Data Analytics plugin alignment:
+
+- Shipped locally: metric contracts, KPI roles, readiness/validation UX, deterministic
+  metric diagnostics, saved rules, and persisted review context.
+- Still pending: accountant-ready KPI reporting/export, dashboard manifest export, chart
+  contracts/specs, and detail-role metric contracts.
+- Deferred intentionally: enterprise connectors, notebook workflows, MCP artifact widgets,
+  and React/Recharts migration.
+
 ## P0 - D2 Import History Browser
 
 Status: complete on branch `codex/a1-audit-model`.
@@ -332,15 +341,22 @@ Good first target:
 
 ## P2 - Accountant Workbook Export V1
 
-Source: master plan Phase E.
+Status: shipped and Codex-reviewed on 2026-06-15.
+
+Source: master plan Phase E plus Data Analytics plugin `kpi-reporting`, validation, and
+metric-diagnostics workflows.
 
 What:
 
 - Extend export to a multi-sheet workbook:
+  - Summary: source, generated-at timestamp, row counts, currency, cash-on-hand, review
+    preset/filter context, readiness status/headline.
   - KPI audit: values, formulas, assumptions, caveats.
   - Normalized ledger: included rows.
   - Exclusions/review: excluded rows and reasons.
   - Rejected/import quality rows if feasible in V1.
+  - Diagnostics: net-cash contributors, burn contributors, revenue concentration, largest
+    transaction influence, and filter/exclusion impact where available.
 
 Why:
 
@@ -351,6 +367,29 @@ Depends on:
 
 - Stable metric lineage/contracts.
 - Current review/exclusion model.
+
+Planning handoff:
+
+- `docs/GROK_COMPOSER_2_5_ACCOUNTANT_WORKBOOK_BRIEF.md` is ready to paste into Grok
+  Composer 2.5. It asks Grok to produce `docs/GROK_ACCOUNTANT_WORKBOOK_EXPORT_PLAN.md`
+  as a plan/review artifact, not a broad implementation diff.
+
+Shipped:
+
+- `src/export/accountant-workbook.ts`: six-sheet accountant workbook builder.
+- `src/export/ledger-workbook-row.ts`: shared normalized ledger row mapper.
+- `buildAccountantWorkbookExport(...)` in `src/export/dashboard-export-payloads.ts`.
+- `Accountant Workbook` export button and binding in the Exports panel.
+- Shared `buildReadinessInput(...)` for render/export parity.
+- Workbook sheets: Summary, KPI Audit, Normalized Ledger, Exclusions And Review, Rejected
+  Rows, Diagnostics.
+
+Verification on 2026-06-15:
+
+- `npx tsc --noEmit`
+- `npx vitest run` - 472 passed
+- `npx playwright test --workers=1` - 24 passed
+- `npm run build`
 
 ## P2 - Dashboard Manifest Export
 

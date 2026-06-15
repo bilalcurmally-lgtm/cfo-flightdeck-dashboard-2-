@@ -9,6 +9,8 @@
  * of counts/flags, mirroring the metric-registry split between data and rendering.
  */
 
+import type { DashboardViewData } from "./dashboard-view";
+
 export type ReadinessStatus = "ready" | "partial" | "needs-review" | "empty";
 
 /** blocker downgrades to needs-review, caution to partial, info never downgrades. */
@@ -42,6 +44,43 @@ export interface ReadinessReport {
   status: ReadinessStatus;
   headline: string;
   signals: ReadinessSignal[];
+}
+
+export interface BuildReadinessInputOptions {
+  view: DashboardViewData;
+  rejectedRowCount: number;
+  cashOnHand: number;
+  hasImportHistory?: boolean;
+  /** Defaults to `view.categoryReview.items.length`. */
+  categoryReviewItemCount?: number;
+}
+
+/** Shared readiness inputs for render and export paths. */
+export function buildReadinessInput(options: BuildReadinessInputOptions): ReadinessInput {
+  const {
+    view,
+    rejectedRowCount,
+    cashOnHand,
+    hasImportHistory = false,
+    categoryReviewItemCount = view.categoryReview.items.length
+  } = options;
+
+  return {
+    transactionCount: view.summary.transactionCount,
+    rejectedRows: rejectedRowCount,
+    duplicateGroups: view.summary.diagnostics.duplicateGroups.length,
+    transferCandidates: view.summary.diagnostics.transferCandidates.length,
+    categoryReviewItems: categoryReviewItemCount,
+    unassignedHeads: view.filteredRecords.filter((record) => record.head === "Unassigned Head")
+      .length,
+    unassignedCounterparties: view.filteredRecords.filter(
+      (record) => record.counterparty === "Unassigned Counterparty"
+    ).length,
+    hasCashOnHand: cashOnHand > 0,
+    revenueConcentration: view.summary.cashHealth.revenueConcentration,
+    nonOperatingRows: view.nonOperating?.rows.length ?? 0,
+    hasImportHistory
+  };
 }
 
 function plural(count: number, singular: string, plural?: string): string {

@@ -1,6 +1,11 @@
+import type { ClassificationOverride } from "../finance/classification-overrides";
+import type { DashboardViewData } from "../finance/dashboard-view";
+import type { DashboardFilters } from "../finance/filters";
+import { assessReadiness, buildReadinessInput } from "../finance/readiness";
 import type { FinanceSummary } from "../finance/summary";
 import type { CsvImportResult, PeriodGrain, TransactionRecord } from "../finance/types";
 import {
+  buildAccountantWorkbookExport,
   buildFilteredTransactionsCsvExport,
   buildReviewerExportReport,
   buildTransactionsCsvExport,
@@ -38,6 +43,13 @@ export interface DashboardExportActionBindings {
   // Full-ledger export records with in-session Type/Group overrides applied (no
   // row removal). Falls back to the untouched import when not provided.
   getFullExportRecords?: () => TransactionRecord[];
+  getDashboardView?: () => DashboardViewData | null;
+  getOverrides?: () => Map<string, ClassificationOverride>;
+  getExcludedReviewItemIds?: () => ReadonlySet<string>;
+  getActiveFilters?: () => DashboardFilters;
+  getHasImportHistory?: () => boolean;
+  getAppliedRuleFeedback?: () => { rowCount: number; ruleCount: number } | null;
+  formatMoney?: (value: number) => string;
   getCashOnHand: () => number;
   getFutureEventsText: () => string;
   getTrendGrain: () => PeriodGrain;
@@ -56,6 +68,13 @@ export function bindDashboardExportActions({
   getActiveImport,
   getReviewerExportResult,
   getFullExportRecords,
+  getDashboardView,
+  getOverrides,
+  getExcludedReviewItemIds,
+  getActiveFilters,
+  getHasImportHistory,
+  getAppliedRuleFeedback,
+  formatMoney = (value) => String(value),
   getCashOnHand,
   getFutureEventsText,
   getTrendGrain,
@@ -104,6 +123,49 @@ export function bindDashboardExportActions({
     );
     downloads.blob(workbook.filename, workbook.blob);
   });
+
+  root
+    .querySelector<HTMLButtonElement>("#export-accountant-workbook")
+    ?.addEventListener("click", () => {
+      const activeImport = getActiveImport();
+      const view = getDashboardView?.();
+      if (!activeImport || !view) return;
+
+      const generatedAt = now();
+      const cashOnHand = getCashOnHand();
+      const workbook = buildAccountantWorkbookExport({
+        sourceName: activeImport.sourceName,
+        generatedAt,
+        currency: getCurrency(),
+        cashOnHand,
+        trendGrain: getTrendGrain(),
+        reviewPreset: getReviewPreset(),
+        filters: getActiveFilters?.() ?? {
+          flow: "all",
+          account: "all",
+          head: "all",
+          subcategory: "all",
+          counterparty: "all",
+          dateFrom: "",
+          dateTo: ""
+        },
+        result: activeImport.result,
+        view,
+        readiness: assessReadiness(
+          buildReadinessInput({
+            view,
+            rejectedRowCount: activeImport.result.rejectedRows.length,
+            cashOnHand,
+            hasImportHistory: getHasImportHistory?.() ?? false
+          })
+        ),
+        overrides: getOverrides?.() ?? new Map(),
+        excludedReviewItemIds: getExcludedReviewItemIds?.() ?? new Set(),
+        formatMoney,
+        appliedRuleFeedback: getAppliedRuleFeedback?.() ?? null
+      });
+      downloads.blob(workbook.filename, workbook.blob);
+    });
 
   root
     .querySelector<HTMLButtonElement>("#export-visible-transactions")

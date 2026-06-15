@@ -242,3 +242,17 @@ Branch `codex/a1-audit-model` tip is now at the diagnostics commit. Still not pu
 - Full gate: `npx tsc --noEmit` 0, `npx vitest run` 457 passed, `npx playwright test
   --workers=1` 24 passed, `npm run build` green.
 - Initial local metric diagnostics family is complete.
+
+## Codex Continuation - Grok Composer Handoff
+
+- Added `docs/GROK_COMPOSER_2_5_ACCOUNTANT_WORKBOOK_BRIEF.md` as a paste-ready assignment
+  for Grok Composer 2.5.
+- The brief asks Grok to create `docs/GROK_ACCOUNTANT_WORKBOOK_EXPORT_PLAN.md` as a
+  planning/review artifact, not a broad implementation diff.
+- The assignment explicitly carries forward the useful Data Analytics plugin ideas:
+  - `kpi-reporting` -> accountant-ready KPI audit/readout.
+  - validation/readiness -> workbook summary and caveats.
+  - metric diagnostics -> workbook diagnostics sheet.
+  - local semantic/source context -> normalized ledger and exclusions/review sheets.
+- Updated `docs/TODOS.md` so the vault reflects what plugin-inspired work is shipped,
+  still pending, and intentionally deferred.

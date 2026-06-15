@@ -4,7 +4,7 @@ import type { ReviewPreset } from "../finance/review-presets";
 import type { ClassificationRule } from "../finance/classification-rules";
 import type { CsvImportResult, PeriodGrain } from "../finance/types";
 import { deriveAuditedCockpit } from "../finance/audit-derive";
-import { assessReadiness } from "../finance/readiness";
+import { assessReadiness, buildReadinessInput } from "../finance/readiness";
 import {
   filterExclusionImpact,
   largestTransactionInfluence,
@@ -59,23 +59,14 @@ export function renderDashboardResults(input: DashboardResultsRenderInput): stri
     excludedReviewItemIds: new Set(input.excludedReviewItemIds ?? []),
     formatMoney: input.formatMoney
   });
-  const readiness = assessReadiness({
-    transactionCount: input.view.summary.transactionCount,
-    rejectedRows: input.result.rejectedRows.length,
-    duplicateGroups: input.view.summary.diagnostics.duplicateGroups.length,
-    transferCandidates: input.view.summary.diagnostics.transferCandidates.length,
-    categoryReviewItems: input.view.categoryReview.items.length,
-    unassignedHeads: input.view.filteredRecords.filter(
-      (record) => record.head === "Unassigned Head"
-    ).length,
-    unassignedCounterparties: input.view.filteredRecords.filter(
-      (record) => record.counterparty === "Unassigned Counterparty"
-    ).length,
-    hasCashOnHand: input.cashOnHand > 0,
-    revenueConcentration: input.view.summary.cashHealth.revenueConcentration,
-    nonOperatingRows: input.view.nonOperating?.rows.length ?? 0,
-    hasImportHistory: input.hasImportHistory ?? false
-  });
+  const readiness = assessReadiness(
+    buildReadinessInput({
+      view: input.view,
+      rejectedRowCount: input.result.rejectedRows.length,
+      cashOnHand: input.cashOnHand,
+      hasImportHistory: input.hasImportHistory ?? false
+    })
+  );
 
   return `
     ${renderCockpitStrip(cockpit, {

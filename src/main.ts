@@ -448,12 +448,14 @@ function renderImportResult(
   // rows stay because they are not in excludedTransactionIds. The full-ledger
   // export gets every row with overrides applied (no removal); the reviewer report
   // gets overrides + review-exclusions removed.
-  bindExportButton(
-    view.summary,
-    view.filteredRecords,
-    reviewedImportResult(result, classificationOverrides, excludedTransactionIds),
-    applyClassificationOverrides(result.records, classificationOverrides)
-  );
+  bindExportButton({
+    view: displayView,
+    summary: view.summary,
+    visibleRecords: view.filteredRecords,
+    reviewerResult: reviewedImportResult(result, classificationOverrides, excludedTransactionIds),
+    fullExportRecords: applyClassificationOverrides(result.records, classificationOverrides),
+    hasImportHistory: workspaceStore.snapshot().imports.length > 1
+  });
   bindTransactionPreview();
 }
 
@@ -638,19 +640,30 @@ function bindSavedRules(result: CsvImportResult, sourceName: string): void {
   });
 }
 
-function bindExportButton(
-  visibleSummary: FinanceSummary,
-  visibleRecords: TransactionRecord[],
-  reviewerResult: CsvImportResult,
-  fullExportRecords: TransactionRecord[]
-): void {
+interface ExportBindingContext {
+  view: ReturnType<typeof buildDashboardView>;
+  summary: FinanceSummary;
+  visibleRecords: TransactionRecord[];
+  reviewerResult: CsvImportResult;
+  fullExportRecords: TransactionRecord[];
+  hasImportHistory: boolean;
+}
+
+function bindExportButton(context: ExportBindingContext): void {
   bindDashboardExportActions({
     status,
-    visibleSummary,
-    visibleRecords,
+    visibleSummary: context.summary,
+    visibleRecords: context.visibleRecords,
     getActiveImport: () => activeImport,
-    getReviewerExportResult: () => reviewerResult,
-    getFullExportRecords: () => fullExportRecords,
+    getReviewerExportResult: () => context.reviewerResult,
+    getFullExportRecords: () => context.fullExportRecords,
+    getDashboardView: () => context.view,
+    getOverrides: () => classificationOverrides,
+    getExcludedReviewItemIds: () => reviewExcludedItemIds,
+    getActiveFilters: () => viewState.filters,
+    getHasImportHistory: () => context.hasImportHistory,
+    getAppliedRuleFeedback: () => appliedRuleFeedback,
+    formatMoney,
     getCashOnHand: readCashOnHand,
     getFutureEventsText: readFutureEventsText,
     getTrendGrain: () => viewState.trendGrain,
