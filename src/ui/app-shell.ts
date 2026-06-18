@@ -6,16 +6,16 @@ export function renderAppShell(_samples: readonly SampleDataset[]): string {
   <section class="shell" aria-labelledby="page-title">
     <header class="hero">
       <div>
-        <p class="eyebrow">Billu.Works Finance Dashboard V2</p>
-        <h1 id="page-title">Private finance import, tested before the dashboard grows.</h1>
+        <p class="eyebrow">Billu.Works // Cash Cockpit V2</p>
+        <h1 id="page-title">Auditable cash truth, line by line.</h1>
         <p class="lede">
-          Drop in a bank CSV or Excel export. V2 keeps the file in your browser, maps transaction
-          rows locally, and shows rejected rows before any CFO-style claims are made.
+          Drop in a bank CSV or Excel export. V2 keeps the file in your browser, maps rows locally,
+          flags distortions, and turns every KPI into a defensible trail your accountant can inspect.
         </p>
       </div>
       <div class="hero-rail">
         <aside class="privacy-note" aria-label="Privacy promise">
-          <strong>Local first</strong>
+          <strong>Local command deck</strong>
           <span>No upload, no account, no server-side transaction storage.</span>
         </aside>
         <div class="shell-actions" aria-label="Dashboard actions">

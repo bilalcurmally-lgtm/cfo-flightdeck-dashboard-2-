@@ -6,17 +6,16 @@ These references are saved for the later frontend redesign pass. They are mood a
 
 ## Direction
 
-Target phrase: **soft financial cockpit**.
+Target phrase: **orbital cash cockpit**.
 
-The primary visual north star is `design-references/soft-widget-dashboard.png`, also referenced from the user screenshot `C:/Users/Bilal/Pictures/Screenshots/Screenshot 2026-04-29 220712.png`.
+The primary visual north star for the June redesign pass is `design-references/orbital-cash-cockpit-concept.png`, generated from the product direction: auditable finance cockpit, functional sci-fi, no generic purple AI gloss. The earlier soft-widget direction remains useful for density and calm, but the product now needs a stronger command-deck identity.
 
-The likely landing zone is a Billu.Works finance version of that soft widget board:
+The likely landing zone is a Billu.Works finance version of an accountant-grade spacecraft instrument panel:
 
-- Pale sage/cream canvas for a calm local workspace.
-- Compact modular widgets that feel tactile and scannable.
-- Soft shadows, small radii, and physical controls.
-- Olive, coral, muted orange, and plum accents used sparingly.
-- Rich chart/instrument styling only where it helps scanning.
+- Dark graphite canvas with warm ivory readouts.
+- Compact modular widgets that feel tactile, technical, and scannable.
+- Thin phosphor cyan signal lines, amber caution accents, and coral review states.
+- Rich chart/instrument styling only where it helps scanning and audit confidence.
 - Flat, high-contrast audit surfaces for transaction tables, raw rows, mapping, and rejected rows.
 
 See the root `DESIGN.md` for the implementation rules. This file is the reference inventory; `DESIGN.md` is the source of truth.
@@ -25,6 +24,7 @@ See the root `DESIGN.md` for the implementation rules. This file is the referenc
 
 | File | Why it matters |
 | --- | --- |
+| `design-references/orbital-cash-cockpit-concept.png` | Current north star: auditable command-deck atmosphere, dark instrument panels, KPI/readiness/export density, practical sci-fi without AI-slop gloss. |
 | `design-references/soft-widget-dashboard.png` | Primary north star: soft modular widget density, muted sage/cream palette, tactile dashboard controls, right-side action rail idea. |
 | `design-references/liquid-glass-ui-kit-light.jpg` | Light liquid-glass controls, luminous edges, soft transparent card language. |
 | `design-references/liquid-glass-ui-kit-dark.jpg` | Dark liquid-glass controls with stronger neon edge treatment and component states. |
@@ -41,7 +41,7 @@ See the root `DESIGN.md` for the implementation rules. This file is the referenc
 - Do not let a giant hero push the dashboard workflow out of the first viewport.
 - Keep tables, audit details, mapping controls, and rejected rows highly legible.
 - Use glass on a small component vocabulary: primary actions, chips, selected states, key highlight panels, and maybe a future action rail.
-- Avoid full dark neon unless the product direction explicitly shifts toward a terminal/cockpit mode.
+- Full dark cockpit is now allowed, but keep it accountant-legible: tables, inputs, exports, and audit drawers must stay high contrast.
 - Preserve the privacy-first, accountant-review trust signal.
 
 ## Possible Redesign Sequence

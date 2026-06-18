@@ -1,27 +1,39 @@
 :root {
-  --color-ink: #17211d;
-  --color-ink-soft: #40534a;
-  --color-muted: #66736d;
-  --color-panel: #fffffc;
-  --color-canvas: #f2f5ef;
-  --color-line: #d9dfd2;
-  --color-primary: #1d4f3c;
-  --color-primary-strong: #123527;
-  --color-accent: #b86f39;
-  --color-accent-soft: #f5e3d4;
-  --color-success-soft: #e3f0e7;
-  --color-danger-soft: #f3dfd5;
-  /* DESIGN.md palette accents used sparingly for readiness/trust status. */
-  --color-olive: #899a3f;
-  --color-coral: #ee7064;
-  --shadow-panel: 0 18px 45px rgb(28 48 38 / 10%);
-  --shadow-glass: inset 0 1px 0 rgb(255 255 255 / 72%), 0 14px 32px rgb(29 79 60 / 12%);
+  --color-ink: #f5f0df;
+  --color-ink-soft: #c7c2ad;
+  --color-muted: #858b86;
+  --color-panel: #111915;
+  --color-panel-soft: #17221d;
+  --color-canvas: #070b0c;
+  --color-line: #26352f;
+  --color-primary: #5fd4c6;
+  --color-primary-strong: #e8ddad;
+  --color-accent: #d5964e;
+  --color-accent-soft: #2b2116;
+  --color-success-soft: #102821;
+  --color-danger-soft: #321a19;
+  /* Status accents: phosphor cyan=ready, amber=caveats, coral=needs review. */
+  --color-olive: #9fb866;
+  --color-coral: #ff7568;
+  --color-deck: #0c1212;
+  --color-deck-raised: #121b18;
+  --color-signal: #66e3d0;
+  --color-warning: #f1aa55;
+  --color-hot: #ff7568;
+  --color-ivory: #f2e7bf;
+  --panel: var(--color-panel);
+  --line: var(--color-line);
+  --ink: var(--color-ink);
+  --ink-soft: var(--color-ink-soft);
+  --shadow-panel: 0 22px 70px rgb(0 0 0 / 38%), inset 0 1px 0 rgb(255 255 255 / 5%);
+  --shadow-glass: 0 20px 55px rgb(0 0 0 / 34%), inset 0 1px 0 rgb(255 255 255 / 8%);
   color: var(--color-ink);
   background:
-    radial-gradient(circle at 14% -8%, rgb(255 255 255 / 88%) 0 22%, transparent 44%),
-    linear-gradient(135deg, #eef3ee 0%, #f8f8f4 46%, #edf1e9 100%);
+    linear-gradient(135deg, rgb(102 227 208 / 10%) 0 1px, transparent 1px 18px),
+    linear-gradient(45deg, rgb(213 150 78 / 7%) 0 1px, transparent 1px 22px),
+    linear-gradient(135deg, #050708 0%, #0a1110 48%, #101510 100%);
   font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    "Bahnschrift", "Aptos", "Segoe UI Variable", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 }
@@ -2257,6 +2269,725 @@ th.bw-lineage__cell {
 .bw-history__txns {
   font-variant-numeric: tabular-nums;
   text-align: right;
+}
+
+/* Orbital cockpit visual pass.
+   The app remains a dense local accounting tool; this layer gives it the
+   command-deck character without changing the finance/rendering contracts. */
+html {
+  background: var(--color-canvas);
+}
+
+body {
+  position: relative;
+  overflow-x: hidden;
+  background:
+    linear-gradient(90deg, rgb(102 227 208 / 4%) 1px, transparent 1px),
+    linear-gradient(0deg, rgb(102 227 208 / 4%) 1px, transparent 1px),
+    linear-gradient(150deg, #040607 0%, #08100f 44%, #11140f 100%);
+  background-size: 44px 44px, 44px 44px, auto;
+}
+
+body::before {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  content: "";
+  background:
+    linear-gradient(115deg, transparent 0 12%, rgb(102 227 208 / 9%) 12.1% 12.35%, transparent 12.5% 100%),
+    linear-gradient(62deg, transparent 0 63%, rgb(213 150 78 / 9%) 63.1% 63.35%, transparent 63.5% 100%),
+    repeating-linear-gradient(90deg, rgb(255 255 255 / 2%) 0 1px, transparent 1px 7px);
+  pointer-events: none;
+}
+
+body::after {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  content: "";
+  background:
+    linear-gradient(180deg, rgb(0 0 0 / 0%) 0%, rgb(0 0 0 / 26%) 100%),
+    repeating-linear-gradient(0deg, rgb(255 255 255 / 2%) 0 1px, transparent 1px 4px);
+  mix-blend-mode: screen;
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.shell {
+  width: min(1280px, calc(100% - 40px));
+  padding: 32px 0 56px;
+}
+
+.hero {
+  position: relative;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
+  gap: 28px;
+  align-items: stretch;
+  margin-bottom: 18px;
+  padding: 22px;
+  border: 1px solid rgb(102 227 208 / 24%);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgb(102 227 208 / 13%), transparent 38%),
+    linear-gradient(180deg, rgb(255 255 255 / 7%), rgb(255 255 255 / 2%)),
+    rgb(9 15 15 / 92%);
+  box-shadow: var(--shadow-glass);
+  overflow: hidden;
+}
+
+.hero::before,
+.hero::after {
+  position: absolute;
+  content: "";
+  pointer-events: none;
+}
+
+.hero::before {
+  inset: 0;
+  background:
+    linear-gradient(90deg, transparent 0 64px, rgb(102 227 208 / 25%) 64px 65px, transparent 65px),
+    linear-gradient(180deg, rgb(242 231 191 / 8%), transparent 34%);
+  opacity: 0.85;
+}
+
+.hero::after {
+  right: 18px;
+  bottom: 14px;
+  width: 180px;
+  height: 32px;
+  border-top: 1px solid rgb(102 227 208 / 35%);
+  border-right: 1px solid rgb(102 227 208 / 35%);
+  clip-path: polygon(22px 0, 100% 0, 100% 100%, 0 100%, 0 22px);
+}
+
+.hero > * {
+  position: relative;
+  z-index: 1;
+}
+
+.eyebrow,
+.sample-picker,
+.mapping-editor label,
+.filter-editor label,
+.cash-panel label,
+.settings-panel label,
+.metric span,
+.bw-kpi__label,
+th,
+.warning-list strong,
+.bw-lineage-panel__title,
+.bw-lineage__section-label,
+.bw-lineage__metric,
+.bw-readiness__status {
+  letter-spacing: 0.05em;
+}
+
+.eyebrow {
+  margin-bottom: 16px;
+  color: var(--color-signal);
+  font-family: "Cascadia Mono", "IBM Plex Mono", Consolas, monospace;
+  text-shadow: 0 0 18px rgb(102 227 208 / 34%);
+}
+
+h1 {
+  max-width: 900px;
+  color: var(--color-ivory);
+  text-shadow: 0 0 24px rgb(242 231 191 / 12%);
+}
+
+.lede {
+  max-width: 760px;
+  color: var(--color-ink-soft);
+}
+
+.status {
+  color: var(--color-signal);
+  font-family: "Cascadia Mono", Consolas, monospace;
+  font-size: 0.86rem;
+}
+
+.privacy-note,
+.import-panel,
+.bw-importpanel,
+.worksheet-panel,
+.mapping-panel,
+.filter-panel,
+.reference-panel,
+.cash-panel,
+.export-panel,
+.settings-panel,
+.forecast-panel,
+.table-panel,
+.metric,
+.budget-panel,
+.bw-readiness,
+.bw-lineage-panel {
+  border-color: rgb(102 227 208 / 19%);
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 6%), rgb(255 255 255 / 2%)),
+    var(--color-panel);
+  box-shadow: var(--shadow-panel);
+}
+
+.privacy-note {
+  align-content: start;
+  min-height: 116px;
+  border-color: rgb(213 150 78 / 34%);
+  background:
+    linear-gradient(135deg, rgb(213 150 78 / 18%), transparent 55%),
+    linear-gradient(180deg, rgb(255 255 255 / 7%), rgb(255 255 255 / 2%)),
+    var(--color-deck-raised);
+}
+
+.privacy-note strong,
+.metric strong {
+  color: var(--color-ivory);
+  font-variant-numeric: tabular-nums;
+}
+
+.privacy-note span,
+.import-panel p,
+.bw-importpanel p,
+.worksheet-panel p,
+.mapping-panel p,
+.filter-panel p,
+.reference-panel p,
+.cash-panel p,
+.export-panel p,
+.settings-panel p,
+.forecast-panel p,
+.status,
+.empty,
+.panel-heading span,
+.mapping-list dt,
+.detail-list dt,
+.raw-row-list dt,
+.trend-meta span,
+.head-list span,
+.warning-list span,
+.account-list span,
+.forecast-week span,
+.forecast-issues {
+  color: var(--color-muted);
+}
+
+.shell-actions {
+  gap: 10px;
+}
+
+.shell-actions button,
+.export-actions button,
+.preset-chip,
+.bw-sample-link,
+.row-action,
+.bw-review__toggle,
+.bw-readiness__details,
+.bw-lineage-panel__close,
+.mapping-actions button,
+.file-button,
+button {
+  border-color: rgb(102 227 208 / 36%);
+  background:
+    linear-gradient(180deg, rgb(102 227 208 / 13%), rgb(102 227 208 / 4%)),
+    rgb(10 18 17 / 88%);
+  color: var(--color-ink);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 10%),
+    0 0 0 1px rgb(0 0 0 / 25%);
+}
+
+.bw-appbar-load .file-button,
+.file-button,
+.mapping-actions button {
+  border-color: rgb(213 150 78 / 56%);
+  background:
+    linear-gradient(180deg, rgb(213 150 78 / 24%), rgb(213 150 78 / 9%)),
+    rgb(17 18 14 / 94%);
+  color: var(--color-ivory);
+}
+
+button:hover:not(:disabled),
+.file-button:hover {
+  border-color: var(--color-signal);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 14%),
+    0 0 22px rgb(102 227 208 / 16%);
+}
+
+button:focus-visible,
+.file-button:focus-within,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid rgb(102 227 208 / 64%);
+  outline-offset: 2px;
+}
+
+input,
+select,
+textarea,
+.filter-editor select,
+.filter-editor input,
+.mapping-editor select,
+.sample-picker select,
+.settings-panel select,
+.cash-panel input,
+.forecast-panel textarea,
+.budget-settings input,
+.budget-settings select,
+.expected-income input,
+.expected-income select {
+  border-color: rgb(102 227 208 / 22%);
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 5%), rgb(255 255 255 / 2%)),
+    #080e0d;
+  color: var(--color-ink);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 6%);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: rgb(199 194 173 / 44%);
+}
+
+.import-panel,
+.bw-importpanel,
+.filter-panel,
+.cash-panel,
+.export-panel,
+.settings-panel,
+.forecast-panel {
+  background:
+    linear-gradient(135deg, rgb(102 227 208 / 8%), transparent 36%),
+    linear-gradient(180deg, rgb(255 255 255 / 6%), rgb(255 255 255 / 2%)),
+    var(--color-panel);
+}
+
+.bw-choice,
+.saved-rules__item,
+.budget-settings__item,
+.expected-income__list li,
+.warning-list li,
+.mapping-validation,
+.worksheet-preview,
+.bw-review__item,
+.bw-lineage__formula,
+.bw-lineage__signal,
+.bw-readiness__signal {
+  border-color: rgb(102 227 208 / 18%);
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 5%), rgb(255 255 255 / 2%)),
+    var(--color-panel-soft);
+}
+
+.bw-choice {
+  min-height: 156px;
+}
+
+.bw-choice:hover {
+  border-color: rgb(102 227 208 / 42%);
+  background:
+    linear-gradient(180deg, rgb(102 227 208 / 10%), rgb(255 255 255 / 3%)),
+    var(--color-panel-soft);
+}
+
+.bw-choice__label,
+.bw-importpanel__intro h2,
+.saved-rules h3,
+.budget-settings h3,
+.expected-income h3,
+.bw-lineage__question,
+.bw-review__copy strong,
+.reference-grid h3,
+.diagnostics-grid h3,
+.transaction-detail h3,
+.cash-panel h2,
+.export-panel h2,
+.settings-panel h2,
+.forecast-panel h2,
+.table-panel h2,
+.budget-panel h2,
+.filter-panel h2,
+.mapping-panel h2,
+.reference-panel h2,
+.worksheet-panel h2,
+.import-panel h2 {
+  color: var(--color-ivory);
+}
+
+.bw-choice__desc,
+.rules-applied span,
+.saved-rules__item span,
+.saved-rules__empty,
+.bw-review__intro,
+.bw-review__empty,
+.bw-review__live,
+.bw-review__copy p,
+.bw-lineage__formula,
+.bw-lineage__plain,
+.bw-lineage__empty,
+.bw-lineage__caveat,
+.bw-contributors__row,
+.bw-contributors__note,
+.bw-readiness__headline,
+.bw-readiness-drawer__clear,
+.bw-readiness__signal-detail,
+.active-filter-summary {
+  color: var(--color-ink-soft);
+}
+
+.bw-choice__meta,
+.preset-chip.active,
+.mapping-validation.ready,
+.warning-list li.info,
+.pill.revenue {
+  border-color: rgb(102 227 208 / 34%);
+  background: rgb(20 62 52 / 72%);
+  color: var(--color-signal);
+}
+
+.mapping-validation,
+.warning-list li,
+.rules-applied,
+.pill.outflow {
+  background: rgb(60 35 25 / 72%);
+  color: var(--color-ink);
+}
+
+.results {
+  margin-top: 24px;
+}
+
+.bw-readiness {
+  margin-bottom: 16px;
+  border-left-width: 4px;
+}
+
+.bw-readiness--ready {
+  border-left-color: var(--color-signal);
+}
+
+.bw-readiness--partial {
+  border-left-color: var(--color-warning);
+}
+
+.bw-readiness--needs-review {
+  border-left-color: var(--color-hot);
+}
+
+.bw-readiness--ready .bw-readiness__status,
+.bw-lineage__node-op,
+.bw-kpi__tone {
+  color: var(--color-signal);
+}
+
+.bw-readiness--partial .bw-readiness__status,
+.bw-kpi--nonop .bw-kpi__value {
+  color: var(--color-warning);
+}
+
+.bw-readiness--needs-review .bw-readiness__status,
+.bw-review__eyebrow {
+  color: var(--color-hot);
+}
+
+.bw-cockpit {
+  gap: 1px;
+  border-color: rgb(102 227 208 / 28%);
+  background: rgb(102 227 208 / 24%);
+  box-shadow: 0 20px 70px rgb(0 0 0 / 36%);
+}
+
+.bw-kpi {
+  position: relative;
+  min-height: 124px;
+  padding: 16px;
+  background:
+    linear-gradient(145deg, rgb(102 227 208 / 9%), transparent 42%),
+    linear-gradient(180deg, rgb(255 255 255 / 6%), rgb(255 255 255 / 2%)),
+    #0d1514;
+  overflow: hidden;
+}
+
+.bw-kpi::after {
+  position: absolute;
+  right: 12px;
+  bottom: 10px;
+  width: 46px;
+  height: 10px;
+  content: "";
+  border-top: 1px solid rgb(102 227 208 / 28%);
+  border-right: 1px solid rgb(102 227 208 / 28%);
+}
+
+button.bw-kpi:hover,
+button.bw-kpi[aria-expanded="true"] {
+  box-shadow:
+    inset 0 0 0 1px var(--color-signal),
+    0 0 28px rgb(102 227 208 / 15%);
+}
+
+.bw-kpi__label,
+.metric span,
+th {
+  color: var(--color-signal);
+  font-family: "Cascadia Mono", Consolas, monospace;
+}
+
+.bw-kpi__value,
+.bw-lineage__value,
+.bw-lineage__node-value,
+.bw-lineage__assumption-value,
+.bw-lineage__cell--amount,
+.number {
+  color: var(--color-ivory);
+  font-family: "Bahnschrift", "Aptos", "Segoe UI Variable", sans-serif;
+}
+
+.bw-kpi--primary {
+  background:
+    linear-gradient(145deg, rgb(102 227 208 / 18%), transparent 54%),
+    #0d1716;
+}
+
+.bw-kpi--primary .bw-kpi__value,
+.bw-kpi--anchor .bw-kpi__value {
+  color: #dffcf5;
+}
+
+.bw-kpi--anchor {
+  background:
+    linear-gradient(145deg, rgb(102 227 208 / 18%), rgb(159 184 102 / 9%)),
+    #0c1713;
+}
+
+.bw-kpi--tight,
+.bw-kpi--review,
+.bw-review__toggle[aria-pressed="false"] {
+  background:
+    linear-gradient(145deg, rgb(255 117 104 / 22%), rgb(213 150 78 / 9%)),
+    #1b1010;
+}
+
+.bw-kpi--review .bw-kpi__label,
+.bw-kpi--review .bw-kpi__value {
+  color: #ffd3bd;
+}
+
+.summary-grid .metric,
+.cash-metrics .metric {
+  min-height: 92px;
+}
+
+.insight-grid {
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+}
+
+.insight-grid .table-panel {
+  grid-column: span 3;
+}
+
+.insight-grid .table-panel:first-child {
+  grid-column: span 4;
+}
+
+.detail-grid {
+  grid-template-columns: minmax(0, 1.45fr) minmax(280px, 0.85fr) minmax(280px, 0.8fr);
+}
+
+.table-panel,
+.budget-panel {
+  position: relative;
+  overflow: hidden;
+}
+
+.table-panel::before,
+.budget-panel::before {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 2px;
+  content: "";
+  background: linear-gradient(90deg, transparent, rgb(102 227 208 / 60%), transparent);
+  opacity: 0.72;
+}
+
+.table-wrap,
+.worksheet-preview,
+.bw-lineage-panel__body {
+  scrollbar-color: rgb(102 227 208 / 42%) rgb(255 255 255 / 5%);
+}
+
+table {
+  color: var(--color-ink-soft);
+}
+
+th,
+td,
+.head-list li,
+.account-list li,
+.diagnostics-list li,
+.issues li,
+.bw-lineage__assumption,
+.bw-lineage__excluded-item,
+.bw-lineage__node,
+.bw-lineage__cell,
+.budget-settings,
+.saved-rules,
+.mapping-preview,
+.bw-reassure,
+.coverage-list {
+  border-color: rgb(102 227 208 / 16%);
+}
+
+tr:hover td,
+.selected-row {
+  background: rgb(102 227 208 / 8%);
+}
+
+.bar,
+.forecast-bar,
+.revenue-bar {
+  background: linear-gradient(90deg, var(--color-signal), #9fb866);
+  box-shadow: 0 0 16px rgb(102 227 208 / 16%);
+}
+
+.outflow-bar {
+  background: linear-gradient(90deg, var(--color-warning), var(--color-hot));
+}
+
+.forecast-bar-track {
+  background: rgb(255 255 255 / 7%);
+}
+
+.budget-panel {
+  display: grid;
+  gap: 14px;
+  margin-top: 12px;
+  padding: 18px;
+  border: 1px solid rgb(102 227 208 / 19%);
+  border-radius: 8px;
+}
+
+.budget-table [data-budget-status="over"] td:last-child,
+.budget-table [data-budget-status="no-budget"] td:last-child {
+  color: var(--color-hot);
+}
+
+.budget-table [data-budget-status="on-track"] td:last-child,
+.budget-table [data-budget-status="under"] td:last-child {
+  color: var(--color-signal);
+}
+
+.bw-lineage-panel {
+  border-color: rgb(102 227 208 / 30%);
+  background:
+    linear-gradient(180deg, rgb(102 227 208 / 8%), transparent 30%),
+    #0b1110;
+}
+
+.bw-lineage-panel__bar {
+  border-color: rgb(102 227 208 / 18%);
+  background: rgb(8 14 13 / 96%);
+}
+
+.bw-lineage__formula {
+  color: var(--color-signal);
+  font-family: "Cascadia Mono", Consolas, monospace;
+}
+
+.bw-history__row {
+  background: var(--color-panel-soft);
+  border-color: rgb(102 227 208 / 18%);
+}
+
+.bw-history__source,
+.bw-history__runway {
+  color: var(--color-ivory);
+}
+
+.bw-welcome {
+  border-color: rgb(102 227 208 / 20%);
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 5%), rgb(255 255 255 / 2%)),
+    var(--color-panel);
+  color: var(--color-ink);
+}
+
+.bw-welcome--positive {
+  border-color: rgb(102 227 208 / 32%);
+}
+
+.bw-welcome--attention {
+  border-color: rgb(255 117 104 / 36%);
+}
+
+.bw-welcome--neutral {
+  border-color: rgb(242 231 191 / 16%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+@media (max-width: 980px) {
+  .insight-grid,
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .insight-grid .table-panel,
+  .insight-grid .table-panel:first-child {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 780px) {
+  .hero {
+    grid-template-columns: 1fr;
+    padding: 18px;
+  }
+
+  .hero-rail {
+    grid-template-columns: 1fr;
+  }
+
+  .shell-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .bw-appbar-load {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 520px) {
+  .shell {
+    width: min(100% - 28px, 1280px);
+  }
+
+  .shell-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .hero {
+    padding: 16px;
+  }
+
+  h1 {
+    font-size: clamp(2rem, 14vw, 3rem);
+  }
+
+  .bw-kpi {
+    min-height: 108px;
+  }
 }
 
 @media print {
