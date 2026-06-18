@@ -1,176 +1,168 @@
 # Design System - Billu.Works Dashboard V2
 
-Last updated: 2026-05-08
+Last updated: 2026-06-18
 
 ## Product Context
 
 - **What this is:** A privacy-first local finance dashboard for importing CSV and Excel exports, reviewing mappings, inspecting rejected rows, and producing accountant-safe summaries.
 - **Who it is for:** Freelancers, founders, small agencies, and reviewers who need clarity before trusting imported transaction data.
 - **Project type:** Data-heavy dashboard and import review tool.
-- **Trust promise:** The interface must feel calm, local, legible, and reviewable before it feels decorative.
+- **Trust promise:** The interface must feel local, legible, and reviewable before it feels decorative. Sci-fi atmosphere is welcome; it must never cost accountant-legibility.
 
 ## North Star
 
-**Soft financial cockpit.**
+**Orbital cash cockpit.**
 
-The primary visual reference is the soft widget dashboard saved at `docs/design-references/soft-widget-dashboard.png` and mirrored by the screenshot at `C:/Users/Bilal/Pictures/Screenshots/Screenshot 2026-04-29 220712.png`.
+The primary visual reference is the generated concept saved at `docs/design-references/orbital-cash-cockpit-concept.png`.
+
+Core phrase:
+
+> Functional sci-fi, accountant-legible, no purple AI slop, no white slab.
 
 This direction is not a clone target. It is a guide for atmosphere and component behavior:
 
-- pale sage and cream workspace
-- compact modular widgets
-- tactile controls that feel pressable
-- soft lifted surfaces with gentle shadows
-- sparse coral, muted orange, olive, and plum accents
-- dashboard information arranged like an instrument board
-- visual charts that are quiet, readable, and scannable
+- dark graphite command-deck canvas
+- warm ivory readouts as the primary data surface
+- phosphor-cyan signal lines for ready/action/positive states
+- amber caution states; coral review/danger states
+- dense, accountant-grade instrumentation arranged like a flight deck
+- quiet, readable charts with clear color coding
+- the feel of a creative operator who built a serious auditable finance cockpit — not toy neon, not generic SaaS dark mode
+
+The earlier "soft financial cockpit" (pale sage/cream) is retained only as a density and calm reference (`docs/design-references/soft-widget-dashboard.png`), not the active direction. See `docs/DESIGN_REFERENCES.md`.
 
 ## Aesthetic Direction
 
-- **Mood:** Calm, focused, lightly tactile, and accountant-safe.
-- **Density:** Compact but not cramped. The page should feel like a working dashboard, not a marketing site.
-- **Decoration level:** Intentional. Texture and glass are allowed only when they help hierarchy.
-- **Primary pattern:** Modular widgets on a soft sage canvas.
-- **Secondary pattern:** A future vertical action rail for formulas, exports, settings, and review utilities.
+- **Mood:** Serious, focused, lightly sci-fi, and accountant-safe.
+- **Density:** Dense but legible — a working command deck, not a marketing site.
+- **Decoration level:** Intentional. Scanlines, hairline grids, and glass are allowed only when they support hierarchy and never reduce readout legibility.
+- **Primary pattern:** Dark instrument panels with cyan hairline borders and ivory readouts.
+- **Secondary pattern:** A vertical action rail (Local command deck) for files, projects, formulas, and review utilities.
 
-Avoid the generic "premium SaaS analytics" look: large hero-first pages, oversized cards, one-note dark green, and broad glass panels everywhere.
+Avoid: purple/blue AI-gloss gradients, neon-for-neon's-sake, one-note cyan/green mud, and large white slabs.
 
 ## Color
 
-Use a restrained palette with sage as the environment, deep green as the trust anchor, and warm accents for data states.
+Dark graphite environment, ivory readouts, cyan as the signal anchor, amber/coral for data states. Hex values mirror the implemented tokens in `src/styles.css`.
 
 | Token | Hex | Usage |
 | --- | --- | --- |
-| Canvas | `#eef3e9` | Page background and dashboard workspace |
-| Panel | `#fffef8` | Main widgets, forms, and review cards |
-| Panel soft | `#f7f8ef` | Secondary widgets and quiet sections |
-| Ink | `#14382a` | Primary text and headings |
-| Ink soft | `#52635a` | Body copy and supporting labels |
-| Line | `#d9dfcf` | Borders, dividers, table rules |
-| Olive | `#899a3f` | Positive bars, selected states, steady health |
-| Coral | `#ee7064` | Alerts, rejected rows, negative or review-needed signals |
-| Orange | `#f0a24f` | Warning accents and pending states |
-| Plum | `#7b3d67` | Rare secondary accent for special categories |
-| Mint | `#dfeee4` | Revenue pills and positive chips |
-| Peach | `#f4ded1` | Outflow pills and light warning surfaces |
+| Canvas | `#070b0c` | Page background / deck |
+| Panel | `#111915` | Main panels, forms, review cards |
+| Panel soft | `#17221d` | Secondary panels and quiet sections |
+| Deck raised | `#121b18` | Lifted instrument surfaces |
+| Line | `#26352f` | Borders, dividers, table rules |
+| Ink (ivory) | `#f5f0df` | Primary text and headings |
+| Ink soft | `#c7c2ad` | Body copy and supporting labels |
+| Muted | `#858b86` | Lowest-contrast supporting text (body size only) |
+| Ivory readout | `#f2e7bf` | Hero/headline readouts |
+| Signal (cyan) | `#5fd4c6` / `#66e3d0` | Ready/action/positive, signal lines, primary buttons |
+| Amber | `#d5964e` / `#f1aa55` | Caution, non-operating, Apply states |
+| Coral | `#ff7568` | Review-needed, rejected rows, danger |
+| Olive | `#9fb866` | Steady/positive secondary marks |
 
 Rules:
 
-- Sage/cream should dominate the page.
-- Deep green should carry trust and primary actions.
-- Accents should appear in small data elements, chart marks, warning blocks, and selected states.
-- Do not use purple-blue gradients, neon dark mode, or saturated marketing colors.
+- Dark graphite should dominate; ivory carries the readouts.
+- Cyan = signal/ready/action. Amber = caution/non-operating/apply. Coral = review/danger.
+- Keep accents distinct — don't let everything collapse into one cyan/green note.
+- Do not use purple-blue AI gradients or saturated marketing colors.
 
 ## Typography
 
-The current app uses an Inter fallback stack. The design direction should move toward a less generic system when the visual redesign starts.
+The app uses a Windows-native sans stack with a mono accent for instrument labels and audit numerics.
 
-- **Display:** `Satoshi` or `General Sans` - strong, modern, softer than default system UI.
-- **Body/UI:** `DM Sans` or `Geist` - readable at compact dashboard sizes.
-- **Data/Tables:** `Geist` with tabular numbers, or `IBM Plex Mono` for narrow numeric/audit fields.
-- **Fallback:** Existing system stack is acceptable until fonts are deliberately installed.
+- **Display/UI:** `Bahnschrift`, `Aptos`, `Segoe UI Variable`, `Segoe UI`, then system sans.
+- **Mono/labels/audit:** `Cascadia Mono`, `IBM Plex Mono`, `Consolas` for the eyebrow, instrument labels, and narrow numeric/audit fields.
+- **Numerals:** prefer tabular numbers for KPI readouts and tables.
 
 Type rules:
 
-- Use hero-scale text only in the intro area.
-- Widget headings should be compact, usually `0.9rem` to `1rem`.
-- Labels should be uppercase, small, and spaced by color/weight rather than letter-spacing tricks.
-- Tables and audit details must prioritize readability over style.
+- Hero-scale text only in the intro/readout area.
+- Instrument labels are uppercase, small, with light letter-spacing (~0.05em).
+- Tables and audit details prioritize readability over style.
 
 ## Layout
 
-Use a dashboard-first layout, not a landing page layout.
+Dashboard-first, not landing-page.
 
-- **Desktop max width:** around `1120px` to `1240px`.
-- **Grid:** modular widget grid with mixed spans, similar to the reference board.
-- **First viewport:** the import controls and privacy promise should be visible quickly. Do not let a giant hero push the product out of view.
-- **Cards:** use cards only for widgets, repeated panels, and review surfaces. Avoid cards inside cards.
-- **Right rail:** reserve room conceptually for a future utility rail with icons/actions.
-- **Tables:** keep transaction preview and raw audit surfaces flatter, wider, and more utilitarian than metric widgets.
+- **Desktop max width:** ~`1120px` to `1280px`.
+- **Grid target:** a multi-column instrument board (as in the concept). The current pass is a single-column vertical stack; densifying into a real grid is the main outstanding layout gap.
+- **First viewport:** import controls and the privacy/command-deck rail visible quickly; the hero must not bury the workflow.
+- **Tables:** keep transaction preview and raw audit surfaces flatter, wider, and more utilitarian than metric panels.
 
-Suggested dashboard hierarchy after import:
+Suggested hierarchy after import:
 
 1. Import/mapping command strip.
-2. Filter and review-preset control band.
-3. Compact KPI widgets.
-4. Forecast and trend widgets.
-5. Top heads, accounts, subcategories, and data quality widgets.
-6. Transaction preview, transaction detail, and import quality audit surfaces.
+2. Readiness/trust strip + filter band.
+3. Cockpit KPI readouts (primary).
+4. Forecast and trend instruments.
+5. Top heads, accounts, subcategories, data-quality panels.
+6. Transaction preview, detail, and import-quality audit surfaces.
 
 ## Surfaces
 
-### Soft Widgets
+### Instrument Panels
 
-Use for metrics, forecast, trend, top heads, account balances, and warning summaries.
+Use for metrics, forecast, trend, top heads, account balances, readiness.
 
-- Background: warm white or soft panel tint.
-- Border: subtle sage line.
-- Shadow: soft lift, never heavy.
+- Background: dark panel tint (`#111915` / `#17221d`).
+- Border: cyan hairline (`--color-line` with low-opacity cyan accents).
+- Shadow: deep but soft; inset top highlight for a lifted glass feel.
 - Radius: `8px` by default.
-- Internal spacing: compact and deliberate.
 
 ### Tactile Controls
 
-Use for file upload, sample loading, filter chips, export buttons, toggles, and selected drilldowns.
+Use for file upload, sample loading, filter chips, export buttons, toggles, drilldowns.
 
-- Primary button: deep green fill with white text.
-- Secondary button: panel background with deep green border.
-- Active chip: mint/sage fill with deep green text.
-- Disabled chip: low contrast, clearly inactive.
+- Primary button: cyan fill / dark ink, or dark fill with cyan border + cyan text.
+- Apply/caution actions may use amber.
+- Active chip: cyan/amber tint with legible ink.
 - Hover: small lift or stronger border, not dramatic animation.
 
 ### Audit Surfaces
 
-Use for mapping review, transaction table, rejected rows, and raw row details.
+Use for mapping review, transaction tables, rejected rows, raw row details.
 
-- Keep backgrounds flatter.
-- Avoid glass blur.
-- Preserve high contrast.
-- Make horizontal scrolling acceptable for transaction tables on mobile.
-- Use compact rows, clear dividers, and stable columns.
+- Keep backgrounds flatter than instrument panels.
+- Preserve high contrast; do not let glass/scanline texture wash out values.
+- Compact rows, clear dividers, stable columns; horizontal scroll acceptable on mobile.
 
 ## Data Visualization
 
-The reference uses small, friendly charts with minimal axes and clear color coding. Billu.Works should do the same.
-
-- Bars should be rounded, slim, and muted.
-- Revenue: olive/deep green.
-- Outflow: coral/orange.
-- Warnings: peach/coral.
-- Forecast: cumulative bars with quiet tracks.
+- Bars rounded, slim, on quiet dark tracks.
+- Revenue/positive: cyan/olive. Outflow: amber/coral. Warnings: amber/coral.
+- Forecast: cumulative bars/lines with quiet tracks.
 - Avoid chart chrome that competes with the import-review workflow.
 
 ## Motion
 
 - **Approach:** Minimal-functional.
 - **Use motion for:** hover lift, selected states, panel reveal, filter updates.
-- **Avoid:** bouncy transitions, complex scroll choreography, or animated decoration.
-- **Durations:** `120ms` for controls, `180ms` to `240ms` for panel changes.
+- **Avoid:** bouncy transitions, scroll choreography, animated decoration.
+- **Durations:** `120ms` for controls, `180ms`–`240ms` for panel changes.
 
 ## Implementation Guardrails
 
 - Read this file before making visual UI changes.
-- Do not build dashboard UI blindly from generic dashboard instincts.
-- Use `docs/DESIGN_REFERENCES.md` for source references and this file for rules.
-- Treat `src/styles.css` as provisional until it is reconciled with this design system.
-- Keep pet/mascot assets out of dashboard design unless explicitly requested.
+- Cyan/amber/coral/ivory legend is canonical — keep states consistent.
+- The current `src/styles.css` carries an "Orbital cockpit visual pass" appended over the prior light theme. This is the active direction, but a follow-up should consolidate the superseded light-theme rules into a single token set per component.
+- Preserve flat, readable audit tables; never trade legibility for flair.
 - Browser-check desktop and mobile after every meaningful visual change.
 
 ## Current Fit Notes
 
-The app already has strong functional surfaces: mapping review, filters, exports, forecast, diagnostics, transaction preview, and import quality. The next visual pass should keep those behaviors and restyle the shell toward the soft widget board:
+The orbital reskin is shipped at the CSS layer across shell, hero, import/mapping, cockpit KPIs, readiness, filters, exports, settings, budget, forecast, tables, diagnostics, transaction detail, and lineage drawer. Outstanding work toward the north star:
 
-- reduce oversized hero dominance
-- make import controls feel like a command strip
-- introduce a more modular widget grid
-- use tactile chips/toggles/buttons
-- preserve flat, readable audit tables
-- consider a right-side utility rail later
+- densify the single-column stack into a multi-column instrument board
+- polish hero headline wrapping
+- consolidate the dual token sets / superseded light rules
 
 ## Decisions Log
 
 | Date | Decision | Rationale |
 | --- | --- | --- |
-| 2026-05-08 | Set north star to "Soft financial cockpit" | User confirmed the soft widget screenshot and May 5 notes are the reference guide for future UI work. |
-| 2026-05-08 | Keep liquid/glass as an accent only | The product needs accountant-safe readability, so glass should support controls and selected states rather than cover audit surfaces. |
-| 2026-05-08 | Treat current CSS pass as provisional | The previous pass was useful but not grounded tightly enough in the screenshot reference. |
+| 2026-06-18 | Reset north star to "Orbital cash cockpit" | First full visual redesign pass (Codex) reviewed and accepted; dark graphite + ivory/cyan/amber/coral replaces the soft sage/cream direction. Concept ref: `docs/design-references/orbital-cash-cockpit-concept.png`. |
+| 2026-06-18 | Keep soft-widget refs as density/calm references only | The prior soft direction still informs compactness and calm, but is no longer the active visual target. |
+| 2026-06-18 | Accept the appended CSS visual pass for this phase | Reskin-by-cascade is acceptable to avoid renderer refactors now; a later slice should consolidate tokens/classes. |
+| 2026-05-08 | (Superseded) Set north star to "Soft financial cockpit" | Original soft sage/cream direction; superseded 2026-06-18. |
