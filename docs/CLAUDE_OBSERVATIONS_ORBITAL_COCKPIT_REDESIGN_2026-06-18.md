@@ -85,4 +85,18 @@ exercised.
 3. Backlog (separate slices): hero headline polish; CSS token/class consolidation; eventual
    multi-column instrument-board layout to close the gap with the concept.
 
+## Update 2026-06-18 — forecast chart shipped (gap resolved)
+
+The biggest gap flagged in follow-up review — the app had **no real charts** (0 `<svg>` /
+0 `<canvas>`; everything chart-like was CSS bars) — is now closed. Codex added a real
+accessible SVG 13-week forecast line+area chart (`src/ui/forecast-renderers.ts`,
+`renderForecastChart`): viewBox-responsive, cyan line + area, amber zero-cash floor line,
+ivory point + amber event markers with `<title>` tooltips, Y/X axis labels, `role="img"` +
+`aria-labelledby` title/desc, all dynamic values escaped, fully token-driven CSS. Reviewed,
+rendered, and verified desktop + mobile in the dark theme; tsc 0, vitest 523, e2e 26, build
+green. Verdict: ship-ready, no blocking issues.
+
+Remaining concept-gap items unchanged: runway gauge, multi-column instrument-board layout,
+hero polish, CSS consolidation.
+
 — Claude
