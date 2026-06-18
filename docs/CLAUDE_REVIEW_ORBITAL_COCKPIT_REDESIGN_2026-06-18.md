@@ -34,11 +34,20 @@ Primary implementation:
   - Replaced light soft-finance tokens with dark cockpit tokens.
   - Added an "Orbital cockpit visual pass" layer near the end of the stylesheet.
   - Restyled shell, hero, import panels, mapping review, cockpit KPI tiles, readiness widget, filters, exports, settings, budget, forecast, tables, diagnostics, transaction detail, and lineage drawer.
+  - Added cockpit styling for a real in-app SVG forecast chart.
   - Added mobile fixes after screenshot QA caught hero/action rail overlap.
 
 - `src/ui/app-shell.ts`
   - Repositioned first-run copy from "private import foundation" toward "auditable cash cockpit".
   - Privacy remains explicit but no longer owns the whole story.
+
+- `src/ui/forecast-renderers.ts`
+  - Added an accessible inline SVG line/area chart for the 13-week forecast.
+  - Keeps the existing weekly bar list beneath it as the exact forecast trail.
+  - Adds event markers for weeks with manual/expected income impact.
+
+- `src/ui/forecast-renderers.test.ts`
+  - Covers SVG rendering, event markers, and escaping.
 
 - `docs/DESIGN_REFERENCES.md`
   - Updated design direction from "soft financial cockpit" to "orbital cash cockpit".
@@ -66,10 +75,12 @@ All green after the redesign:
 | Gate | Result |
 | --- | --- |
 | `npx tsc --noEmit` | Pass |
-| `npx vitest run` | 520 passed |
+| `npx vitest run` | 523 passed |
 | `npm run build` | Pass |
 | `npx playwright test --workers=1` | 26 passed |
 | `git diff --check` | Clean, only CRLF warnings |
+
+After Claude's first observation pass, Codex added the real in-app forecast SVG chart and reran the full gate above.
 
 Manual screenshot QA was also done for:
 
@@ -77,6 +88,7 @@ Manual screenshot QA was also done for:
 - sample CSV mapping review
 - imported dashboard cockpit
 - mobile first-run layout
+- focused forecast chart panel
 
 The first mobile pass had hero overlap; Codex fixed it by restoring one-column hero behavior under `780px`.
 
@@ -113,6 +125,12 @@ Please review with a design + product lens first, then code quality second.
    - The redesign is currently a late stylesheet layer to avoid refactoring renderers.
    - Decide whether that is acceptable for this phase, or whether a follow-up should consolidate tokens/classes.
    - Do not do a giant CSS cleanup in the review unless it is necessary to fix a real defect.
+
+7. **Check the new forecast SVG.**
+   - Confirm it is readable in dark mode.
+   - Confirm the line chart complements rather than duplicates the weekly forecast bars.
+   - Confirm event markers and accessible title/description are sensible.
+   - Decide whether runway gauge should be the next visual slice, not part of this review unless tiny.
 
 ## Suggested Manual QA Script
 
@@ -182,4 +200,3 @@ Please come back with:
 Suggested review doc if you write one:
 
 - `docs/CLAUDE_OBSERVATIONS_ORBITAL_COCKPIT_REDESIGN_2026-06-18.md`
-

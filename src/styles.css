@@ -870,6 +870,90 @@ button:disabled {
   gap: 9px;
 }
 
+.forecast-chart {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: end;
+  margin: 0;
+}
+
+.forecast-chart svg {
+  width: 100%;
+  min-height: 220px;
+}
+
+.forecast-chart figcaption {
+  display: grid;
+  min-width: 150px;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: var(--color-panel-soft);
+}
+
+.forecast-chart figcaption strong {
+  color: var(--color-primary-strong);
+  font-size: 1.1rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.forecast-chart figcaption span {
+  color: var(--color-muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.forecast-chart__frame {
+  fill: var(--color-panel-soft);
+  stroke: var(--color-line);
+}
+
+.forecast-chart__gridline {
+  stroke: var(--color-line);
+  stroke-opacity: 0.9;
+}
+
+.forecast-chart__zero {
+  stroke: var(--color-accent);
+  stroke-dasharray: 5 6;
+  stroke-width: 1.5;
+}
+
+.forecast-chart__area {
+  fill: color-mix(in srgb, var(--color-primary) 20%, transparent);
+}
+
+.forecast-chart__line {
+  fill: none;
+  stroke: var(--color-primary);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 4;
+}
+
+.forecast-chart__point {
+  fill: var(--color-primary-strong);
+  stroke: var(--color-panel);
+  stroke-width: 2;
+}
+
+.forecast-chart__event {
+  fill: var(--color-accent);
+  stroke: var(--color-panel);
+  stroke-width: 2;
+}
+
+.forecast-chart__x-label,
+.forecast-chart__y-label,
+.forecast-chart__empty {
+  fill: var(--color-muted);
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .forecast-week {
   display: grid;
   grid-template-columns: 130px minmax(0, 1fr) 110px;
@@ -2103,6 +2187,14 @@ th.bw-lineage__cell {
     grid-template-columns: 1fr;
   }
 
+  .forecast-chart {
+    grid-template-columns: 1fr;
+  }
+
+  .forecast-chart figcaption {
+    min-width: 0;
+  }
+
   .detail-grid .table-panel:nth-child(2) {
     border: 1px solid var(--color-line);
     background: var(--color-panel);
@@ -2857,6 +2949,55 @@ tr:hover td,
 
 .forecast-bar-track {
   background: rgb(255 255 255 / 7%);
+}
+
+.forecast-chart figcaption {
+  border-color: rgb(102 227 208 / 20%);
+  background:
+    linear-gradient(145deg, rgb(102 227 208 / 10%), transparent 58%),
+    var(--color-panel-soft);
+}
+
+.forecast-chart figcaption strong {
+  color: var(--color-ivory);
+}
+
+.forecast-chart__frame {
+  fill: #0b1211;
+  stroke: rgb(102 227 208 / 22%);
+}
+
+.forecast-chart__gridline {
+  stroke: rgb(102 227 208 / 12%);
+}
+
+.forecast-chart__zero {
+  stroke: rgb(213 150 78 / 68%);
+}
+
+.forecast-chart__area {
+  fill: rgb(102 227 208 / 12%);
+}
+
+.forecast-chart__line {
+  stroke: var(--color-signal);
+  filter: drop-shadow(0 0 8px rgb(102 227 208 / 28%));
+}
+
+.forecast-chart__point {
+  fill: var(--color-ivory);
+  stroke: #0b1211;
+}
+
+.forecast-chart__event {
+  fill: var(--color-warning);
+  stroke: #0b1211;
+}
+
+.forecast-chart__x-label,
+.forecast-chart__y-label,
+.forecast-chart__empty {
+  fill: var(--color-muted);
 }
 
 .budget-panel {
